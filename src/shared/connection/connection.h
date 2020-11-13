@@ -3,7 +3,7 @@
 
 // Simple tutorial to get started
 // https://www.geeksforgeeks.org/socket-programming-cc/
-
+// https://www.tutorialspoint.com/cplusplus/cpp_interfaces.htm
 #include "shared/connection/meta/state.h"
 
 class Connection {
@@ -12,11 +12,11 @@ public:
     ~Connection();
     
     /** Returns true if connection succes, otherwise false */
-    bool connect();
+    virtual bool connect() = 0;
 
     /** Returns type of connection we make */
-    ConnectionType type();
+    virtual ConnectionType type() = 0;
     /** Returns current state of the connection */
-    ConnectionState state();
+    virtual ConnectionState state() = 0;
 };
 #endif
