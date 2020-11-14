@@ -7,9 +7,9 @@
 // (TODO: Fetch integer values for types and assign them to enum vals)
 // https://www.geeksforgeeks.org/socket-programming-cc/
 enum ConnectionType {
-    AF_INET, // (IPv4 protocol)
-    AF_INET6, // (IPv6 protocol)
-    SOCK_STREAM, // TCP
-    SOCK_DGRAM // UDP
+    AF_INET_T, // (IPv4 protocol)
+    AF_INET6_T, // (IPv6 protocol)
+    SOCK_STREAM_T, // TCP
+    SOCK_DGRAM_T // UDP
 };
 #endif

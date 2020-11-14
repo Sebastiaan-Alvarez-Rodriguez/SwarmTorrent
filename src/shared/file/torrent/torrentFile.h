@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "trackerTable.h"
+
 
 // Object responsible for reading and writing (.st) torrent files
 class TorrentFile {
@@ -21,5 +23,9 @@ public:
 
 protected:
     std::string path;
+
+private:
+    TrackerTable trackertable;
+    //FileInfo?
 };
 #endif

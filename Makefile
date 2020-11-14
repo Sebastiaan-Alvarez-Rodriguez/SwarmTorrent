@@ -26,10 +26,10 @@ CXXFASTFLAGS = $(IDIRS) -std=c++17 \
 	-fno-trapping-math \
 	-funroll-loops
 
-find = $(shell find $1 -type f -path $3 -name $2 -print 2>/dev/null)
+find = $(shell find $1 -type f ! -path $3 -name $2 -print 2>/dev/null)
 
-TRACKERSRCS := $(call find, $(SRC)/, "*.cpp", "*/tracker/*")
-PEERSRCS := $(call find, $(SRC)/, "*.cpp", "*/peer/*")
+TRACKERSRCS := $(call find, $(SRC)/, "*.cpp", "*/peer/*")
+PEERSRCS := $(call find, $(SRC)/, "*.cpp", "*/tracker/*")
 TRACKEROBJECTS := $(TRACKERSRCS:%.cpp=$(OBJS)/%.o)
 PEEROBJECTS := $(PEERSRCS:%.cpp=$(OBJS)/%.o)
 
