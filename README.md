@@ -16,7 +16,9 @@ Connections:
 
 Files:
  1. Make basic tracker-table implementation in [`/src/shared/torrent`](/src/shared/torrent), so peers can connect to trackers. Make table binary preferably.
+ 1. Define the 'file fragments'
  1. Make checksum table for file fragments
+ 1. Create the rest of the file: (advisory) name, length
  1. (Bonus) Make basic filestructure description, so we can send a directory instead of just 1 file.
 
 ## Peers
@@ -31,7 +33,17 @@ A peer seeds any received file **fragments** to other peers in the network which
 ## Trackers
 A tracker server is in charge of providing information to the swarm.
 When a peer reads a *.st* file, it contains a table of tracker servers.
-When peers connect to a tracker, the tracker is responsible for providing the tracker with a list of peers that are in possesion of some parts of the file.
+When peers connect to a tracker, the tracker is responsible for providing the tracker with a list of peers that are in possesion of some parts of the file
+
+## SwarmTorrent file
+The SwarmTorrent (*.st*) file contains information on the file to be seeded/ leeched and the tracker servers.
+This fileformat is based on the BitTorrent protocol from: https://www.bittorrent.org/beps/bep_0003.html.
+SwarmTorrent has the following content: 
+ 1. Tracker Table: contains information required to set up a socket with the trackers
+ 1. Name: suggested name to save the file (advisory)
+ 1. Length: the total size of the file in bytes
+ 1. Fragment Length: the size in bytes of one fragment
+ 1. Fragments: the SHA2's for every fragment
 
 ## Considerations
 
