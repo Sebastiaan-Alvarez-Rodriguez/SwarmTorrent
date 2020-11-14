@@ -37,7 +37,7 @@ When peers connect to a tracker, the tracker is responsible for providing the tr
 
 ## SwarmTorrent file
 The SwarmTorrent (*.st*) file contains information on the file to be seeded/ leeched and the tracker servers.
-This fileformat is based on the BitTorrent protocol from: https://www.bittorrent.org/beps/bep_0003.html
+This fileformat is based on the BitTorrent protocol from: https://www.bittorrent.org/beps/bep_0003.html.
 SwarmTorrent has the following content: 
  1. Tracker Table: contains information required to set up a socket with the trackers
  1. Name: suggested name to save the file (advisory)
