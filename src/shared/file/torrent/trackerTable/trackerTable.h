@@ -3,15 +3,15 @@
 
 #include <vector>
 #include <string>
-#include <utility>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "../../connection/meta/type.h"
+#include "../../../connection/meta/type.h"
+#include "../swarmTorrentWriter.h"
 #include "tracker_ip.h"
-#include "swarmTorrentWriter.h"
+
 
 
 class TrackerTable : public SwarmTorrentWriter {

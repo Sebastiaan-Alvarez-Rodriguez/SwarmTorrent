@@ -1,8 +1,8 @@
 #include <iostream>
 #include <netinet/in.h>
 
-#include "../../connection/meta/type.h"
-#include "swarmTorrentWriter.h"
+#include "../../../connection/meta/type.h"
+#include "../swarmTorrentWriter.h"
 
 struct Tracker_IP : public SwarmTorrentWriter {
     ConnectionType sin_family;
