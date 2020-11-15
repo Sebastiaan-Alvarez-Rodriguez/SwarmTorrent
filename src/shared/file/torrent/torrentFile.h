@@ -26,7 +26,7 @@ public:
     //Returns the size of the file in bytes
     unsigned get_file_size() const { return length; }; 
     //Returns the number of fragments the file has
-    unsigned get_nr_fragments() const { return length / fragment_length; };
+    unsigned get_nr_fragments() const { return ((length-1) / fragment_length) + 1; };
     //Returns the size of the fragments in bytes
     unsigned get_fragment_size() const { return fragment_length; };
     //Returns if the peer has enough fragments to start seeding

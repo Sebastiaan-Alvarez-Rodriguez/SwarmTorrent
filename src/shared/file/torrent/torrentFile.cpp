@@ -8,7 +8,7 @@ TorrentFile::TorrentFile(std::string path) {
     std::ifstream swarmtorrent; 
     swarmtorrent.open(path, std::ios::binary);
     if (!swarmtorrent.is_open())
-        throw std::runtime_error("File does not exist");
+        throw std::runtime_error("There was an error opening this file");
 
     trackertable.read_swarm(swarmtorrent);
     unsigned name_length;
