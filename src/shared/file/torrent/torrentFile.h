@@ -30,7 +30,7 @@ public:
     //Returns the size of the fragments in bytes
     unsigned get_fragment_size() const { return fragment_length; };
     //Returns if the peer has enough fragments to start seeding
-    bool can_seed(unsigned nr_fragments) const { return nr_fragments >= seed_threshold; };
+    bool can_seed(unsigned nr_fragments) const { return nr_fragments > seed_threshold; };
     //Check if the hash is equal to the hash at the given index of the hashtable
     bool check_hash(unsigned index, std::string hash) const { return hashtable.check_hash(index, hash);};
 protected:

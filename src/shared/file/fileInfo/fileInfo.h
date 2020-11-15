@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "../torrent/torrentFile.h"
+#include "../../../util/filesystem.h"
 
 #define KB(x) ((size_t) (x) << 10)
 #define MB(x) ((size_t) (x) << 20)
@@ -30,7 +31,13 @@ public:
     //Returns true if a fragment at index has been received, else false
     bool has_fragment(unsigned index) const {return received.at(index);};
     //Set the fragment status of fragment at index to received
-    void set_received(unsigned index) {received.at(index) = true;};
+    void set_received(unsigned index) {received.at(index) = true; ++nr_fragments;};
+    //Returns a constant reference to the torrentfile
+    const TorrentFile& get_torrentfile() const {return torrentfile;};
+    //Returns the path to write fragments to
+    const std::string& get_path() const {return path;};
+    //Returns the number of fragments received
+    unsigned get_nr_fragments() const {return nr_fragments;};
 
 private:
     //TorrentFile associated with file
@@ -39,6 +46,8 @@ private:
     std::vector<bool> received;
     //Path to write fragments to
     std::string path;
+    //Number of received fragments
+    unsigned nr_fragments = 0;
 };
 
 #endif
