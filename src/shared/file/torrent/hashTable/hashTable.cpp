@@ -7,7 +7,7 @@ bool HashTable::add_hash(std::string hash) {
     return true;
 }
 
-void HashTable::write_swarm(std::ostream& os) {
+void HashTable::write_swarm(std::ostream& os) const {
     os.write((char*)(&hash_type), sizeof(hash_type));
     unsigned size = hashes.size();
     os.write((char*)(&size), sizeof(size));
@@ -22,4 +22,8 @@ void HashTable::read_swarm(std::istream& is) {
     hashes.resize(size);
     for (unsigned i = 0; i < size; ++i)
         is.read((char*)hashes[i].data(), hash_type);
+}
+
+bool HashTable::check_hash(unsigned index, std::string hash) const {
+    return hash == hashes.at(index);
 }

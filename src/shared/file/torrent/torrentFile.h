@@ -9,27 +9,35 @@
 // Object responsible for reading and writing (.st) torrent files
 class TorrentFile {
 public:
-    /** Constructs torrentfile by providing a path. Path should point to a .st file */
+    //Constructs torrentfile by providing a path. Path should point to a .st file 
     TorrentFile(std::string path);
-    /** Constructs torrentfile by providing base information */
+    //Constructs torrentfile by providing base information 
     TorrentFile(std::string name, unsigned length, unsigned fragment_length, unsigned seed_threshold) : name(name), length(length), fragment_length(fragment_length), seed_threshold(seed_threshold) {};
-    /** Constructs torrentfile by providing full information */
+    // Constructs torrentfile by providing full information 
     TorrentFile(TrackerTable& trackertable, std::string name, unsigned length, unsigned fragment_length, unsigned seed_threshold, HashTable hashtable) : trackertable(trackertable), name(name), length(length), fragment_length(fragment_length), seed_threshold(seed_threshold), hashtable(hashtable) {};
-    ~TorrentFile();
-    
-    // TODO: Decide whether we let other objects decide when to read...
-    //      Proposal: Read all data in data structures at ones.
-    //      Reason: Users can delete .torrent files after it has been read
-    // bool read(); --> done by constructor
-    // bool write(); 
 
-    // TODO: Write members here to fetch data parts (e.g. "get checksum for file X, chunk Y", get trackerlist)
+    //Write the contents of the TorrentFile 
+    void write(std::string path);
 
+    //Returns a constant reference to the trackertable
+    const TrackerTable& get_trackertable() const { return trackertable; };
+    //Returns the suggested name to save the file
+    std::string get_advise_name() const { return name; };
+    //Returns the size of the file in bytes
+    unsigned get_file_size() const { return length; }; 
+    //Returns the number of fragments the file has
+    unsigned get_nr_fragments() const { return length / fragment_length; };
+    //Returns the size of the fragments in bytes
+    unsigned get_fragment_size() const { return fragment_length; };
+    //Returns if the peer has enough fragments to start seeding
+    bool can_seed(unsigned nr_fragments) const { return nr_fragments >= seed_threshold; };
+    //Check if the hash is equal to the hash at the given index of the hashtable
+    bool check_hash(unsigned index, std::string hash) const { return hashtable.check_hash(index, hash);};
 protected:
+    //SwarmTorrent file currently associated with object
     std::string path;
 
 private:
-    //TODO: convert 'loose info' to FileInfo class?
     //Contains information required to setup a socket with the trackers
     TrackerTable trackertable;
     //Suggested name to save the file (advisory)

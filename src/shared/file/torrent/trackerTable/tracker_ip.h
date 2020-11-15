@@ -14,7 +14,7 @@ struct Tracker_IP : public SwarmTorrentWriter {
     Tracker_IP(ConnectionType _f, ConnectionType _s, struct in_addr _a, unsigned short _p) : sin_family(_f), socket_type(_s), addr(_a), sin_port(_p) {}
 
     //Read and write to a SwarmTorrent file
-    void write_swarm(std::ostream& os) override;
+    void write_swarm(std::ostream& os) const override;
     void read_swarm(std::istream& is) override;
 };
 

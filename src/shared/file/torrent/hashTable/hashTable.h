@@ -18,9 +18,11 @@ public:
     //Adds a hash to the table, if the size conforms to the hash type
     //Returns if success
     bool add_hash(std::string hash);
+    //Check if the hash is equal to the hash at the given index of the hashtable
+    bool check_hash(unsigned index, std::string hash) const; 
 
     //Reads and writes the hashtable to a SwarmTorrent file
-    void write_swarm(std::ostream& os) override;
+    void write_swarm(std::ostream& os) const override;
     void read_swarm(std::istream& is) override;
 
 private: 

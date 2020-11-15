@@ -33,7 +33,7 @@ public:
     void remove_tracker(struct in_addr tracker_ip);
 
     //Read and write to a SwarmTorrent file
-    void write_swarm(std::ostream& os) override;
+    void write_swarm(std::ostream& os) const override;
     void read_swarm(std::istream& is) override;
 private: 
     std::vector<Tracker_IP> trackers;
