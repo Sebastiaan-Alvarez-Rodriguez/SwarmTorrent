@@ -25,7 +25,17 @@ protected:
     std::string path;
 
 private:
+    //Contains information required to setup a socket with the trackers
     TrackerTable trackertable;
-    //FileInfo?
+    //Suggested name to save the file (advisory)
+    std::string name;
+    //Total size of the file in bytes
+    unsigned length;
+    //Size in bytes for one fragment
+    unsigned fragment_length;
+    //Number of fragments required to start seeding
+    unsigned seed_threshold;
+    //SHA2's for every fragment
+    //TODO:
 };
 #endif

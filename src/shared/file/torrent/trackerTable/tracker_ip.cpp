@@ -2,7 +2,7 @@
 
 #include "tracker_ip.h"
 
-//note, should ConnectionType be expanend, 
+//Note, should ConnectionType be expanend, 
 //then the ternary statements should change to switch statements
 static uint8_t pack(ConnectionType sin_family, ConnectionType socket_type) {
     uint8_t return_code = 0b00000000;
@@ -11,7 +11,7 @@ static uint8_t pack(ConnectionType sin_family, ConnectionType socket_type) {
     return return_code | MASK1 | MASK2;
 }
 
-//note, should ConnectionType be expanend, then the ternary statements should change 
+//Note, should ConnectionType be expanend, then the ternary statements should change 
 static void unpack(ConnectionType* sin_family, ConnectionType* socket_type, uint8_t byte) {
     uint8_t MASK1 = 0b00000001;
     uint8_t MASK2 = 0b00000010;

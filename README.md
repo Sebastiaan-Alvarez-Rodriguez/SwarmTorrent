@@ -43,6 +43,7 @@ SwarmTorrent has the following content:
  1. Name: suggested name to save the file (advisory)
  1. Length: the total size of the file in bytes
  1. Fragment Length: the size in bytes of one fragment
+ 1. Seed Threshold: the number of fragments required to start seeding
  1. Fragments: the SHA2's for every fragment
 
 ## Considerations
