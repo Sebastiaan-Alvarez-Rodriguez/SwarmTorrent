@@ -16,7 +16,7 @@ Connections:
 
 Files:
  1. Implement the SwarmTorrent file structures (IMPLEMENTED) (NOT TESTED)
- 1. Implement To-Torrent-File structures to split a file into Fragments, create hashes and to keep track of the received fragments (NOT STARTED)
+ 1. Implement FileInfo structures to split a file into Fragments and to keep track of the received fragments (IMPLEMENTED) (NOT TESTED)
  1. (Bonus) Make basic filestructure description, so we can send a directory instead of just 1 file. (NOT STARTED)
 
 ## Peers
