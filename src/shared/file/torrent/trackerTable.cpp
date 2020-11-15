@@ -30,19 +30,17 @@ void TrackerTable::remove_tracker(struct in_addr tracker_ip) {
     trackers.erase(std::remove_if(trackers.begin(), trackers.end(), [tracker_ip](const Tracker_IP& t) -> bool{return t.addr.s_addr == tracker_ip.s_addr;}), trackers.end());
 }
 
-std::ostream& operator<<(std::ostream& os, const TrackerTable& trackerTable) {
-    unsigned size = trackerTable.trackers.size();
+void TrackerTable::write_swarm(std::ostream& os) {
+    unsigned size = trackers.size();
     os.write((char*)(&size), sizeof(size));
-    for (auto tracker : trackerTable.trackers) 
-        os << tracker;
-    return os;
+    for (auto tracker : trackers) 
+        tracker.write_swarm(os);
 }
 
-std::istream& operator>>(std::istream& is, TrackerTable& trackerTable) {
+void TrackerTable::read_swarm(std::istream& is) {
     unsigned size; 
     is.read((char*)(&size), sizeof(size));
-    trackerTable.trackers.resize(size);
+    trackers.resize(size);
     for (unsigned i = 0; i < size; ++i)
-        is >> trackerTable.trackers[i];
-    return is;
+        trackers[i].read_swarm(is);
 }  

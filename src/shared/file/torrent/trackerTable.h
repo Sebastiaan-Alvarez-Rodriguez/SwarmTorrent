@@ -11,9 +11,10 @@
 
 #include "../../connection/meta/type.h"
 #include "tracker_ip.h"
+#include "swarmTorrentWriter.h"
 
 
-class TrackerTable {
+class TrackerTable : public SwarmTorrentWriter {
 public:
     TrackerTable(){};
     TrackerTable(std::vector<Tracker_IP>& trackers) {this->trackers = trackers;};
@@ -31,9 +32,9 @@ public:
     //removes the IP address of the tracker from the table
     void remove_tracker(struct in_addr tracker_ip);
 
-    //read and write the TrackerTable class in byte format
-    friend std::ostream& operator<<(std::ostream& os, const TrackerTable& trackerTable);
-    friend std::istream& operator>>(std::istream& is, TrackerTable& trackerTable);
+    //read and write to a SwarmTorrent file
+    void write_swarm(std::ostream& os) override;
+    void read_swarm(std::istream& is) override;
 private: 
     std::vector<Tracker_IP> trackers;
 

@@ -19,18 +19,16 @@ static void unpack(ConnectionType* sin_family, ConnectionType* socket_type, uint
     *socket_type = ((byte & MASK2) >> 1) ? SOCK_DGRAM_T : SOCK_STREAM_T;
 }
 
-std::ostream& operator<<(std::ostream& os, const Tracker_IP& tracker_ip) {
-    os << pack(tracker_ip.sin_family, tracker_ip.socket_type);
-    os.write((char*)(&tracker_ip.addr.s_addr), sizeof(tracker_ip.addr.s_addr));
-    os.write((char*)(&tracker_ip.sin_port), sizeof(tracker_ip.sin_port));
-    return os;
+void Tracker_IP::write_swarm(std::ostream& os) {
+    os << pack(sin_family, socket_type);
+    os.write((char*)(&addr.s_addr), sizeof(addr.s_addr));
+    os.write((char*)(&sin_port), sizeof(sin_port));
 }
 
-std::istream& operator>>(std::istream& is, Tracker_IP& tracker_ip) {
+void Tracker_IP::read_swarm(std::istream& is) {
     uint8_t byte; 
     is >> byte;
-    unpack(&tracker_ip.sin_family, &tracker_ip.socket_type, byte);
-    is.read((char*)(&tracker_ip.addr.s_addr), sizeof(tracker_ip.addr.s_addr));
-    is.read((char*)(&tracker_ip.sin_port), sizeof(tracker_ip.sin_port));
-    return is;
+    unpack(&sin_family, &socket_type, byte);
+    is.read((char*)(&addr.s_addr), sizeof(addr.s_addr));
+    is.read((char*)(&sin_port), sizeof(sin_port));
 }

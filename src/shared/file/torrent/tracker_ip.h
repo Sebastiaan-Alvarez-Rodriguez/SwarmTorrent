@@ -1,9 +1,10 @@
-#include "../../connection/meta/type.h"
 #include <iostream>
-
 #include <netinet/in.h>
 
-struct Tracker_IP {
+#include "../../connection/meta/type.h"
+#include "swarmTorrentWriter.h"
+
+struct Tracker_IP : public SwarmTorrentWriter {
     ConnectionType sin_family;
     ConnectionType socket_type;
     struct in_addr addr;
@@ -11,8 +12,9 @@ struct Tracker_IP {
 
     Tracker_IP() : sin_family(AF_INET_T), socket_type(SOCK_STREAM_T), addr({INADDR_ANY}), sin_port(0) {}
     Tracker_IP(ConnectionType _f, ConnectionType _s, struct in_addr _a, unsigned short _p) : sin_family(_f), socket_type(_s), addr(_a), sin_port(_p) {}
+
+    //read and write to a SwarmTorrent file
+    void write_swarm(std::ostream& os) override;
+    void read_swarm(std::istream& is) override;
 };
 
-//reads and writes the Tracker_IP structure in byte format
-std::ostream& operator<<(std::ostream& os, const Tracker_IP& tracker_ip);
-std::istream& operator>>(std::istream& is, Tracker_IP& tracker_ip);
