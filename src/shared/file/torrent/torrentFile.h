@@ -11,6 +11,11 @@ class TorrentFile {
 public:
     /** Constructs torrentfile by providing a path. Path should point to a .st file */
     TorrentFile(std::string path);
+    /** Constructs torrentfile by providing base information */
+    TorrentFile(std::string name, unsigned length, unsigned fragment_length, unsigned seed_threshold) : name(name), length(length), fragment_length(fragment_length), seed_threshold(seed_threshold) {};
+    /** Constructs torrentfile by providing full information */
+    //TODO Add last member once implemented
+    TorrentFile(TrackerTable& trackertable, std::string name, unsigned length, unsigned fragment_length, unsigned seed_threshold) : trackertable(trackertable), name(name), length(length), fragment_length(fragment_length), seed_threshold(seed_threshold) {};
     ~TorrentFile();
     
     // TODO: Decide whether we let other objects decide when to read...
