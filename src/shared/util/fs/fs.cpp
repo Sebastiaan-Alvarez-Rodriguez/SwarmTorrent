@@ -1,7 +1,7 @@
 #include <cstdint>
 #include <fstream>
 #include <limits>
-#include <filesystem>
+#include "fs_compat.h"
 
 #include "fs.h"
 

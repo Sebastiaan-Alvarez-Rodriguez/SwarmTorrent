@@ -2,8 +2,8 @@
 #define FS_H 
 
 #include <cstdint>
-#include <filesystem>
 #include <string>
+#include "fs_compat.h"
 
 
 namespace fs {
