@@ -19,7 +19,7 @@ public:
     //Constructor used for the initial seeder
     //Splits the file into fragments of the default fragment_size
     //Creates a torrentfile associated with the file
-    FileInfo(std::string path, TrackerTable trackertable) : FileInfo(path, MB(1), 20, trackertable) {};
+    FileInfo(std::string path, TrackerTable trackertable) : FileInfo(path, KB(512), 20, trackertable) {};
     //Constructor used for a peer who just retrieved a TorrentFile
     //path is the path to the directory in which to place the file
     FileInfo(TorrentFile& torrentfile, std::string path) : torrentfile(torrentfile), received(torrentfile.get_nr_fragments(), false), path(path) {};
