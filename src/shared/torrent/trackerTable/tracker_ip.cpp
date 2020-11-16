@@ -19,13 +19,13 @@ static void unpack(ConnectionType* sin_family, ConnectionType* socket_type, uint
     *socket_type = ((byte & MASK2) >> 1) ? SOCK_DGRAM_T : SOCK_STREAM_T;
 }
 
-void Tracker_IP::write_swarm(std::ostream& os) const {
+void TrackerIP::write_stream(std::ostream& os) const {
     os << pack(sin_family, socket_type);
     os.write((char*)(&addr.s_addr), sizeof(addr.s_addr));
     os.write((char*)(&sin_port), sizeof(sin_port));
 }
 
-void Tracker_IP::read_swarm(std::istream& is) {
+void TrackerIP::read_stream(std::istream& is) {
     uint8_t byte; 
     is >> byte;
     unpack(&sin_family, &socket_type, byte);
