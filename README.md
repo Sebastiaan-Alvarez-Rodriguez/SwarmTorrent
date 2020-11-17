@@ -15,11 +15,10 @@ Connections:
  1. Make connection factory type to allow us to use generic connection objects, while the driver code below handles TCP/UDP/INET type connections 
 
 Files:
- 1. Make basic tracker-table implementation in [`/src/shared/torrent`](/src/shared/torrent), so peers can connect to trackers. Make table binary preferably.
- 1. Define the 'file fragments'
- 1. Make checksum table for file fragments
- 1. Create the rest of the file: (advisory) name, length
- 1. (Bonus) Make basic filestructure description, so we can send a directory instead of just 1 file.
+ 1. Implement the SwarmTorrent file structures (IMPLEMENTED) (NOT TESTED)
+ 1. Implement FileInfo structures to split a file into Fragments and to keep track of the received fragments (IMPLEMENTED) (NOT TESTED)
+ 1. Implement FragmentHandler to handle the sending and receiving of fragments, and reading/ writing them from the right file. (IMPLEMENTED) (NOT TESTED)
+ 1. (Bonus) Make basic filestructure description, so we can send a directory instead of just 1 file. (NOT STARTED)
 
 ## Peers
 Peers form the largest part of torrent networks.
@@ -43,6 +42,7 @@ SwarmTorrent has the following content:
  1. Name: suggested name to save the file (advisory)
  1. Length: the total size of the file in bytes
  1. Fragment Length: the size in bytes of one fragment
+ 1. Seed Threshold: the number of fragments required to start seeding
  1. Fragments: the SHA2's for every fragment
 
 ## Considerations
