@@ -39,7 +39,7 @@ public:
     void add_tracker(struct in_addr addr, uint16_t sin_port);
     
     //Removes the IP address of the tracker from the table
-    void remove_tracker(std::string addr);
+    void remove_tracker(ConnectionType sin_family, std::string addr);
     
     //Removes the IP address of the tracker from the table
     void remove_tracker(struct in_addr addr);

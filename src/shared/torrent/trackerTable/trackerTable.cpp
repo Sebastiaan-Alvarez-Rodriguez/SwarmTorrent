@@ -8,7 +8,7 @@
 
 void TrackerTable::add_tracker(ConnectionType sin_family, ConnectionType socket_type, std::string addr, uint16_t sin_port) {
     struct in_addr tracker_addr;
-    inet_aton(addr.c_str(), &tracker_addr);
+    inet_pton(sin_family, addr.c_str(), &tracker_addr);
     add_tracker(sin_family, socket_type, tracker_addr, sin_port);
 }
 
@@ -24,9 +24,9 @@ void TrackerTable::add_tracker(struct in_addr addr, uint16_t sin_port) {
     add_tracker(AF_INET_T, SOCK_STREAM_T, addr, sin_port);
 }
 
-void TrackerTable::remove_tracker(std::string addr) {
+void TrackerTable::remove_tracker(ConnectionType sin_family, std::string addr) {
     struct in_addr tracker_addr;
-    inet_aton(addr.c_str(), &tracker_addr);
+    inet_pton(sin_family, addr.c_str(), &tracker_addr);
     remove_tracker(tracker_addr);
 }
 
