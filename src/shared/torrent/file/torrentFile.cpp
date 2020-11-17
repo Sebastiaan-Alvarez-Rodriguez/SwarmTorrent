@@ -3,7 +3,7 @@
 #include <fstream>
 
 #include "shared/torrent/hashTable/hashTable.h"
-#include "shared/torrent/metadata/metadata.h"
+#include "shared/torrent/metadata/metaData.h"
 #include "shared/torrent/trackerTable/trackerTable.h"
 #include "shared/util/fs/fs.h"
 

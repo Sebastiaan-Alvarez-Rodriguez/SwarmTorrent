@@ -15,10 +15,7 @@ HashTable HashTable::make_for(std::string path) {
     uint64_t nr_fragments = ((f_size -1) / fragment_size) + 1;
     HashTable hashTable;
     
-    // TODO: Inefficient hash creation.
-    // Suggestions:
-    //  created batch-adding & reserve enough space in vector at once.
-    //  Now we have to resize for every add_hash
+    hashTable.hashes.resize(nr_fragments);
     for (uint64_t i = 0; i < nr_fragments; ++i) {
         uint64_t size = (i != nr_fragments-1) ? fragment_size : (f_size % fragment_size);
         const uint8_t* data = new uint8_t[size];
