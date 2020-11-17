@@ -1,6 +1,6 @@
-//Code retrieved from: https://pastebin.com/ufC23TsV
-//Found by: https://www.reddit.com/r/programming/comments/u0kij/generating_sha256_with_openssl_and_c/
-//Code is made by vladitx and falls under the ISC license
+// Code retrieved from: https://pastebin.com/ufC23TsV
+// Found by: https://www.reddit.com/r/programming/comments/u0kij/generating_sha256_with_openssl_and_c/
+// Code is made by vladitx and falls under the ISC license
 
 #include <stdint.h>
 #include <cstring>

@@ -11,7 +11,7 @@
 
 #include "shared/connection/meta/type.h"
 #include "shared/torrent/file/streamable/streamable.h"
-#include "tracker_ip.h"
+#include "trackerIP.h"
 
 
 
@@ -26,25 +26,25 @@ public:
         return TrackerTable();
     }
 
-    //Adds the IP address of a tracker to the table
+    // Adds the IP address of a tracker to the table
     void add_tracker(ConnectionType sin_family, ConnectionType socket_type, std::string addr, uint16_t sin_port);
     
-    //Adds the IP address of a tracker to the table
+    // Adds the IP address of a tracker to the table
     void add_tracker(ConnectionType sin_family, ConnectionType socket_type, struct in_addr addr, uint16_t sin_port);
     
-    //Adds the IP address of a tracker to the table, using default ConnectionTypes (ipv4, TCP)
+    // Adds the IP address of a tracker to the table, using default ConnectionTypes (ipv4, TCP)
     void add_tracker(std::string addr, uint16_t sin_port);
     
-    //Adds the IP address of a tracker to the table, using default ConnectionTypes (ipv4, TCP)
+    // Adds the IP address of a tracker to the table, using default ConnectionTypes (ipv4, TCP)
     void add_tracker(struct in_addr addr, uint16_t sin_port);
     
-    //Removes the IP address of the tracker from the table
+    // Removes the IP address of the tracker from the table
     void remove_tracker(ConnectionType sin_family, std::string addr);
     
-    //Removes the IP address of the tracker from the table
+    // Removes the IP address of the tracker from the table
     void remove_tracker(struct in_addr addr);
 
-    //Read and write to a SwarmTorrent file
+    // Read and write to a SwarmTorrent file
     void write_stream(std::ostream& os) const override;
     
     void read_stream(std::istream& is) override;

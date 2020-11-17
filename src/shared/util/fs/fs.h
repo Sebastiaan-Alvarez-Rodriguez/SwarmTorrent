@@ -17,7 +17,7 @@ namespace fs {
     inline bool is_file(const std::string& path) {
         return std::filesystem::is_regular_file(path);
     }
-    //Appends two paths 
+    // Appends two paths 
     std::string append(const std::string& p1, const std::string& p2);
 }
 
