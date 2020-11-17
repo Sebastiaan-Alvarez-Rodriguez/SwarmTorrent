@@ -22,7 +22,7 @@ public:
 
     // Constructs a torrentfile in-memory representation for given path
     // Note: Only files are currently supported
-    static TorrentFile make_for(std::string path);
+    static TorrentFile make_for(TrackerTable& tb, std::string path);
 
 
     // Write the contents of the TorrentFile 

@@ -20,12 +20,7 @@ public:
 
     TrackerTable(){};
     TrackerTable(std::vector<TrackerIP>& trackers) {this->trackers = trackers;};
-
-
-    static TrackerTable empty() {
-        return TrackerTable();
-    }
-
+    
     // Adds the IP address of a tracker to the table
     void add_tracker(ConnectionType sin_family, ConnectionType socket_type, std::string addr, uint16_t sin_port);
     

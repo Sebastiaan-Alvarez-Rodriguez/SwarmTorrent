@@ -26,10 +26,9 @@ TorrentFile TorrentFile::from(std::string path) {
     return TorrentFile(tb, tm, ht);
 }
 
-TorrentFile TorrentFile::make_for(std::string path) {
+TorrentFile TorrentFile::make_for(TrackerTable& tb, std::string path) {
     if (!fs::is_file(path))
         throw std::runtime_error("Can only open files for now!");
-    auto tb = TrackerTable::empty(); //TODO Mariska: Init trackertable when a peer calls this?
     TorrentMetadata tm;
     tm.name = fs::basename(path);
     tm.size = fs::file_size(path);
