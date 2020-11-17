@@ -17,7 +17,7 @@ struct TrackerIP : public Streamable {
     TrackerIP() : sin_family(AF_INET_T), socket_type(SOCK_STREAM_T), addr({INADDR_ANY}), sin_port(0) {}
     TrackerIP(ConnectionType _f, ConnectionType _s, struct in_addr _a, uint16_t _p) : sin_family(_f), socket_type(_s), addr(_a), sin_port(_p) {}
 
-    //Read and write to a SwarmTorrent file
+    // Read and write to a SwarmTorrent file
     void write_stream(std::ostream& os) const override;
     void read_stream(std::istream& is) override;
 };

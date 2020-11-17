@@ -1,45 +1,53 @@
-#include <fstream>
 #include <iostream>
 
 #include "shared/util/hash/hasher.h"
 #include "fragment.h"
 
-bool fragment::write(unsigned index, const uint8_t* data, unsigned data_size) {
-    // if (fileinfo.has_fragment(index))
-    //     return false;
+Fragment::~Fragment() { 
+    if (write_head.is_open())
+        write_head.close();
+    if (read_head.is_open()) 
+        read_head.close(); 
+}
 
-    // const TorrentFile& torrentfile = fileinfo.get_torrentfile();
-    // std::string hash;
-    // hash::sha256(hash, data, data_size);
-    // if (!torrentfile.check_hash(index, hash))
-    //     return false;
+//TODO: check if write failed?
+bool Fragment::write(unsigned index, const uint8_t* data, unsigned data_size) {
+    if (!write_head.is_open())
+        return false;
 
-    // const unsigned frag_size = torrentfile.get_fragment_size();
+    std::string hash;
+    hash::sha256(hash, data, data_size);
+    if (!torrentfile.check_hash(index, hash))
+        return false;
 
-    // std::ofstream f;
-    // f.open(fileinfo.get_path(), std::ios::binary);
-    // f.seekp(index * frag_size, std::ios::beg);
-    // f.write((char*)data, data_size);
-    // f.close();
+    const unsigned frag_size = torrentfile.get_fragment_size();
 
-    // fileinfo.set_received(index);
-    // may_seed = torrentfile.can_seed(fileinfo.get_nr_fragments());
+    //displacement with respect to previous write
+    const unsigned displ = (index*frag_size) - prev_write_index;
+    prev_write_index = index*frag_size;
+
+    write_head.seekp(displ, std::ios_base::cur);
+    write_head.write((char*)data, data_size);
+
     return true;
 } 
 
-bool fragment::read(unsigned index, uint8_t* data, unsigned& data_size) {
-    // if (!fileinfo.has_fragment(index))
-    //     return false;
+//TODO: check if read failed?
+bool Fragment::read(unsigned index, uint8_t* data, unsigned& data_size) {
+    if (!read_head.is_open())
+        return false;
 
-    // const TorrentFile& torrentfile = fileinfo.get_torrentfile();
-    // const unsigned frag_size = torrentfile.get_fragment_size();
-    // data_size = (index != torrentfile.get_nr_fragments()-1) ?  frag_size : torrentfile.get_file_size() % frag_size;
-    // data = new uint8_t[data_size];
+    //receive data_size and allocate required memory
+    const unsigned frag_size = torrentfile.get_fragment_size();
+    data_size = (index != torrentfile.get_nr_fragments()-1) ?  frag_size : torrentfile.size() % frag_size;
+    data = new uint8_t[data_size];
 
-    // std::ifstream f;
-    // f.open(fileinfo.get_path(), std::ios::binary);
-    // f.seekg(index * frag_size, std::ios::beg);
-    // f.read((char*)data, data_size);
-    // f.close();
+    //displacement with respect to previous read
+    const unsigned displ = (index*frag_size) - prev_read_index; 
+    prev_read_index = index*frag_size;
+
+    read_head.seekg(displ, std::ios_base::cur);
+    read_head.read((char*)data, data_size);
+
     return true;
 }
