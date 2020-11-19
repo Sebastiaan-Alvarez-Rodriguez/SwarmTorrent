@@ -6,23 +6,23 @@
 
 #include "shared/torrent/hashTable/hashTable.h"
 #include "shared/torrent/metadata/metaData.h"
-#include "shared/torrent/trackerTable/trackerTable.h"
+#include "shared/torrent/ipTable/ipTable.h"
 
 // Object responsible for reading and writing (.st) torrent files
 class TorrentFile {
 protected:
-    TrackerTable trackertable; // Information to connect with trackers
+    IPTable trackertable; // Information to connect with trackers
     TorrentMetadata metadata; // Information about the streamed file
     HashTable hashtable; // SHA256's for every fragment
 public:
-    TorrentFile(TrackerTable& tt, TorrentMetadata& tm, HashTable& ht) : trackertable(tt), metadata(tm), hashtable(ht) {}
+    TorrentFile(IPTable& tt, TorrentMetadata& tm, HashTable& ht) : trackertable(tt), metadata(tm), hashtable(ht) {}
     
     // Constructs a torrentfile by reading file at given path
     static TorrentFile from(std::string path);
 
     // Constructs a torrentfile in-memory representation for given path
     // Note: Only files are currently supported
-    static TorrentFile make_for(TrackerTable& tb, std::string path);
+    static TorrentFile make_for(IPTable& tb, std::string path);
 
 
     // Write the contents of the TorrentFile 
@@ -30,7 +30,7 @@ public:
 
 
     // Returns a constant reference to the trackertable
-    const TrackerTable& get_trackertable() const { return trackertable; };
+    const IPTable& get_trackertable() const { return trackertable; };
     
     // Returns the suggested name to save the file
     std::string get_advise_name() const { return metadata.name; };

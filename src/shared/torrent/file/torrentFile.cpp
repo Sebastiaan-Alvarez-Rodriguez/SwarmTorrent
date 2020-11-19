@@ -2,9 +2,6 @@
 #include <iostream>
 #include <fstream>
 
-#include "shared/torrent/hashTable/hashTable.h"
-#include "shared/torrent/metadata/metaData.h"
-#include "shared/torrent/trackerTable/trackerTable.h"
 #include "shared/util/fs/fs.h"
 
 #include "torrentFile.h"
@@ -15,7 +12,7 @@ TorrentFile TorrentFile::from(std::string path) {
     if (!stream.is_open())
         throw std::runtime_error("There was an error opening this file");
 
-    auto tb = TrackerTable();
+    auto tb = IPTable();
     auto tm = TorrentMetadata();
     auto ht = HashTable();
 
@@ -26,7 +23,7 @@ TorrentFile TorrentFile::from(std::string path) {
     return TorrentFile(tb, tm, ht);
 }
 
-TorrentFile TorrentFile::make_for(TrackerTable& tb, std::string path) {
+TorrentFile TorrentFile::make_for(IPTable& tb, std::string path) {
     if (!fs::is_file(path))
         throw std::runtime_error("Can only open files for now!");
     TorrentMetadata tm;
