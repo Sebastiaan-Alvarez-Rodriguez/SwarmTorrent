@@ -14,50 +14,54 @@
 //     TorrentFile::make_for(input_loc).save(outputfile);
 // }
 
-bool start(std::string address_tracker, uint16_t port_tracker, uint16_t port_peer) {
-    auto conn_peer = TCPInConnection::Factory::from(NetType::IPv4).withPort(port_peer).create();
-    auto conn_tracker = TCPOutConnection::Factory::from(NetType::IPv4).withAddress(address_tracker).withPort(port_tracker).create();
 
-    std::cout << "Peer: ";
-    if (conn_peer->get_state() == Connection::READY)
-        std::cout << "Successfully connected";
-    else
-        std::cout << "Failure while connecting";
-    std::cout << " with Connection object: " << *conn_peer << std::endl;
+// Parse arguments for torrent::run and execute
+bool run_torrent() {
+    TCLAP::CmdLine cmd("SwarmTorrent Peer Torrent", ' ', "0.1");
+    TCLAP::ValueArg<std::string> torrentfileArg("f","file","The torrentfile to open",true,1042,"PORT", cmd);
+    TCLAP::ValueArg<uint16_t> portArg("p","port","Port for peer connections",true,1042,"PORT", cmd);
+    cmd.parse(argc, argv);
+    
+    std::string tf = torrentfileArg.getValue();
+    uint16_t port = portArg.getValue();
+    return torrent::run(port);
+}
 
+// Parse arguments for torrent::make and execute
+bool make_torrent() {
+    TCLAP::CmdLine cmd("SwarmTorrent Peer Make_Torrent", ' ', "0.1");
+    TCLAP::ValueArg<std::string> inArg("i","input-file","file to make a torrentfile for",true,"","FILE", cmd);
+    TCLAP::ValueArg<std::string> outArg("o","output-file","Output location for torrentfile",true,"","FILE", cmd);
+    
+    cmd.parse(argc, argv);
+    
+    std::string in = inArg.getValue(), out = outArg.getValue();
+    return torrent::make(in, out);
+}
 
-    std::cout << "Tracker: ";
-    if (conn_tracker->get_state() == Connection::READY)
-        std::cout << "Successfully connected";
-    else
-        std::cout << "Failure while connecting";
-    std::cout << " with Connection object: " << *conn_tracker << std::endl;
-
-    return conn_peer->get_state() == Connection::READY && conn_tracker->get_state() == Connection::READY;
+// Determine which subcommand to call
+bool subcommand(std::string subcommand) {
+    if (subcommand == "torrent")
+        return torrent();
+    else if (subcommand == "make")
+        return make_torrent();
 }
 
 // TCLAP manual: http://tclap.sourceforge.net/manual.html
 int main(int argc, char const **argv) {
-    TCLAP::CmdLine cmd("SwarmTorrent peer", ' ', "0.1");
+    TCLAP::CmdLine cmd("SwarmTorrent Peer Main", ' ', "0.1");
 
-    TCLAP::ValueArg<std::string> addressArg("","address","Address for connection",true,"","NAME", cmd);
-    TCLAP::ValueArg<uint16_t> portpeerArg("","port-peer","Port for peer connections",true,42,"PORT", cmd);
-    TCLAP::ValueArg<uint16_t> porttrackerArg("","port-tracker","Port for tracker connections",true,43,"PORT", cmd);
+    if (port < 1000) {
+        std::cerr << print::YELLOW << "Port numbers lower than 1000 may be reserved by the OS!"<<print::CLEAR<<std::endl;
+    }
+
+    std::vector<std::string> tmp;
+    tmp.push_back("torrent");
+    tmp.push_back("make");
+    ValuesConstraint<string> allowed(tmp);
     
+    ValueArg<std::string> commArg("c","command","Command to execute",true,"torrent",&allowed, cmd);
     cmd.parse(argc, argv);
-    std::string address = addressArg.getValue();
 
-    uint16_t port_peer = portpeerArg.getValue();
-    uint16_t port_tracker = porttrackerArg.getValue();
-    
-    if (port_peer == port_tracker) {
-        std::cerr << print::RED << "[ERROR] Port for peer and tracker connections must differ"<<print::CLEAR<<" (now both" << port_peer << ")" << std::endl;
-        return 1;
-    }
-    if (port_peer < 1000 || port_tracker < 1000) {
-
-    }
-
-    start(address, port_tracker, port_peer);
-    return 0;
+    return subcommand(commArg.getValue()) ? 0 : 1;
 }
