@@ -4,27 +4,28 @@
 #include <cstdint>
 #include <string>
 
+#include <arpa/inet.h>
+#include <iostream>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 #include "shared/connection/meta/type.h"
 #include "shared/connection/connection.h"
 
 class TCPConnection : public Connection {
 public:
-    TCPConnection(ConnectionType type, std::string address, uint16_t port) : Connection::Connection(type), address(address), port(port) {};
-    ~TCPConnection() = default;
-    
-    /** Returns true if connection succes, otherwise false */
-    bool connect() {
-        return false;
+    TCPConnection(ConnectionType type) : Connection::Connection(type) {}
+
+    ~TCPConnection() {
+        close(sockfd);
     }
 
-    /** Returns type of connection we use */
-    inline virtual const ConnectionType& get_type() {return type;}
-
-    inline void print(std::ostream& stream) const override {
-        stream << type << ": " << address << ':' << port;
-    }
+    // inline virtual void print(std::ostream& stream) const {
+    //     stream << type << ": " << address << ':' << port;
+    // }
 protected:
-    std::string address;
-    uint16_t port;
+    int sockfd;
+    struct sockaddr sock;
 };
 #endif

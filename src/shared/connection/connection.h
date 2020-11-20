@@ -10,7 +10,6 @@
 // Simple tutorial to get started
 // https://www.geeksforgeeks.org/socket-programming-cc/
 // https://www.tutorialspoint.com/cplusplus/cpp_interfaces.htm
-#include "shared/connection/meta/state.h"
 #include "shared/connection/meta/type.h"
 
 class Connection {
@@ -18,20 +17,24 @@ public:
     Connection(ConnectionType type) : type(type) {};
     ~Connection() = default;
     class Factory;
-
-    /** Returns true if connection succes, otherwise false */
-    virtual bool connect() = 0;
+    enum State {
+        DISCONNECTED,
+        READY,
+        CONNECTED,
+        ERROR
+    };
 
     /** Returns type of connection we use */
-    virtual const ConnectionType& get_type() = 0;
+    virtual const ConnectionType& get_type() {return type;}
+
     /** Returns current state of the connection */
-    virtual const ConnectionState& get_state() {return state;}
+    virtual const State& get_state() {return state;}
 
 
     inline virtual void print(std::ostream& stream) const = 0;
 protected:
     const ConnectionType type;
-    ConnectionState state = ConnectionState::DISCONNECTED;
+    State state = State::DISCONNECTED;
 };
 
 inline std::ostream& operator<<(std::ostream& stream, const Connection& connection) {
