@@ -5,6 +5,7 @@ This system consists of a peer and a tracker,
 which have their own tasks.
 In the sections below, we will describe them in detail.
 Additionally, we provide some information on the protocols used.
+For a list of both functional and non-functional requirements, see [`requirements.md`](/requirements.md)
 
 
 ## TODOList
