@@ -1,7 +1,11 @@
 CXX     ?= g++
 SRC      = src
 OBJS     = obj
-LIB      = libs
+
+LIB      = lib
+
+THIRDPARTY = thirdparty
+INCLUDEDIR = $(THIRDPARTY)/includes
 
 PEEREXEC    = peer
 TRACKEREXEC = tracker
@@ -9,7 +13,7 @@ TRACKEREXEC = tracker
 
 WARNINGS   = -Wall -Wextra -pedantic -g
 NOWARNINGS = -w
-IDIRS      = -I$(SRC)
+IDIRS      = -I$(SRC) -I$(INCLUDEDIR)
 LIBS       = -lrt -pthread -lstdc++fs
 LDIRS      = -L$(LIB)
 
