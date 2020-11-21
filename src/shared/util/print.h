@@ -14,7 +14,7 @@ namespace print {
         WHITE = 37
     };
 
-    std::ostream& operator<<(std::ostream& stream, color val) {
+    inline std::ostream& operator<<(std::ostream& stream, color val) {
         return stream << "\033[" << static_cast<int>(val) << "m";
     }
 }

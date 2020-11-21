@@ -17,7 +17,6 @@
 //     TorrentFile::make_for(input_loc).save(outputfile);
 // }
 namespace torrent {
-    class Session;
 
     // Get to work on a torrent, and let peers connect on given port
     bool run(uint16_t port);

@@ -72,7 +72,7 @@ clean:
 	@echo Done!
 
 git:
-	git add *
+	git add --all
 	git commit
 	git push
 

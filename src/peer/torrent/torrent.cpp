@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <iostream>
 
+#include "shared/connection/impl/TCP/out/TCPOutConnection.h"
 #include "torrent.h"
 
 bool torrent::run(uint16_t port) {
@@ -8,7 +9,7 @@ bool torrent::run(uint16_t port) {
     uint16_t tracker_port = 1042; //TODO: get port from trackerlist
    
     auto tracker_conn = TCPOutConnection::Factory::from(NetType::IPv4).withAddress(tracker_addr).withPort(tracker_port).create();
-    if (conn_tracker->get_state() != Connection::READY) {
+    if (tracker_conn->get_state() != Connection::READY) {
         std::cerr << print::RED << "[ERROR] Could not initialize connection" << std::endl;
         return false;
     }
