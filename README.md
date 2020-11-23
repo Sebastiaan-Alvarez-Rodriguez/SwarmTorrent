@@ -22,6 +22,7 @@ Files:
  1. (Bonus) Make basic filestructure description, so we can send a directory instead of just 1 file. (NOT STARTED)
 
 Trackers:
+ 1. Trackers should contain a PeerTable
  1. Peers should be able to subscribe/ unsubscribe
  1. Peers should be able to retrieve and update PeerTable
  1. Tracker should shut down at some point ('full Seeder' system?)
