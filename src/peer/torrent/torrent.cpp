@@ -31,8 +31,8 @@ bool torrent::make(std::string in, std::string out, std::vector<std::string> tra
     try {
         IPTable table = IPTable::from(trackers);
         TorrentFile::make_for(table, in).save(out);  
-    } catch (std::exception e) {
-        std::cerr << print::RED << "[ERROR]" << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << print::RED << "[ERROR] " << e.what() << std::endl;
         return false;
     }
     return true;

@@ -16,6 +16,9 @@ struct Addr : public Streamable {
     // Constructs an Addr by reading from a stream
     static Addr from(std::istream& is);
 
+    // Constructs an Addr from a string with format: TransportType:NetType:PORT:IP
+    static Addr from_string(std::string ip);
+
     // Read and write to a SwarmTorrent file
     void write_stream(std::ostream& os) const override;
     void read_stream(std::istream& is) override;
