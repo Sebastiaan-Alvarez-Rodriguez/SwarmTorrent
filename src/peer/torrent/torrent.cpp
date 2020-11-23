@@ -27,7 +27,7 @@ bool torrent::run(uint16_t port) {
     return true;
 }
 
-bool torrent::make(std::string in, std::string out, std::vector<std::string> trackers) {
+bool torrent::make(std::string in, std::string out, std::vector<std::string>& trackers) {
     try {
         IPTable table = IPTable::from(trackers);
         TorrentFile::make_for(table, in).save(out);  
