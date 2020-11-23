@@ -1,7 +1,7 @@
 #include "ipTable.h"
 
 
-IPTable IPTable::from(std::vector<std::string> ips) {
+IPTable IPTable::from(std::vector<std::string>& ips) {
     IPTable ip_table;
     for (std::string ip : ips)
         ip_table.add_ip(Addr::from_string(ip));
