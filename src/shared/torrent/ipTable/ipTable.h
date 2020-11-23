@@ -19,7 +19,7 @@ public:
     // Constructs an IPTable using a vector of strings
     // Strings should have the following format: 
     // TransportType:NetType:PORT:IP
-    static IPTable from(std::vector<std::string> ips);
+    static IPTable from(std::vector<std::string>& ips);
 
     // Adds the Addr to the table if not already there
     // Returns whether insertion is success
