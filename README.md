@@ -27,7 +27,7 @@ Trackers:
  1. Tracker should shut down at some point ('full Seeder' system?)
 
 Peers:
- 1. Setup Torrentfile
+ 1. Setup Torrentfile (IMPLEMENTED) (NOT TESTED)
 
 ## Peers
 Peers form the largest part of torrent networks.
