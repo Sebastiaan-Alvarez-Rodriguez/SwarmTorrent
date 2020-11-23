@@ -21,6 +21,14 @@ Files:
  1. Implement FragmentHandler to handle the sending and receiving of fragments, and reading/ writing them from the right file. (IMPLEMENTED) (NOT TESTED)
  1. (Bonus) Make basic filestructure description, so we can send a directory instead of just 1 file. (NOT STARTED)
 
+Trackers:
+ 1. Peers should be able to subscribe/ unsubscribe
+ 1. Peers should be able to retrieve and update PeerTable
+ 1. Tracker should shut down at some point ('full Seeder' system?)
+
+Peers:
+ 1. Setup Torrentfile
+
 ## Peers
 Peers form the largest part of torrent networks.
 Their goal is to send data to users requesting it (*seed*),
