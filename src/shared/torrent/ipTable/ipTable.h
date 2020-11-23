@@ -14,15 +14,15 @@
 class IPTable : public Streamable {
 public:
     IPTable(){};
-    IPTable(std::unordered_map<std::string, uint16_t>& ips) : ips(ips) {};
+    IPTable(std::unordered_map<std::string, Addr>& ips) : ips(ips) {};
 
     // Adds the Addr to the table if not already there
     // Returns whether insertion is success
-    bool add_ip(Addr a) { return ips.insert({a.ip, a.port}).second; };
+    bool add_ip(Addr a) { return ips.insert({a.ip, Addr(a.type, a.ip, a.port)}).second; };
 
     // Adds an address to the table with its IP and port
     // Returns whether insersion is success
-    bool add_ip(std::string ip, uint16_t port) { return ips.insert({ip, port}).second; };
+    bool add_ip(ConnectionType type, std::string ip, uint16_t port) { return ips.insert({ip, Addr(type, ip, port)}).second; };
 
     // Removes Addr a from the table
     void remove_ip(Addr a) { ips.erase(a.ip); };
@@ -39,7 +39,7 @@ public:
     
     void read_stream(std::istream& is) override;
 private: 
-    std::unordered_map<std::string, uint16_t> ips;
+    std::unordered_map<std::string, Addr> ips;
 };
 
 

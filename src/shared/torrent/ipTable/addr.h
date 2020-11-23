@@ -7,10 +7,11 @@
 #include "shared/torrent/file/streamable/streamable.h"
 
 struct Addr : public Streamable {
+    ConnectionType type;
     std::string ip;
     uint16_t port;
 
-    Addr(std::string ip, uint16_t port) : ip(ip), port(port) {};
+    Addr(ConnectionType type, std::string ip, uint16_t port) : type(type), ip(ip), port(port) {};
 
     // Constructs an Addr by reading from a stream
     static Addr from(std::istream& is);

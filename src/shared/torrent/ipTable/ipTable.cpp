@@ -4,8 +4,7 @@ bool IPTable::get_Addr(std::string ip, Addr& a) const {
     auto item = ips.find(ip);
     if (item == ips.end())
         return false;
-    auto addr = *item;
-    a = Addr(addr.first, addr.second);
+    a = (*item).second;
     return true;
 }
 
@@ -13,7 +12,7 @@ void IPTable::write_stream(std::ostream& os) const {
     unsigned size = ips.size();
     os.write((char*)(&size), sizeof(size));
     for (auto ip : ips) 
-        Addr(ip.first, ip.second).write_stream(os);
+        ip.second.write_stream(os);
 }
 
 void IPTable::read_stream(std::istream& is) {
