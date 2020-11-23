@@ -32,14 +32,16 @@ bool run_torrent(int argc, char const ** argv) {
 
 // Parse arguments for torrent::make and execute
 bool make_torrent(int argc, char const ** argv) {
-    TCLAP::CmdLine cmd("SwarmTorrent Peer Make_Torrent", ' ', "0.1");
+    TCLAP::CmdLine cmd("SwarmTorrent Peer Make_Torrent", ' ', "0.2");
     TCLAP::ValueArg<std::string> inArg("i","input-file","file to make a torrentfile for",true,"","FILE", cmd);
     TCLAP::ValueArg<std::string> outArg("o","output-file","Output location for torrentfile",true,"","FILE", cmd);
+    TCLAP::MultiArg<std::string> trackerArgs("t", "trackers", "Tracker IPs format: [TCP]:[4/6]:PORT:IP", true, "IP strings", cmd);
     
     cmd.parse(argc, argv);
     
     std::string in = inArg.getValue(), out = outArg.getValue();
-    return torrent::make(in, out);
+    std::vector<std::string> trackers = trackerArgs.getValue();
+    return torrent::make(in, out, trackers);
 }
 
 // TCLAP manual: http://tclap.sourceforge.net/manual.html

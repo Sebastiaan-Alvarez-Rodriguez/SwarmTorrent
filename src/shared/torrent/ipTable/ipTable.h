@@ -5,16 +5,21 @@
 #include <cstdint>
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 #include "shared/torrent/file/streamable/streamable.h"
 #include "addr.h"
-
 
 
 class IPTable : public Streamable {
 public:
     IPTable(){};
     IPTable(std::unordered_map<std::string, Addr>& ips) : ips(ips) {};
+    
+    // Constructs an IPTable using a vector of strings
+    // Strings should have the following format: 
+    // TransportType:NetType:PORT:IP
+    static IPTable from(std::vector<std::string> ips);
 
     // Adds the Addr to the table if not already there
     // Returns whether insertion is success

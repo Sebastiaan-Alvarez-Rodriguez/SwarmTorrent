@@ -22,6 +22,6 @@ namespace torrent {
     bool run(uint16_t port);
 
     // Make a torrentfile from path in, write created torrentfile to out
-    bool make(std::string in, std::string out);
+    bool make(std::string in, std::string out, std::vector<std::string> trackers);
 }
 #endif

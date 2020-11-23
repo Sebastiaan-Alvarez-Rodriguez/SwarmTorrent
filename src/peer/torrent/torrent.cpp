@@ -1,7 +1,9 @@
 #include <cstdint>
 #include <iostream>
+#include <stdexcept>
 
 #include "shared/connection/impl/TCP/out/TCPOutConnection.h"
+#include "shared/torrent/file/torrentFile.h"
 #include "torrent.h"
 
 bool torrent::run(uint16_t port) {
@@ -25,6 +27,13 @@ bool torrent::run(uint16_t port) {
     return true;
 }
 
-bool torrent::make(std::string in, std::string out) {
+bool torrent::make(std::string in, std::string out, std::vector<std::string> trackers) {
+    try {
+        IPTable table = IPTable::from(trackers);
+        TorrentFile::make_for(table, in).save(out);  
+    } catch (std::exception e) {
+        std::cerr << print::RED << "[ERROR]" << e.what() << std::endl;
+        return false;
+    }
     return true;
 }
