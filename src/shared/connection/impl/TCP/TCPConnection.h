@@ -21,6 +21,9 @@ public:
         close(sockfd);
     }
 
+    void sendmsg(const void* const msg, unsigned length) { send(sockfd, msg, length, 0); };
+    void recvmsg(void* const msg, unsigned length) { read(sockfd, msg, length); };
+
     // inline virtual void print(std::ostream& stream) const {
     //     stream << type << ": " << address << ':' << port;
     // }
