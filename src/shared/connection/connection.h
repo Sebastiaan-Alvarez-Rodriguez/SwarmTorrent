@@ -34,6 +34,7 @@ public:
     inline virtual void print(std::ostream& stream) const = 0;
     virtual void sendmsg(const void* const msg, unsigned length) const = 0;
     virtual void recvmsg(void* const msg, unsigned length) const = 0;
+    virtual void peekmsg(void* const msg, unsigned length) const = 0;
 protected:
     const ConnectionType type;
     State state = State::DISCONNECTED;
