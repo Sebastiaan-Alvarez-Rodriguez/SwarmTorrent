@@ -60,7 +60,9 @@ Addr Addr::from_string(std::string ip) {
 
 void Addr::write_stream(std::ostream& os) const {
     os << pack(type);
-    os.write((char*)(&ip), sizeof(ip));
+    unsigned string_size = ip.size();
+    os.write((char*)&string_size, sizeof(string_size));
+    os.write((char*)ip.data(), string_size);
     os.write((char*)(&port), sizeof(port));
 }
 
@@ -68,6 +70,9 @@ void Addr::read_stream(std::istream& is) {
     uint8_t byte;
     is >> byte;
     type = unpack(byte);
-    is.read((char*)(&ip), sizeof(ip));
+    unsigned string_size; 
+    is.read((char*)&string_size, sizeof(string_size));
+    ip.resize(string_size);
+    is.read((char*)ip.data(), string_size);
     is.read((char*)(&port), sizeof(port));
 }
