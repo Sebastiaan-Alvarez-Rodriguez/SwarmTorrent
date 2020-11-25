@@ -25,7 +25,4 @@ struct Header {
     size_t size;
 };
 
-void send_header(std::unique_ptr<Connection> connection, const Header& header);
-void receive_header(std::unique_ptr<Connection> connection, Header& header);
-
 #endif
