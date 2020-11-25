@@ -27,16 +27,18 @@ static STATUS receive(std::unique_ptr<Connection>& connection, size_t& msg_lengt
     return header.status;
 }
 
-bool subscribe(std::unique_ptr<Connection>& connection, std::string torrent_hash, Addr peer) {    
-    std::stringstream hstream; 
-    hstream << torrent_hash.size();
-    hstream.write((char*)torrent_hash.data(), torrent_hash.size());
-    peer.write_stream(hstream);
-    std::string tmp = hstream.str();
-    size_t msg_length = tmp.size(); 
-    Header header = {SUBSCRIBE, REQUEST, msg_length};
-    const char* msg = tmp.c_str();
+static bool update_member(bool subscribe, std::unique_ptr<Connection>& connection, std::string torrent_hash, Addr peer) {
+    std::stringstream ss; 
+    //serialize torrent_hash and peer
+    ss << torrent_hash.size();
+    ss.write((char*)torrent_hash.data(), torrent_hash.size());
+    peer.write_stream(ss);
 
+    //prepare to request
+    std::string tmp = ss.str();
+    size_t msg_length = tmp.size(); 
+    Header header = {(subscribe) ? SUBSCRIBE : UNSUBSCRIBE, REQUEST, msg_length};
+    const char* msg = tmp.c_str();
     request(connection, header, msg_length, msg);
 
     char* received = nullptr;
@@ -44,14 +46,31 @@ bool subscribe(std::unique_ptr<Connection>& connection, std::string torrent_hash
         return false;
 
     free(received);
-    return true;
+    return true; 
+}
+
+bool subscribe(std::unique_ptr<Connection>& connection, std::string torrent_hash, Addr peer) {    
+    return update_member(true, connection, torrent_hash, peer);
 }
 
 bool unsubscribe(std::unique_ptr<Connection>& connection, std::string torrent_hash, Addr peer) {
-    return true;
-
+    return update_member(false, connection, torrent_hash, peer);
 }
 
 bool retrieve(std::unique_ptr<Connection>& connection, std::string torrent_hash, IPTable& peertable) {
+    size_t msg_length = torrent_hash.size();
+    Header header = {RECEIVE, REQUEST, msg_length};
+    const char* const buf = torrent_hash.c_str();
+    request(connection, header, msg_length, buf);
+
+    char* received = nullptr;
+    if (receive(connection, msg_length, received) == ERROR)
+        return false;
+
+    std::stringstream ss;
+    ss.read(received, msg_length);
+    peertable.read_stream(ss);
+
+    free(received);
     return true;
 }
