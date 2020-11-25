@@ -23,6 +23,7 @@ public:
 
     inline void sendmsg(const void* const msg, unsigned length) const override { send(sockfd, msg, length, 0); };
     inline void recvmsg(void* const msg, unsigned length) const override { read(sockfd, msg, length); };
+    inline void peekmsg(void* const msg, unsigned length) const override { recv(sockfd, msg, length, MSG_PEEK); };
 
     // inline virtual void print(std::ostream& stream) const {
     //     stream << type << ": " << address << ':' << port;
