@@ -27,7 +27,10 @@ static STATUS receive(std::unique_ptr<Connection>& connection, size_t& msg_lengt
     return header.status;
 }
 
-bool subscribe(std::unique_ptr<Connection>& connection, std::string torrent_hash, Addr peer) {    std::stringstream hstream; 
+bool subscribe(std::unique_ptr<Connection>& connection, std::string torrent_hash, Addr peer) {    
+    std::stringstream hstream; 
+    hstream << torrent_hash.size();
+    hstream.write((char*)torrent_hash.data(), torrent_hash.size());
     peer.write_stream(hstream);
     std::string tmp = hstream.str();
     size_t msg_length = tmp.size(); 
@@ -36,7 +39,7 @@ bool subscribe(std::unique_ptr<Connection>& connection, std::string torrent_hash
 
     request(connection, header, msg_length, msg);
 
-    char* received;
+    char* received = nullptr;
     if (receive(connection, msg_length, received) == ERROR)
         return false;
 
