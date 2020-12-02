@@ -1,14 +1,14 @@
-#ifndef TRACKER_H
-#define TRACKER_H 
+#ifndef TRACKER_SESSION_H
+#define TRACKER_SESSION_H
 
 #include <vector>
 #include <unordered_map>
 
 #include "shared/torrent/ipTable/ipTable.h"
 
-class Tracker {
+class Session {
 public:
-    Tracker() {};
+    Session() {};
 
     // Add a table with hash as identifier
     bool add_table(const std::string& hash, IPTable& peertable);
@@ -17,10 +17,10 @@ public:
     bool add_peer(const std::string& hash, Addr peer);
 
     // Get the table with hash as identifier
-    bool get_table(const std::string& hash, IPTable& peertable);
+    bool get_table(const std::string& hash, IPTable& peertable) const;
 
     // Update the table with hash as identifier
-    // TODO: difTable?
+    // TODO: diffTable?
     //bool update_table(std::string hash, );
     // Remove peer from table with hash as identifier
     bool remove_peer(const std::string& hash, Addr peer);

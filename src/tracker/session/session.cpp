@@ -1,6 +1,6 @@
-#include "tracker.h"
+#include "session.h"
 
-bool Tracker::add_table(const std::string& hash, IPTable& peertable) {
+bool Session::add_table(const std::string& hash, IPTable& peertable) {
     if (idmap.find(hash) != idmap.end())
         return false;
 
@@ -10,7 +10,7 @@ bool Tracker::add_table(const std::string& hash, IPTable& peertable) {
     return true;
 }
 
-bool Tracker::add_peer(const std::string& hash, Addr peer) {
+bool Session::add_peer(const std::string& hash, Addr peer) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
@@ -20,7 +20,7 @@ bool Tracker::add_peer(const std::string& hash, Addr peer) {
 }
 
 
-bool Tracker::get_table(const std::string& hash, IPTable& peertable) {
+bool Session::get_table(const std::string& hash, IPTable& peertable) const {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
@@ -30,7 +30,7 @@ bool Tracker::get_table(const std::string& hash, IPTable& peertable) {
 }
 
 
-bool Tracker::remove_peer(const std::string& hash, Addr peer) {
+bool Session::remove_peer(const std::string& hash, Addr peer) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
@@ -41,7 +41,7 @@ bool Tracker::remove_peer(const std::string& hash, Addr peer) {
 }
 
 
-bool Tracker::remove_peer(const std::string& hash, std::string peer) {
+bool Session::remove_peer(const std::string& hash, std::string peer) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
@@ -51,7 +51,7 @@ bool Tracker::remove_peer(const std::string& hash, std::string peer) {
     return true; 
 }
 
-bool Tracker::remove_table(const std::string& hash) {
+bool Session::remove_table(const std::string& hash) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
@@ -59,7 +59,7 @@ bool Tracker::remove_table(const std::string& hash) {
     return true;
 }
 
-void Tracker::garbage_collect() {
+void Session::garbage_collect() {
     std::vector<IPTable> new_table(idmap.size());
 
     unsigned i = 0; 

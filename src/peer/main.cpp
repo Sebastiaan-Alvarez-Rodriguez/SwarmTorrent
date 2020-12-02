@@ -20,7 +20,7 @@ void do_test(int argc, char const ** argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Peer Test", ' ', "0.1");
     TCLAP::ValueArg<std::string> addrArg("a","address","Address of host",false,"127.0.0.1","ADDR", cmd);
     TCLAP::ValueArg<uint16_t> portArg("p","port","Port of host",true,1042,"PORT", cmd);
-    TCLAP::ValueArg<uint16_t> sendArg("s","sendarg","Argument to send",false, (uint16_t) message::TrackerMessage::Tag::SUBSCRIBE, "ARG", cmd);
+    TCLAP::ValueArg<uint16_t> sendArg("s","sendarg","Argument to send",false, (uint16_t) message::tracker::Tag::SUBSCRIBE, "ARG", cmd);
     
     cmd.parse(argc, argv);
 
@@ -37,6 +37,7 @@ void do_test(int argc, char const ** argv) {
         std::cerr << print::RED << "[ERROR] Could not connect to remote!" << print::CLEAR << std::endl;
         return;
     }
+
     switch ((uint8_t) tag) {
         case 0:
             connections::tracker::subscribe(tracker_conn, torrent_hash); break;
@@ -45,7 +46,12 @@ void do_test(int argc, char const ** argv) {
         default:
             std::cout << "Did not send anything" << std::endl;    
     }
-    
+    message::standard::Header h;
+    if (message::standard::from(tracker_conn, h) && h.formatType == message::standard::type::OK) {
+        std::cout << "Received OK, bye!\n";
+    } else {
+        std::cout << "Received Nothing, bye!\n";
+    }
 }
 
 // Parse arguments for torrent::run and execute

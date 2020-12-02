@@ -8,8 +8,8 @@
 #include "shared/connection/message/interpretable.h"
 
 namespace message {
-    struct TrackerMessage : Interpretable {
-        static const inline uint8_t id = 1;
+    namespace tracker {
+        static const inline uint8_t id = 32;
 
         enum Tag : uint8_t {
             SUBSCRIBE = 0,
@@ -19,47 +19,31 @@ namespace message {
         };
         struct Header {
             size_t size;
-            uint8_t formatType;
+            uint8_t formatType = id;
             Tag tag;
-        } header;
+        };
 
 
 
-        /** Initializes TrackerMessage */
-        inline void init(Tag t) {
-            header.formatType = id;
-            header.tag = t;
-        }
-
-        /** Constructs and returns TrackerMessage to send, with given type */
-        inline static TrackerMessage fromType(Tag t) {
-            TrackerMessage m;
-            m.init(t);
-            return m;
-        }
-
-        /** Sets header size. */
-        virtual TrackerMessage& withSize(size_t size) {
-            header.size = size;
-            return *this;
+        /** Initializes a Header */
+        inline Header from(Tag t) {
+            Header h;
+            h.formatType = id;
+            h.tag = t;
+            return h;
         }
 
         /** 
-         * Sets header size. 
-         * '''Note:''' Only provide the size of data behind the header. Header size is added automatically.
+         * Initializes a Header. 
+         * '''Note:''' provided size is assumed to be size of extra data. Header size will be added.
          */
-        virtual TrackerMessage& withDataSize(size_t size) {
-            header.size = sizeof(Header)+size;
-            return *this;
+        inline Header from(size_t datasize, Tag t) {
+            Header h;
+            h.size = datasize+sizeof(message::tracker::Header);
+            h.formatType = id;
+            h.tag = t;
+            return h;
         }
-
-        inline bool valid() {
-            return header.formatType == id;
-        }
-        inline bool interpret(const uint8_t* const data) override {
-            header.tag = (Tag) *(data);
-            return true;
-        }
-    };
+    }
 }
 #endif

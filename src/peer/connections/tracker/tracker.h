@@ -13,10 +13,10 @@ namespace connections {
         bool subscribe(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash);
         // Unsubscribe peer to peertable of tracker
         bool unsubscribe(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash);
-        // Recieve peertable from tracker
-        bool recieve(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable);
+        // receive peertable from tracker
+        bool receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable);
         // Update peertable to tracker
-        // TODO: Gen
+        // TODO: Probably should not be here? Soon we will need it maybe
         //bool update(std::unique_ptr<ClientConnection> connection, std::string torrent_hash, ); 
     }
 }
