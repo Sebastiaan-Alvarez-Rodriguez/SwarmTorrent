@@ -17,7 +17,7 @@ namespace message {
             RECEIVE = 2,
             UPDATE = 4
         };
-        struct /*__attribute__ ((packed))*/ Header {
+        struct Header {
             size_t size;
             uint8_t formatType;
             Tag tag;
@@ -38,8 +38,18 @@ namespace message {
             return m;
         }
 
+        /** Sets header size. */
         virtual TrackerMessage& withSize(size_t size) {
             header.size = size;
+            return *this;
+        }
+
+        /** 
+         * Sets header size. 
+         * '''Note:''' Only provide the size of data behind the header. Header size is added automatically.
+         */
+        virtual TrackerMessage& withDataSize(size_t size) {
+            header.size = sizeof(Header)+size;
             return *this;
         }
 

@@ -38,9 +38,9 @@ void do_test(int argc, char const ** argv) {
         return;
     }
     switch ((uint8_t) tag) {
-        case message::TrackerMessage::Tag::SUBSCRIBE:
+        case 0:
             connections::tracker::subscribe(tracker_conn, torrent_hash); break;
-        case message::TrackerMessage::Tag::UNSUBSCRIBE:
+        case 1:
             connections::tracker::unsubscribe(tracker_conn, torrent_hash); break;
         default:
             std::cout << "Did not send anything" << std::endl;    

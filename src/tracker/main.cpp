@@ -1,6 +1,7 @@
 #include <iostream>
 #include <tclap/CmdLine.h>
 #include <stdexcept>
+#include <cstring>
 
 #include "shared/connection/impl/TCP/TCPConnection.h"
 #include "shared/connection/message/tracker/message.h"
@@ -41,15 +42,19 @@ bool run(int argc, char const **argv) {
             return 1;
         }
         uint8_t* ptr = (uint8_t*) malloc(m.header.size);
+        std::memset(ptr, 0, m.header.size);
+        
         client_conn->recvmsg(ptr, m.header.size);
-        message::TrackerMessage* header = (message::TrackerMessage*) ptr;
-        std::string hash((char*)ptr+sizeof(message::TrackerMessage::Header));
+        message::TrackerMessage::Header* header = (message::TrackerMessage::Header*) ptr;
+        std::string hash((char*)ptr+sizeof(message::TrackerMessage::Header), (m.header.size-sizeof(message::TrackerMessage::Header)));
+        std::cout << "The header size provided is '"<<m.header.size<<"', and trackerheader size is "<<sizeof(message::TrackerMessage::Header)<<", so hash string length is "<<(m.header.size-sizeof(message::TrackerMessage::Header))<<'\n';
         std::cout << "Here is the hash: '"<<hash<<"'\n";
-        switch (header->header.tag) {
+        switch (header->tag) {
             case message::TrackerMessage::Tag::SUBSCRIBE: std::cout << "Got a subscribe" << std::endl; break;
             case message::TrackerMessage::Tag::UNSUBSCRIBE: std::cout << "Got an unsubscribe" << std::endl; break;
             case message::TrackerMessage::Tag::RECEIVE: std::cout << "Got a receive" << std::endl; break;
             case message::TrackerMessage::Tag::UPDATE: std::cout << "Got an update" << std::endl;break;
+            default: std::cout << "Got unknown header tag: " << (uint16_t) header->tag << std::endl;break;
         }
     }
     return 0;
