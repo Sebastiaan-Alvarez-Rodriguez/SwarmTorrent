@@ -2,7 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "shared/connection/impl/TCP/out/TCPOutConnection.h"
+#include "shared/connection/impl/TCP/TCPConnection.h"
 #include "shared/torrent/file/torrentFile.h"
 #include "torrent.h"
 
@@ -10,9 +10,9 @@ bool torrent::run(uint16_t port) {
     std::string tracker_addr = "0.0.0.0"; //TODO get addr from trackerlist
     uint16_t tracker_port = 1042; //TODO: get port from trackerlist
    
-    auto tracker_conn = TCPOutConnection::Factory::from(NetType::IPv4).withAddress(tracker_addr).withPort(tracker_port).create();
-    if (tracker_conn->get_state() != Connection::READY) {
-        std::cerr << print::RED << "[ERROR] Could not initialize connection" << std::endl;
+    auto tracker_conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(tracker_addr).withPort(tracker_port).create();
+    if (tracker_conn->get_state() != ClientConnection::READY) {
+        std::cerr << print::RED << "[ERROR] Could not initialize connection" << print::CLEAR << std::endl;
         return false;
     }
 

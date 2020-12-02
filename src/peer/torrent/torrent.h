@@ -5,8 +5,6 @@
 #include <tclap/CmdLine.h>
 
 #include "shared/torrent/file/torrentFile.h"
-#include "shared/connection/impl/TCP/in/TCPInConnection.h"
-#include "shared/connection/impl/TCP/out/TCPOutConnection.h"
 #include "shared/util/print.h"
 
 // void make_torrent_file(std::string input_loc, std::string outputfile, TorrentFileOptions opts) {

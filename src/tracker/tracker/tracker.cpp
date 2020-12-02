@@ -1,6 +1,6 @@
 #include "tracker.h"
 
-bool Tracker::add_table(std::string hash, IPTable& peertable) {
+bool Tracker::add_table(const std::string& hash, IPTable& peertable) {
     if (idmap.find(hash) != idmap.end())
         return false;
 
@@ -10,7 +10,7 @@ bool Tracker::add_table(std::string hash, IPTable& peertable) {
     return true;
 }
 
-bool Tracker::add_peer(std::string hash, Addr peer) {
+bool Tracker::add_peer(const std::string& hash, Addr peer) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
@@ -20,7 +20,7 @@ bool Tracker::add_peer(std::string hash, Addr peer) {
 }
 
 
-bool Tracker::get_table(std::string hash, IPTable& peertable) {
+bool Tracker::get_table(const std::string& hash, IPTable& peertable) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
@@ -30,7 +30,7 @@ bool Tracker::get_table(std::string hash, IPTable& peertable) {
 }
 
 
-bool Tracker::remove_peer(std::string hash, Addr peer) {
+bool Tracker::remove_peer(const std::string& hash, Addr peer) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
@@ -41,17 +41,17 @@ bool Tracker::remove_peer(std::string hash, Addr peer) {
 }
 
 
-bool Tracker::remove_peer(std::string hash, std::string peer) {
+bool Tracker::remove_peer(const std::string& hash, std::string peer) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
 
     IPTable peertable = peertables[(*it).second];
-    peertable.remove_ip(peer);
+    peertable.remove_ip(std::move(peer));
     return true; 
 }
 
-bool Tracker::remove_table(std::string hash) {
+bool Tracker::remove_table(const std::string& hash) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 

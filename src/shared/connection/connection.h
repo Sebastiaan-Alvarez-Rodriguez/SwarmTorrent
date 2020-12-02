@@ -5,6 +5,7 @@
 #include <memory>
 #include <ostream>
 #include <string>
+#include <utility>
 
 
 // Simple tutorial to get started
@@ -12,11 +13,21 @@
 // https://www.tutorialspoint.com/cplusplus/cpp_interfaces.htm
 #include "shared/connection/meta/type.h"
 
+
+
 class Connection {
 public:
-    Connection(ConnectionType type) : type(type) {};
+    Connection(ConnectionType type, uint16_t port) : type(type), port(port) {};
     ~Connection() = default;
-    class Factory;
+
+    /** Returns type of connection we use */
+    virtual const ConnectionType& get_type() {return type;}
+
+    inline virtual void print(std::ostream& stream) const = 0;
+
+    inline virtual uint16_t getPort() const {return port;}
+
+
     enum State {
         DISCONNECTED,
         READY,
@@ -24,35 +35,94 @@ public:
         ERROR
     };
 
-    /** Returns type of connection we use */
-    virtual const ConnectionType& get_type() {return type;}
-
     /** Returns current state of the connection */
     virtual const State& get_state() {return state;}
 
-
-    inline virtual void print(std::ostream& stream) const = 0;
-    virtual void sendmsg(const void* const msg, unsigned length) const = 0;
-    virtual void recvmsg(void* const msg, unsigned length) const = 0;
-    virtual void peekmsg(void* const msg, unsigned length) const = 0;
 protected:
-    const ConnectionType type;
     State state = State::DISCONNECTED;
+    const ConnectionType type;
+
+    uint16_t port;
 };
 
-inline std::ostream& operator<<(std::ostream& stream, const Connection& connection) {
+class ClientConnection : public Connection {
+public:
+    explicit ClientConnection(ConnectionType type, std::string address, uint16_t port) : Connection(type, port), address(std::move(address)) {};
+    ~ClientConnection() = default;
+
+    class Factory;
+
+    inline virtual const std::string& getAddress() const {
+        return address;
+    }
+
+    virtual bool doConnect() = 0;
+    virtual bool sendmsg(const uint8_t* const msg, unsigned length, int flags) const = 0;
+    inline bool sendmsg(const uint8_t* const msg, unsigned length) const { return sendmsg(msg, length, 0); }
+
+    virtual bool recvmsg(uint8_t* const msg, unsigned length, int flags) const = 0;
+    inline bool recvmsg(uint8_t* const msg, unsigned length) const { return recvmsg(msg, length, MSG_WAITALL); }
+
+    virtual bool peekmsg(uint8_t* const msg, unsigned length, int flags) const = 0;
+    inline bool peekmsg(uint8_t* const msg, unsigned length) const { return peekmsg(msg, length, MSG_WAITALL); }
+
+protected:
+    std::string address;
+
+};
+
+class HostConnection : public Connection {
+public:
+    explicit HostConnection(ConnectionType type, uint16_t port) : Connection(type, port) {};
+    ~HostConnection() = default;
+
+    class Factory;
+
+    virtual std::unique_ptr<ClientConnection> acceptConnection() = 0;
+};
+
+
+inline std::ostream& operator<<(std::ostream& stream, const ClientConnection& connection) {
     connection.print(stream);
     return stream;
 }
 
 
-class Connection::Factory {
+class ClientConnection::Factory {
 public:
     Factory(ConnectionType type) : type(type) {}
 
-    virtual std::unique_ptr<Connection> create() const = 0;
+    Factory& withAddress(std::string addr) {
+        address = addr;
+        return *this;
+    }
+
+    Factory& withPort(uint16_t p) {
+        port = p;
+        return *this;
+    }
+
+    virtual std::unique_ptr<ClientConnection> create() const = 0;
 
 protected:
     ConnectionType type;
+    std::string address = "";
+    uint16_t port = 0;
+};
+
+class HostConnection::Factory {
+public:
+    Factory(ConnectionType type) : type(type) {}
+
+    Factory& withPort(uint16_t p) {
+        port = p;
+        return *this;
+    }
+
+    virtual std::unique_ptr<HostConnection> create() const = 0;
+
+protected:
+    ConnectionType type;
+    uint16_t port = 0;
 };
 #endif
