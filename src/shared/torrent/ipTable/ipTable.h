@@ -30,20 +30,23 @@ public:
     bool add_ip(ConnectionType type, std::string ip, uint16_t port) { return ips.insert({ip, Addr(type, ip, port)}).second; };
 
     // Removes Addr a from the table
+    //TODO @Mariska: Erasure on hashmaps is expensive if it triggers recomputation of the hash. Maybe just use 'dirty' flag?
     void remove_ip(Addr a) { ips.erase(a.ip); };
 
     // Removes Addr via its ip 
+    //TODO @Mariska: Erasure on hashmaps is expensive if it triggers recomputation of the hash. Maybe just use 'dirty' flag?
     void remove_ip(std::string ip) { ips.erase(ip); };
 
     // Sets Addr struct of ip string, if it exists
     // Returns whether ip string exists in table
+    //TODO @Mariska: Comments in 2 lines above this make no sense?
     bool get_Addr(std::string ip, Addr& a) const;
 
     // Read and write to a SwarmTorrent file
     void write_stream(std::ostream& os) const override;
     
     void read_stream(std::istream& is) override;
-private: 
+protected: 
     std::unordered_map<std::string, Addr> ips;
 };
 

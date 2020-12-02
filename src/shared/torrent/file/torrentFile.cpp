@@ -7,7 +7,7 @@
 #include "torrentFile.h"
 
 
-TorrentFile TorrentFile::from(std::string path) {
+TorrentFile TorrentFile::from(const std::string& path) {
     std::ifstream stream(path, std::ios::binary);
     if (!stream.is_open())
         throw std::runtime_error("There was an error opening this file");
@@ -23,7 +23,7 @@ TorrentFile TorrentFile::from(std::string path) {
     return TorrentFile(tb, tm, ht);
 }
 
-TorrentFile TorrentFile::make_for(IPTable& tb, std::string path) {
+TorrentFile TorrentFile::make_for(IPTable& tb, const std::string& path) {
     if (!fs::is_file(path))
         throw std::runtime_error("Can only open files for now!");
     TorrentMetadata tm;
@@ -35,7 +35,7 @@ TorrentFile TorrentFile::make_for(IPTable& tb, std::string path) {
 
 
 // Write the contents of the TorrentFile 
-void TorrentFile::save(std::string path) {
+void TorrentFile::save(const std::string& path) const {
     std::ofstream stream; 
     stream.open(path, std::ios::trunc | std::ios::binary);
     trackertable.write_stream(stream);

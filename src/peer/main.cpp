@@ -58,15 +58,10 @@ void do_test(int argc, char const ** argv) {
 bool run_torrent(int argc, char const ** argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Peer Torrent", ' ', "0.1");
     TCLAP::ValueArg<std::string> torrentfileArg("f","file","The torrentfile to open",true,"","File", cmd);
-    TCLAP::ValueArg<uint16_t> portArg("p","port","Port for peer connections",true,1042,"PORT", cmd);
     cmd.parse(argc, argv);
     
-    uint16_t port = portArg.getValue();
     std::string tf = torrentfileArg.getValue();
-    if (port < 1000) {
-        std::cerr << print::YELLOW << "Port numbers lower than 1000 may be reserved by the OS!" << print::CLEAR << std::endl;
-    }
-    return torrent::run(port);
+    return torrent::run(tf);
 }
 
 // Parse arguments for torrent::make and execute

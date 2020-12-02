@@ -36,6 +36,6 @@ bool connections::tracker::receive(std::unique_ptr<ClientConnection>& connection
     if (!send_request(connection, torrent_hash, message::tracker::Tag::RECEIVE))
         return false;
 
-    //TODO: Receive peertable        
+    //TODO @Mariska: place code here to receive the peertable and store in 'peertable'
     return true;
 }

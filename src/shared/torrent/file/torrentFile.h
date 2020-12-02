@@ -18,15 +18,15 @@ public:
     TorrentFile(IPTable& tt, TorrentMetadata& tm, HashTable& ht) : trackertable(tt), metadata(tm), hashtable(ht) {}
     
     // Constructs a torrentfile by reading file at given path
-    static TorrentFile from(std::string path);
+    static TorrentFile from(const std::string& path);
 
     // Constructs a torrentfile in-memory representation for given path
     // Note: Only files are currently supported
-    static TorrentFile make_for(IPTable& tb, std::string path);
+    static TorrentFile make_for(IPTable& tb, const std::string& path);
 
 
     // Write the contents of the TorrentFile 
-    void save(std::string path);
+    void save(const std::string& path) const;
 
 
     // Returns a constant reference to the trackertable

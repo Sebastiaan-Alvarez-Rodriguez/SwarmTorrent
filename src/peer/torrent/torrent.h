@@ -16,8 +16,8 @@
 // }
 namespace torrent {
 
-    // Get to work on a torrent, and let peers connect on given port
-    bool run(uint16_t port);
+    // Torrent a torrentfile provided by `torrentfile`
+    bool run(const std::string& torrentfile);
 
     // Make a torrentfile from path in, write created torrentfile to out
     bool make(std::string in, std::string out, std::vector<std::string>& trackers);
