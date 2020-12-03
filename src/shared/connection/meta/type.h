@@ -46,6 +46,11 @@ public:
 
     inline int to_ctype() const {return SOCK_STREAM;}
 
+    inline bool operator==(const TransportType& other) const { return this->t == other.t; }
+
+    inline bool operator==(const Type& other) const { return this->t == other; }
+    inline bool operator!=(const Type& other) const { return !(*this == other); }
+    
     friend std::ostream& operator<<(std::ostream& os, const TransportType& t);
 
 };

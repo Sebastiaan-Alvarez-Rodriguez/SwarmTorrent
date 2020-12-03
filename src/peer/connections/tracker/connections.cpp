@@ -2,9 +2,9 @@
 #include <string>
 #include <memory>
 
-#include "tracker.h"
 #include "shared/connection/message/tracker/message.h"
 #include "shared/connection/connection.h"
+#include "connections.h"
 
 
 /* '''Note: ''' Protocol in this file is defined in /PEER2TRACKER.md */

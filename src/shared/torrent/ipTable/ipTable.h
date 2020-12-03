@@ -46,6 +46,14 @@ public:
     void write_stream(std::ostream& os) const override;
     
     void read_stream(std::istream& is) override;
+
+    inline auto iterator_begin() const { return ips.begin(); }
+    inline auto iterator_end() const { return ips.end(); }
+
+    inline void merge(const IPTable& other) {
+        ips.insert(other.iterator_begin(), other.iterator_end());
+    }
+    inline size_t size() const { return ips.size(); }
 protected: 
     std::unordered_map<std::string, Addr> ips;
 };
