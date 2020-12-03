@@ -8,13 +8,13 @@
 
 class Session {
 public:
-    Session() {};
+    Session() = default;
 
     // Add a table with hash as identifier
     bool add_table(const std::string& hash, IPTable& peertable);
 
     // Add a peer to the table with hash as identifier
-    bool add_peer(const std::string& hash, Addr peer);
+    bool add_peer(const std::string& hash, const Address& peer);
 
     // Get the table with hash as identifier
     bool get_table(const std::string& hash, IPTable& peertable) const;
@@ -23,10 +23,10 @@ public:
     // TODO: diffTable?
     //bool update_table(std::string hash, );
     // Remove peer from table with hash as identifier
-    bool remove_peer(const std::string& hash, Addr peer);
+    bool remove_peer(const std::string& hash, const Address& peer);
 
     // Remove peer from table with hash as identifier
-    bool remove_peer(const std::string& hash, std::string peer);
+    bool remove_peer(const std::string& hash, const std::string& peer);
 
     // Removes table with hash as identifier
     // Note: to keep idmap valid, this does not remove the

@@ -90,10 +90,10 @@ inline std::ostream& operator<<(std::ostream& stream, const ClientConnection& co
 
 class ClientConnection::Factory {
 public:
-    Factory(ConnectionType type) : type(type) {}
+    explicit Factory(ConnectionType type) : type(type) {}
 
     Factory& withAddress(std::string addr) {
-        address = addr;
+        address = std::move(addr);
         return *this;
     }
 
@@ -106,13 +106,13 @@ public:
 
 protected:
     ConnectionType type;
-    std::string address = "";
+    std::string address;
     uint16_t port = 0;
 };
 
 class HostConnection::Factory {
 public:
-    Factory(ConnectionType type) : type(type) {}
+    explicit Factory(ConnectionType type) : type(type) {}
 
     Factory& withPort(uint16_t p) {
         port = p;

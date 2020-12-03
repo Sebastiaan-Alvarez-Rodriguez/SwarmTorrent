@@ -20,6 +20,6 @@ namespace torrent {
     bool run(const std::string& torrentfile);
 
     // Make a torrentfile from path in, write created torrentfile to out
-    bool make(std::string in, std::string out, std::vector<std::string>& trackers);
+    bool make(const std::string& in, const std::string& out, std::vector<std::string>& trackers);
 }
 #endif

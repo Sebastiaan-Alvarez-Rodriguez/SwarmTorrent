@@ -6,7 +6,7 @@
 #include "shared/torrent/file/defaults.h"
 #include "hashTable.h"
 
-HashTable HashTable::make_for(std::string path) {
+HashTable HashTable::make_for(const std::string& path) {
     uint64_t fragment_size = torrent::file::defaults::fragment_size;
     if (!fs::is_file(path))
         throw std::runtime_error("Can only open files for now!");
@@ -25,14 +25,14 @@ HashTable HashTable::make_for(std::string path) {
         f.close();
         std::string hash;
         hash::sha256(hash, data, size);
-        delete data;
+        delete[] data;
         if (!hashTable.add_hash(hash))
             throw std::runtime_error("Creating HashTable failed");
     }
     return hashTable;
 }
 
-bool HashTable::add_hash(std::string hash) {
+bool HashTable::add_hash(const std::string& hash) {
     if (hash.length() != hash_type)
         return false;
     hashes.push_back(hash);
@@ -56,6 +56,6 @@ void HashTable::read_stream(std::istream& is) {
         is.read((char*)hashes[i].data(), hash_type);
 }
 
-bool HashTable::check_hash(unsigned index, std::string hash) const {
+bool HashTable::check_hash(unsigned index, const std::string& hash) const {
     return hash == hashes.at(index);
 }

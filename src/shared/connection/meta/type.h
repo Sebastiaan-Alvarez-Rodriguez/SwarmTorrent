@@ -51,7 +51,7 @@ public:
     inline bool operator==(const Type& other) const { return this->t == other; }
     inline bool operator!=(const Type& other) const { return !(*this == other); }
     
-    friend std::ostream& operator<<(std::ostream& os, const TransportType& t);
+    friend std::ostream& operator<<(std::ostream& stream, const TransportType& t);
 
 };
 inline std::ostream& operator<<(std::ostream& stream, const TransportType& t) {
@@ -66,7 +66,7 @@ struct ConnectionType {
     TransportType t_type;
     NetType n_type;
     ConnectionType(TransportType t_type, NetType n_type) : t_type(t_type), n_type(n_type) {}
-    ConnectionType(TransportType::Type t, NetType::Type n) : t_type({t}), n_type({n}) {}
+    ConnectionType(TransportType::Type t, NetType::Type n) : t_type(t), n_type(n) {}
 
 };
 

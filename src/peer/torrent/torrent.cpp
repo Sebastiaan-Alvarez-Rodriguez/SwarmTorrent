@@ -4,8 +4,11 @@
 #include <vector>
 
 #include "peer/connections/tracker/connections.h"
+
+#include "peer/torrent/session/session.h"
 #include "shared/connection/impl/TCP/TCPConnection.h"
 #include "shared/connection/meta/type.h"
+#include "shared/torrent/file/io/fragmentHandler.h"
 #include "shared/torrent/file/torrentFile.h"
 #include "shared/util/print.h"
 #include "torrent.h"
@@ -62,16 +65,36 @@ static IPTable compose_peertable(const IPTable& trackers) {
 bool torrent::run(const std::string& torrentfile) {   
     // 1. Load trackerlist from tf
     TorrentFile tf = TorrentFile::from(torrentfile);
-    const IPTable& tracker_table = tf.get_trackertable();
+    const IPTable& tracker_table = tf.getTrackerTable();
 
     IPTable table = compose_peertable(tracker_table);
+    if (table.size() == 0) // We have a dead torrent
+        return false;
+
     // 6. Construct torrent session (to maintain received fragments)
-    // 7. Pick a bunch of peers to request filedata from!
-    // 8. Request filedata, receive fragments, win!
+    auto session = torrent::Session(tf);
+
+    bool stop = false;
+    while (!stop) {
+        // 7. Pick a bunch of peers to request filedata from!
+
+        // 8. Request filedata, receive fragments
+        // 8b. If we have a dead torrent, return false? Or periodically request trackers for new peertable
+        // 9. Write data using fragmentHandler, after checking of course
+
+        std::string path_placeholder = "/tmp/oof.output"; //TODO: Intelligently construct full file paths here
+        auto fragmentHandler = FragmentHandler(tf.getMetadata(), path_placeholder);
+        // std::string hash;
+        // hash::sha256(hash, data, data_size);
+        // if (!torrentfile.check_hash(index, hash))
+        //     return false;
+        // 10. Send filedata to others, if we own the required data
+        stop = true;
+    }
     return true;
 }
 
-bool torrent::make(std::string in, std::string out, std::vector<std::string>& trackers) {
+bool torrent::make(const std::string& in, const std::string& out, std::vector<std::string>& trackers) {
     try {
         IPTable table = IPTable::from(trackers);
         TorrentFile::make_for(table, in).save(out);  

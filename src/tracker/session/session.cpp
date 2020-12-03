@@ -10,7 +10,7 @@ bool Session::add_table(const std::string& hash, IPTable& peertable) {
     return true;
 }
 
-bool Session::add_peer(const std::string& hash, Addr peer) {
+bool Session::add_peer(const std::string& hash, const Address& peer) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
@@ -30,7 +30,7 @@ bool Session::get_table(const std::string& hash, IPTable& peertable) const {
 }
 
 
-bool Session::remove_peer(const std::string& hash, Addr peer) {
+bool Session::remove_peer(const std::string& hash, const Address& peer) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
@@ -41,13 +41,13 @@ bool Session::remove_peer(const std::string& hash, Addr peer) {
 }
 
 
-bool Session::remove_peer(const std::string& hash, std::string peer) {
+bool Session::remove_peer(const std::string& hash, const std::string& peer) {
     auto it = idmap.find(hash);
     if (it == idmap.end())
         return false; 
 
     IPTable peertable = peertables[(*it).second];
-    peertable.remove_ip(std::move(peer));
+    peertable.remove_ip(peer);
     return true; 
 }
 

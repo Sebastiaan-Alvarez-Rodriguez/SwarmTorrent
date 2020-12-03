@@ -16,7 +16,7 @@ protected:
     HashTable hashtable; // SHA256's for every fragment
 public:
     TorrentFile(IPTable& tt, TorrentMetadata& tm, HashTable& ht) : trackertable(tt), metadata(tm), hashtable(ht) {}
-    
+
     // Constructs a torrentfile by reading file at given path
     static TorrentFile from(const std::string& path);
 
@@ -28,24 +28,12 @@ public:
     // Write the contents of the TorrentFile 
     void save(const std::string& path) const;
 
-
     // Returns a constant reference to the trackertable
-    const IPTable& get_trackertable() const { return trackertable; };
-    
-    // Returns the suggested name to save the file
-    std::string get_advise_name() const { return metadata.name; };
-    
-    // Returns the size of the file we stream, in bytes
-    uint64_t size() const { return metadata.size; }; 
-    
-    // Returns the number of fragments the file has
-    uint64_t get_nr_fragments() const { return ((metadata.size-1) / metadata.fragment_size) + 1; };
-    
-    // Returns the size of the fragments in bytes
-    uint64_t get_fragment_size() const { return metadata.fragment_size; };
-  
-    // Check if the hash is equal to the hash at the given index of the hashtable
-    bool check_hash(unsigned index, std::string hash) const { return hashtable.check_hash(index, hash);};
+    const IPTable& getTrackerTable() const { return trackertable; };
+
+    const HashTable& getHashTable() const { return hashtable; }
+
+    const TorrentMetadata& getMetadata() const { return metadata; }
 };
 
 #endif

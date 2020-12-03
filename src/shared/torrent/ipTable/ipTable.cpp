@@ -4,11 +4,11 @@
 IPTable IPTable::from(std::vector<std::string>& ips) {
     IPTable ip_table;
     for (std::string ip : ips)
-        ip_table.add_ip(Addr::from_string(ip));
+        ip_table.add_ip(Address::from_string(ip));
     return ip_table;
 }
 
-bool IPTable::get_Addr(std::string ip, Addr& a) const {
+bool IPTable::get_Addr(std::string ip, Address& a) const {
     auto item = ips.find(ip);
     if (item == ips.end())
         return false;
@@ -27,5 +27,5 @@ void IPTable::read_stream(std::istream& is) {
     unsigned size; 
     is.read((char*)(&size), sizeof(size));
     for (unsigned i = 0; i < size; ++i) 
-        add_ip(Addr::from(is));
+        add_ip(Address::from(is));
 }  

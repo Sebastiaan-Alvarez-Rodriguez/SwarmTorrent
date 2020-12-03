@@ -139,7 +139,7 @@ protected:
 
 class TCPClientConnection::Factory : public ClientConnection::Factory {
 public:
-    Factory(ConnectionType type) : ClientConnection::Factory(type) {}
+    explicit Factory(ConnectionType type) : ClientConnection::Factory(type) {}
 
     static inline Factory from(ConnectionType type) {
         return Factory(type);
@@ -155,7 +155,7 @@ public:
 
 class TCPHostConnection::Factory : public HostConnection::Factory {
 public:
-    Factory(ConnectionType type) : HostConnection::Factory(type) {}
+    explicit Factory(ConnectionType type) : HostConnection::Factory(type) {}
 
     static inline Factory from(ConnectionType type) {
         return Factory(type);

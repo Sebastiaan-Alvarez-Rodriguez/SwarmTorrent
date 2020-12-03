@@ -4,7 +4,7 @@
 #include <stdexcept>
 
 
-#include "addr.h"
+#include "address.h"
 
 static uint8_t pack(ConnectionType type) {
     uint8_t MASK2 = (type.n_type.t == NetType::IPv4) ? 0b00000000 : 0b00000001;
@@ -16,13 +16,13 @@ static ConnectionType unpack(uint8_t byte) {
     return ConnectionType(TransportType(), NetType(t));
 }
 
-Addr Addr::from(std::istream& is) {
-    Addr a(ConnectionType(TransportType(), NetType()), "", 0); 
+Address Address::from(std::istream& is) {
+    Address a(ConnectionType(TransportType(), NetType()), "", 0);
     a.read_stream(is);
     return a;
 }
 
-Addr Addr::from_string(std::string ip) {
+Address Address::from_string(std::string ip) {
     const unsigned nr_args = 4;
     std::vector<std::string> args(nr_args);
     std::stringstream addr_string(ip);
@@ -55,10 +55,10 @@ Addr Addr::from_string(std::string ip) {
         throw std::runtime_error(args[1] + " is not a valid NetType"); 
 
     NetType::Type n = (nettype == 4) ? NetType::IPv4 : NetType::IPv6;
-    return Addr(ConnectionType(t, n), args[2], port);
+    return Address(ConnectionType(t, n), args[2], port);
 }
 
-void Addr::write_stream(std::ostream& os) const {
+void Address::write_stream(std::ostream& os) const {
     os << pack(type);
     unsigned string_size = ip.size();
     os.write((char*)&string_size, sizeof(string_size));
@@ -66,7 +66,7 @@ void Addr::write_stream(std::ostream& os) const {
     os.write((char*)(&port), sizeof(port));
 }
 
-void Addr::read_stream(std::istream& is) {
+void Address::read_stream(std::istream& is) {
     uint8_t byte;
     is >> byte;
     type = unpack(byte);

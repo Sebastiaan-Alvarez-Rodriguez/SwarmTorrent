@@ -8,14 +8,6 @@
 #include "shared/util/print.h"
 #include "torrent/torrent.h"
 
-// void make_torrent_file(std::string input_loc, std::string outputfile, TorrentFileOptions opts) {
-//     TorrentFile.make_for(input_loc).with(opts).save(outputfile);
-// }
-
-// void make_torrent_file(std::string input_loc, std::string outputfile) {
-//     TorrentFile::make_for(input_loc).save(outputfile);
-// }
-
 void do_test(int argc, char const ** argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Peer Test", ' ', "0.1");
     TCLAP::ValueArg<std::string> addrArg("a","address","Address of host",false,"127.0.0.1","ADDR", cmd);
