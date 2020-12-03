@@ -16,6 +16,13 @@ namespace message::standard {
         uint8_t formatType;
     };
 
+    inline Header make(size_t datasize, type t) {
+        Header h; 
+        h.size = datasize + sizeof(Header);
+        h.formatType = t;
+        return h;
+    }
+
     inline bool from(const std::unique_ptr<ClientConnection>& conn, Header& h) {
         return conn->peekmsg((uint8_t*) &h, sizeof(Header));
     }

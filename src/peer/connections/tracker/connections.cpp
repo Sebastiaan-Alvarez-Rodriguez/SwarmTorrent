@@ -36,6 +36,42 @@ bool connections::tracker::receive(std::unique_ptr<ClientConnection>& connection
     if (!send_request(connection, torrent_hash, message::tracker::Tag::RECEIVE))
         return false;
 
-    //TODO @Mariska: place code here to receive the peertable and store in 'peertable'
+    message::standard::Header header;
+    connection->peekmsg((uint8_t*)&header, sizeof(header));
+    size_t buf_length = header.size;
+    uint8_t* const table_buffer = (uint8_t*)malloc(buf_length);
+    connection->recvmsg(table_buffer, buf_length);
+    const uint8_t* reader = table_buffer + sizeof(header);
+    while (reader < table_buffer + buf_length) {
+        Address a(ConnectionType(TransportType(), NetType()), "", 0);
+        reader = a.read_buffer(reader);
+        if (!peertable.add_ip(a))
+            return false;
+    }
+    free(table_buffer);
     return true;
+}
+
+bool connections::tracker::make_torrent(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable) {
+    size_t buf_length = sizeof(message::tracker::Header) + 1 + torrent_hash.length() + 1 + sizeof(size_t) + peertable.size() * Address::size();
+    uint8_t* const buff = (uint8_t*)malloc(buf_length);
+    uint8_t* writer = buff;
+    *((message::tracker::Header*) writer) = message::tracker::from(1 + torrent_hash.length() + 1 + sizeof(size_t) + peertable.size() * Address::size(), message::tracker::Tag::MAKE_TORRENT);
+    writer += sizeof(message::tracker::Header);
+
+    *((size_t*) writer) = torrent_hash.length();
+    writer += sizeof(size_t);
+
+    memcpy(writer, torrent_hash.data(), torrent_hash.length()+1);
+    writer += torrent_hash.length()+1;
+
+    *((size_t*) writer) = peertable.size();
+    writer += sizeof(size_t);
+
+    for (auto it = peertable.iterator_begin(); it != peertable.iterator_end(); ++it) 
+        writer = (*it).second.write_buffer(writer);
+
+    bool val = connection->sendmsg(buff, buf_length);
+    free(buff);
+    return val;
 }

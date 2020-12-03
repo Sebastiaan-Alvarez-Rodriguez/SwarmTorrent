@@ -30,15 +30,36 @@ void do_test(int argc, char const ** argv) {
         return;
     }
 
+    IPTable peertable;
+    message::standard::Header h;
     switch ((uint8_t) tag) {
         case 0:
             connections::tracker::subscribe(tracker_conn, torrent_hash); break;
         case 1:
             connections::tracker::unsubscribe(tracker_conn, torrent_hash); break;
+        case 2:
+            peertable.add_ip(Address(ConnectionType(TransportType::Type::TCP, NetType::Type::IPv4), addr, port));
+            connections::tracker::make_torrent(tracker_conn, torrent_hash, peertable); 
+            break;
+        case 3: 
+            peertable.add_ip(Address(ConnectionType(TransportType::Type::TCP, NetType::Type::IPv4), addr, port));
+            connections::tracker::make_torrent(tracker_conn, torrent_hash, peertable); 
+            if (message::standard::from(tracker_conn, h) && h.formatType == message::standard::type::OK) {
+                std::cout << "Received OK!\n";
+                tracker_conn->recvmsg((uint8_t*)&h, sizeof(h));
+            } else {
+                std::cout << "Received Nothing, bye!\n";
+                return;
+            }
+            std::cout << "Sending Receive Request" << std::endl;
+            if (!connections::tracker::receive(tracker_conn, torrent_hash, peertable)) {
+                std::cerr << "could not receive" << std::endl;
+                return;
+            }
+            break;
         default:
             std::cout << "Did not send anything" << std::endl;    
     }
-    message::standard::Header h;
     if (message::standard::from(tracker_conn, h) && h.formatType == message::standard::type::OK) {
         std::cout << "Received OK, bye!\n";
     } else {

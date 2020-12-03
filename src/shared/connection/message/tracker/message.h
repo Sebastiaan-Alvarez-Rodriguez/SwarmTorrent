@@ -14,7 +14,8 @@ namespace message::tracker {
         SUBSCRIBE = 0,
         UNSUBSCRIBE = 1,
         RECEIVE = 2,
-        UPDATE = 4
+        UPDATE = 4, 
+        MAKE_TORRENT = 8
     };
     struct Header {
         size_t size;

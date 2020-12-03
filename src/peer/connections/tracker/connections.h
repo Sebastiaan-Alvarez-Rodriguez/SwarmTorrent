@@ -17,5 +17,6 @@ namespace connections::tracker {
     // Update peertable to tracker
     // TODO: Probably should not be here? Soon we will need it maybe
     //bool update(std::unique_ptr<ClientConnection> connection, std::string torrent_hash, );
+    bool make_torrent(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable);
 }
 #endif

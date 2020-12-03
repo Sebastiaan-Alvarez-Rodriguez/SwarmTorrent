@@ -2,6 +2,7 @@
 #include <vector>
 #include <sstream>
 #include <stdexcept>
+#include <cstring>
 
 
 #include "address.h"
@@ -75,4 +76,31 @@ void Address::read_stream(std::istream& is) {
     ip.resize(string_size);
     is.read((char*)ip.data(), string_size);
     is.read((char*)(&port), sizeof(port));
+}
+
+uint8_t* Address::write_buffer(uint8_t* const buf) const {
+    uint8_t* writer = buf;
+    *((ConnectionType*) writer) = type;
+    writer += sizeof(ConnectionType);
+    *writer = ip.length();
+    ++writer;
+    memcpy(writer, ip.data(), ip.length()+1);
+    writer += ip.length()+1;
+    *((uint16_t*) writer) = port;
+    writer += sizeof(uint16_t);
+    return writer;
+}
+
+const uint8_t* Address::read_buffer(const uint8_t* const buf) {
+    const uint8_t* reader = buf;
+    type = *((ConnectionType*) reader);
+    reader += sizeof(ConnectionType);
+    size_t string_size = static_cast<size_t>(*reader);
+    ++reader;
+    ip.resize(string_size);
+    memcpy(ip.data(), reader, string_size+1);
+    reader += string_size+1;
+    port = *((uint16_t*) reader);
+    reader += sizeof(uint16_t);
+    return reader;
 }
