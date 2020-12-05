@@ -54,6 +54,34 @@ public:
         ips.insert(other.iterator_begin(), other.iterator_end());
     }
     inline size_t size() const { return ips.size(); }
+
+    inline void send_table_stub() {
+        // Contains some info on how to intelligently load a peertable onto a buffer
+        // auto peertable_size = sizeof(size_t) + peertable.size() * Address::size();
+        // *((size_t*) writer) = peertable.size();
+        // writer += sizeof(size_t);
+
+        // for (auto it = peertable.iterator_begin(); it != peertable.iterator_end(); ++it) 
+        //     writer = (*it).second.write_buffer(writer);
+    }
+
+    inline void recv_table_stub() {
+        // Contains some info on how to intellibently load a peertable from a buffer
+        // Note: @Sebastiaan does not agree with some of the content here: 
+        // "Please don't send an error message when insertion fails!"
+        // size_t nr_peers = *((size_t*) reader);
+        // reader += sizeof(size_t);
+
+        // IPTable table;
+        // for (size_t i = 0; i < nr_peers; ++i) {
+        //     Address a(ConnectionType(TransportType(), NetType()), "", 0);
+        //     reader = a.read_buffer(reader);
+        //     if (!table.add_ip(a)) {
+        //         message::standard::send(client_conn, message::standard::type::ERROR);
+        //         return;
+        //     }
+        // }
+    }
 protected: 
     std::unordered_map<std::string, Address> ips;
 };

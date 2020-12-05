@@ -66,6 +66,7 @@ public:
     virtual bool peekmsg(uint8_t* const msg, unsigned length, int flags) const = 0;
     inline bool peekmsg(uint8_t* const msg, unsigned length) const { return peekmsg(msg, length, MSG_WAITALL); }
 
+    virtual bool discardmsg(unsigned length) const = 0;
 protected:
     std::string address;
 

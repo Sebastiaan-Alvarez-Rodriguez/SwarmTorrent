@@ -71,6 +71,11 @@ public:
         return tcp::peekmsg(sockfd, msg, length, flags);
     }
 
+    inline virtual bool discardmsg(unsigned length) const {
+        // uint8_t* buf = malloc(length);
+        return recvmsg(NULL, 0, MSG_TRUNC);
+    };
+
     inline void print(std::ostream& stream) const override {
         stream << "Client target:" << type << ": " << address << ':' << port;
     }

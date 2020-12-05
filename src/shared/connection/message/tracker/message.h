@@ -11,11 +11,10 @@ namespace message::tracker {
     static const inline uint8_t id = 32;
 
     enum Tag : uint8_t {
-        SUBSCRIBE = 0,
-        UNSUBSCRIBE = 1,
+        TEST = 0,
+        MAKE_TORRENT = 1,
         RECEIVE = 2,
-        UPDATE = 4, 
-        MAKE_TORRENT = 8
+        UPDATE = 3
     };
     struct Header {
         size_t size;

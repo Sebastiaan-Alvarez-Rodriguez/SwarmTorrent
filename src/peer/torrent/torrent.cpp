@@ -7,6 +7,7 @@
 
 #include "peer/torrent/session/session.h"
 #include "shared/connection/impl/TCP/TCPConnection.h"
+#include "shared/connection/message/message.h"
 #include "shared/connection/meta/type.h"
 #include "shared/torrent/file/io/fragmentHandler.h"
 #include "shared/torrent/file/torrentFile.h"
@@ -95,12 +96,59 @@ bool torrent::run(const std::string& torrentfile) {
 }
 
 bool torrent::make(const std::string& in, const std::string& out, std::vector<std::string>& trackers) {
-    try {
-        IPTable table = IPTable::from(trackers);
-        TorrentFile::make_for(table, in).save(out);  
-    } catch (const std::exception& e) {
-        std::cerr << print::RED << "[ERROR] " << e.what() << std::endl;
+    auto t_size = trackers.size(); 
+    if (t_size == 0) {
+        std::cerr << print::RED << "[ERROR] Cannot make torrentfile without any trackers given" << print::CLEAR << '\n';
         return false;
     }
+
+    auto torrent_hash = "some placeholder hash"; //TODO @Mariska: Implement hashing-one-liner
+    // try {
+        IPTable table = IPTable::from(trackers);
+        size_t success = 0;
+        for (auto it = table.iterator_begin(); it != table.iterator_end(); ++it) {
+            const auto& ip = it->first;
+            uint16_t port = it->second.port;
+
+            auto conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(ip).withPort(port).create();
+            if (conn->get_state() != ClientConnection::READY) {
+                std::cerr << print::YELLOW << "[WARN] Could not initialize connection to tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+                table.remove_ip(it->first);
+                continue;
+            }
+            if (!conn->doConnect()) {
+                std::cerr << "Could not connect to tracker ";conn->print(std::cerr);std::cerr << '\n';
+                table.remove_ip(it->first);
+                continue;
+            }
+            if (!connections::tracker::make_torrent(conn, torrent_hash)) {
+                std::cerr << print::YELLOW << "[WARN] Could not send torrent request for tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+                table.remove_ip(it->first);
+                continue;
+            }
+
+            message::standard::Header h;
+            if (message::standard::from(conn, h) && h.formatType == message::standard::type::OK) {
+                ++success;
+            } else {
+                std::cerr << print::YELLOW << "[WARN] No confirming message received from tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+                table.remove_ip(it->first);
+            }
+        }
+        if (success == 0) {
+            std::cerr << print::RED << "[ERROR] No successful connections to any tracker" << print::CLEAR << '\n';
+            return false;
+        } else if (success < t_size) {
+            std::cerr << print::YELLOW << "[WARN] Could only register at "<< success << '/' << t_size << " trackers" << print::CLEAR << '\n';
+            //TODO: Maybe should mention which trackers were the failed ones
+        } else {
+            std::cerr << print::GREEN << "[SUCCESS] Registered torrentfile-in-progress at " << success << '/' << t_size << " trackers" << print::CLEAR << '\n';
+        }
+
+        TorrentFile::make_for(table, in).save(out);  
+    // } catch (const std::exception& e) {
+    //     std::cerr << print::RED << "[ERROR] " << e.what() << std::endl;
+    //     return false;
+    // }
     return true;
 }

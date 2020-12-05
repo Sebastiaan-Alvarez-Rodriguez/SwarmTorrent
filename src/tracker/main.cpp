@@ -11,8 +11,11 @@
 #include "shared/util/print.h"
 #include "tracker/session/session.h"
 
-void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& client_conn, const std::string& hash) {
-    std::cout << "Got a receive." << std::endl;
+
+void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
+    std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
+    std::cout << "Got a Receive request (hash=" << hash << ")" << std::endl;
+
     IPTable table;
     if (!session.get_table(hash, table)) { //No table for hash found, return error
         message::standard::send(client_conn, message::standard::type::ERROR);
@@ -30,32 +33,21 @@ void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& c
     free(table_buffer);
 }
 
-void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg) {
-    std::cout << "Got a Make Torrent request" << std::endl;
-    const uint8_t* reader = msg;
-
-    size_t hash_length = *((size_t*) reader);
-    reader += sizeof(size_t);
-
-    std::string hash;
-    hash.resize(hash_length);
-    memcpy(hash.data(), reader, hash_length+1);
-    reader += hash_length+1;
-
-    size_t nr_peers = *((size_t*) reader);
-    reader += sizeof(size_t);
+void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
+    std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
+    std::cout << "Got a Make Torrent request (hash=" << hash << ")" << std::endl;
 
     IPTable table;
-    for (size_t i = 0; i < nr_peers; ++i) {
-        Address a(ConnectionType(TransportType(), NetType()), "", 0);
-        reader = a.read_buffer(reader);
-        if (!table.add_ip(a)) {
-            message::standard::send(client_conn, message::standard::type::ERROR);
-            return;
-        }
+    if (!session.get_table(hash, table)) { // Table does not exist yet, insert new table.
+        auto addr = client_conn->getAddress();
+        auto port = client_conn->getPort();
+        table.add_ip({TransportType::TCP, NetType::IPv4}, addr, port);
+        session.add_table(hash, table);
+    } else { // Table already exists. Add this peer to the list.
+        auto addr = client_conn->getAddress();
+        auto port = client_conn->getPort();
+        session.add_peer(hash, {{TransportType::TCP, NetType::IPv4}, addr, port});
     }
-
-    session.add_table(hash, table);
     message::standard::send(client_conn, message::standard::type::OK);
 }
 
@@ -70,11 +62,12 @@ bool run(uint16_t port) {
     std::cout << "Session initialized" << std::endl;
     std::cout << "Listening started on port " << port << std::endl;
 
-    bool running = true;
-    while (running) {
+    // bool running = true;
+
+    auto client_conn = conn->acceptConnection();
+    std::cout << "ClientConnection accepted with address "<< client_conn->getAddress() << ':' << client_conn->getPort() << std::endl;
+    while (true) {
         message::standard::Header standard;
-        auto client_conn = conn->acceptConnection();
-        std::cout << "ClientConnection accepted with address "<< client_conn->getAddress() << ':' << client_conn->getPort() << std::endl;
         
         if (!message::standard::from(client_conn, standard)) {
             std::cout << "Unable to peek. System hangup?" << std::endl;
@@ -88,30 +81,19 @@ bool run(uint16_t port) {
         uint8_t* ptr = (uint8_t*) malloc(standard.size);
         client_conn->recvmsg(ptr, standard.size);
         message::tracker::Header* header = (message::tracker::Header*) ptr;
-        std::string hash;
         switch (header->tag) {
-            case message::tracker::Tag::SUBSCRIBE:
-                std::cout << "Got a subscribe" << std::endl;
+            case message::tracker::Tag::TEST:
+                std::cout << "Got a test message" << std::endl;
                 message::standard::send(client_conn, message::standard::type::OK);
                 break;
-            case message::tracker::Tag::UNSUBSCRIBE:
-                std::cout << "Got an unsubscribe" << std::endl;
-                message::standard::send(client_conn, message::standard::type::OK);
-                break;
-            case message::tracker::Tag::RECEIVE:
+            case message::tracker::Tag::MAKE_TORRENT: handle_make_torrent(session, client_conn, ptr, standard.size); break;
+            case message::tracker::Tag::RECEIVE: {
                 std::cout << "receive" << std::endl;
-                hash.resize(standard.size-sizeof(message::tracker::Header));
-                memcpy(hash.data(), (char*)ptr+sizeof(message::tracker::Header), hash.length()+1);
-                std::cout << "The header size provided is '"<<standard.size<<"', and trackerheader size is "<<sizeof(message::tracker::Header)<<", so hash string length is "<<(standard.size-sizeof(message::tracker::Header))<<'\n';
-                std::cout << "Here is the hash: '"<<hash<<"'\n";
-                handle_receive(session, client_conn, hash);
-                break;
+                handle_receive(session, client_conn, ptr, standard.size); break;
+            }
             case message::tracker::Tag::UPDATE:
                 std::cout << "Got an update" << std::endl;
                 message::standard::send(client_conn, message::standard::type::OK);
-                break;
-            case message::tracker::Tag::MAKE_TORRENT:
-                handle_make_torrent(session, client_conn, ptr+sizeof(message::tracker::Header));
                 break;
             default: std::cout << "Got unknown header tag: " << (uint16_t) header->tag << std::endl;break;
         }

@@ -12,7 +12,7 @@ void do_test(int argc, char const ** argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Peer Test", ' ', "0.1");
     TCLAP::ValueArg<std::string> addrArg("a","address","Address of host",false,"127.0.0.1","ADDR", cmd);
     TCLAP::ValueArg<uint16_t> portArg("p","port","Port of host",true,1042,"PORT", cmd);
-    TCLAP::ValueArg<uint16_t> sendArg("s","sendarg","Argument to send",false, (uint16_t) message::tracker::Tag::SUBSCRIBE, "ARG", cmd);
+    TCLAP::ValueArg<uint16_t> sendArg("s","sendarg","Argument to send",false, (uint16_t) message::tracker::Tag::TEST, "ARG", cmd);
     
     cmd.parse(argc, argv);
 
@@ -34,28 +34,26 @@ void do_test(int argc, char const ** argv) {
     message::standard::Header h;
     switch ((uint8_t) tag) {
         case 0:
-            connections::tracker::subscribe(tracker_conn, torrent_hash); break;
+            connections::tracker::test(tracker_conn, torrent_hash); break;
         case 1:
-            connections::tracker::unsubscribe(tracker_conn, torrent_hash); break;
-        case 2:
-            peertable.add_ip(Address(ConnectionType(TransportType::Type::TCP, NetType::Type::IPv4), addr, port));
-            connections::tracker::make_torrent(tracker_conn, torrent_hash, peertable); 
-            break;
-        case 3: 
-            peertable.add_ip(Address(ConnectionType(TransportType::Type::TCP, NetType::Type::IPv4), addr, port));
-            connections::tracker::make_torrent(tracker_conn, torrent_hash, peertable); 
-            if (message::standard::from(tracker_conn, h) && h.formatType == message::standard::type::OK) {
-                std::cout << "Received OK!\n";
-                tracker_conn->recvmsg((uint8_t*)&h, sizeof(h));
-            } else {
-                std::cout << "Received Nothing, bye!\n";
-                return;
-            }
-            std::cout << "Sending Receive Request" << std::endl;
-            if (!connections::tracker::receive(tracker_conn, torrent_hash, peertable)) {
-                std::cerr << "could not receive" << std::endl;
-                return;
-            }
+            std::cerr << "Cannot send a MAKE_TORRENT request. use 'make' instead of 'test'\n"; 
+            return;
+        case 3:
+            // TODO @Mariska: No idea what you are doing here. Please fix this stuff yourself.
+            // peertable.add_ip(Address(ConnectionType(TransportType::Type::TCP, NetType::Type::IPv4), addr, port));
+            // connections::tracker::make_torrent(tracker_conn, torrent_hash, peertable); 
+            // if (message::standard::from(tracker_conn, h) && h.formatType == message::standard::type::OK) {
+            //     std::cout << "Received OK!\n";
+            //     tracker_conn->recvmsg((uint8_t*)&h, sizeof(h));
+            // } else {
+            //     std::cout << "Received Nothing, bye!\n";
+            //     return;
+            // }
+            // std::cout << "Sending Receive Request" << std::endl;
+            // if (!connections::tracker::receive(tracker_conn, torrent_hash, peertable)) {
+            //     std::cerr << "could not receive" << std::endl;
+            //     return;
+            // }
             break;
         default:
             std::cout << "Did not send anything" << std::endl;    
