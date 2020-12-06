@@ -38,23 +38,22 @@ void do_test(int argc, char const ** argv) {
         case 1:
             std::cerr << "Cannot send a MAKE_TORRENT request. use 'make' instead of 'test'\n"; 
             return;
-        case 3:
-            // TODO @Mariska: No idea what you are doing here. Please fix this stuff yourself.
-            // peertable.add_ip(Address(ConnectionType(TransportType::Type::TCP, NetType::Type::IPv4), addr, port));
-            // connections::tracker::make_torrent(tracker_conn, torrent_hash, peertable); 
-            // if (message::standard::from(tracker_conn, h) && h.formatType == message::standard::OK) {
-            //     std::cout << "Received OK!\n";
-            //     tracker_conn->recvmsg((uint8_t*)&h, sizeof(h));
-            // } else {
-            //     std::cout << "Received Nothing, bye!\n";
-            //     return;
-            // }
-            // std::cout << "Sending Receive Request" << std::endl;
-            // if (!connections::tracker::receive(tracker_conn, torrent_hash, peertable)) {
-            //     std::cerr << "could not receive" << std::endl;
-            //     return;
-            // }
+        case 3: {
+            std::string in = "test/data/a.out"; 
+            std::string out = "test/tfs/a.tf"; 
+            std::vector<std::string> trackers = {"TCP:4:2323:127.0.0.1"};
+            if (!torrent::make(in, out, trackers))
+                return; 
+            if (!message::standard::recv(tracker_conn, h) && h.formatType == message::standard::OK) {
+                std::cerr << print::RED << "[ERROR] Make Torrent failed" << print::CLEAR << '\n';
+                return;
+            }
+            //TODO: @Mariska: fix torrent_hash
+            if (!connections::tracker::receive(tracker_conn, torrent_hash, peertable))
+                return;
+
             break;
+        }
         default:
             std::cout << "Did not send anything" << std::endl;    
     }

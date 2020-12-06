@@ -7,11 +7,11 @@
 #include <cerrno>
 namespace tcp {
     inline bool sendmsg(int sockfd, const uint8_t* const msg, unsigned length, int flags) {
-        return send(sockfd, msg, length, flags) == 0;
+        return send(sockfd, msg, length, flags) >= 0;
     }
 
     inline bool recvmsg(int sockfd, uint8_t* const msg, unsigned length, int flags) {
-        return recv(sockfd, msg, length, flags) == 0;
+        return recv(sockfd, msg, length, flags) >= 0;
     }
 
     inline bool peekmsg(int sockfd, uint8_t* const msg, unsigned length, int flags) {

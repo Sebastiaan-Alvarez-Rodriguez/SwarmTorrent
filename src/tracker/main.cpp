@@ -67,7 +67,7 @@ bool run(uint16_t port) {
     while (true) {
         auto client_conn = conn->acceptConnection();
         std::cout << "ClientConnection accepted with address "<< client_conn->getAddress() << ':' << client_conn->getPort() << std::endl;
-    
+
         message::standard::Header standard;
         
         if (!message::standard::recv(client_conn, standard)) {

@@ -37,9 +37,11 @@ public:
     //TODO @Mariska: Erasure on hashmaps is expensive if it triggers recomputation of the hash. Maybe just use 'dirty' flag?
     void remove_ip(const std::string& ip) { ips.erase(ip); };
 
-    // Sets Address struct of ip string, if it exists
-    // Returns whether ip string exists in table
+    // If IPTable contains ip string,
+    // Sets Address struct corresponding to ip string
+    // Returns whether IPTable contains ip string
     //TODO @Mariska: Comments in 2 lines above this make no sense?
+    //TODO @Sebastiaan: better?
     bool get_Addr(std::string ip, Address& a) const;
 
     // Read and write to a SwarmTorrent file
@@ -66,6 +68,8 @@ public:
     }
 
     inline void recv_table_stub() {
+        // TODO: use reserve
+        // TODO: find fast insert 
         // Contains some info on how to intellibently load a peertable from a buffer
         // Note: @Sebastiaan does not agree with some of the content here: 
         // "Please don't send an error message when insertion fails!"

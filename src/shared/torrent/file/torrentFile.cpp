@@ -6,6 +6,20 @@
 
 #include "torrentFile.h"
 
+static std::string generate_hash(std::string tf) {
+    std::ifstream reader(tf, std::ios::binary | std::ios::ate);
+    std::streamsize size = reader.tellg();
+    reader.seekg(0, std::ios::beg);
+
+    uint8_t* const data = (uint8_t*)malloc(size);
+    if (!reader.read((char*)data, size))
+        return "";
+
+    const uint8_t* ptr = data;
+    std::string hash = "";
+    hash::sha256(hash, ptr, size);
+    return hash;
+}
 
 TorrentFile TorrentFile::from(const std::string& path) {
     std::ifstream stream(path, std::ios::binary);
@@ -29,6 +43,7 @@ TorrentFile TorrentFile::make_for(IPTable& tb, const std::string& path) {
     TorrentMetadata tm;
     tm.name = fs::basename(path);
     tm.size = fs::file_size(path);
+    tm.content_hash = generate_hash(path);
     auto ht = HashTable::make_for(path);
     return TorrentFile(tb, tm, ht);
 }
