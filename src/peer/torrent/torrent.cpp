@@ -3,8 +3,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include "peer/connections/peer/connections.h"
 #include "peer/connections/tracker/connections.h"
-
 #include "peer/torrent/session/session.h"
 #include "shared/connection/impl/TCP/TCPConnection.h"
 #include "shared/connection/message/message.h"
@@ -64,6 +64,57 @@ static IPTable compose_peertable(const IPTable& trackers) {
     return maintable;
 }
 
+static bool join_peers(torrent::Session& session, const IPTable& options, unsigned needed_peers) {
+    auto torrent_hash = "some placeholder hash"; //TODO: fetch hash from tf?
+    // unsigned random_start = 0; 
+    //TODO @Mariska: 
+    // Need something to balance load between peers. Now all peers will probably connect to same others first.
+    // Maybe make a random generator in util to generate some random number in a given range?
+        // Initialize the random generator with something that is different for every peer... Hostname string? Hostname+ip?
+        // Note that initializing with time is maybe/probably not good enough, so only do that if the above option won't work
+    // Using iterator to pick a random starting point is inefficient-ish, but maybe the only choice:
+        // https://stackoverflow.com/questions/15425442/
+
+    IPTable accepted;
+    for (auto it = options.iterator_begin(); it != options.iterator_end() && accepted.size() < needed_peers; ++it) {
+        const auto& ip = it->first;
+        uint16_t port = it->second.port;
+        const auto& type = it->second.type;
+
+        if (type.t_type != TransportType::TCP) {
+            std::cerr << print::YELLOW << "[WARN] Only implemented support for TCP connections, skipping : " << type << ": " << ip << ':' << port << '\n';
+            continue;
+        }
+
+        auto conn = TCPClientConnection::Factory::from(type.n_type).withAddress(ip).withPort(port).create();
+        if (conn->get_state() != ClientConnection::READY) {
+            std::cerr << print::YELLOW << "[WARN] Could not initialize connection to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            continue;
+        }
+        if (!conn->doConnect()) {
+            std::cerr << "Could not connect to peer ";conn->print(std::cerr);std::cerr << '\n';
+            continue;
+        }
+        if (!connections::peer::join(conn, torrent_hash)) {
+            std::cerr << print::YELLOW << "[WARN] Could not send join request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            continue;
+        }
+        message::standard::Header header;
+        if (!message::standard::recv(conn, header)) {
+            std::cerr <<print::YELLOW << "[WARN] Could not receive join request response from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            continue;
+        }
+        if (header.formatType == message::standard::OK) {
+            accepted.add_ip({TransportType::TCP, NetType::IPv4}, ip, port);
+        } else if (header.formatType == message::standard::REJECT) {
+            std::cerr << print::CYAN << "[TEST] We got a REJECT for our join request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+        } else {
+            std::cerr <<print::YELLOW << "[WARN] Received non-standard-conforming response ("<<header.formatType<<") from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+        }
+    }
+    return accepted.size() >= needed_peers;
+}
+
 bool torrent::run(const std::string& torrentfile, const std::string& workpath) {
     // 0. Prepare and check output location
     if (!fs::mkdir(workpath)) {
@@ -82,16 +133,21 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath) {
     // 6. Construct torrent session (to maintain received fragments)
     auto session = torrent::Session(tf);
 
+    // 7. Initialize peer network: send requests to a number of peers to exchange data
+    // TODO: Need reasonable cap on connected peers. 
+    // In reality, cap depends on network bandwidth: Keep accepting, until bandwidth is filled up.
+    const unsigned needed_peers = 1;
+    join_peers(session, table, needed_peers);
+
+
     auto metadata = tf.getMetadata();
     const std::string fileloc = workpath + metadata.name;
     auto fragmentHandler = FragmentHandler(tf.getMetadata(), fileloc);
 
     bool stop = false;
 
-    // unsigned connected_peers = 0;
-    
+
     while (!stop) {
-        // 7. Initialize peer network: send requests to a number of peers to exchange data
 
         // 8. After building a large enough network, we must continually send and recv data.
         //    Best approach is to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
