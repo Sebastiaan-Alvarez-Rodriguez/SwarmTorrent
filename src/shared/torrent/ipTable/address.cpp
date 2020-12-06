@@ -47,16 +47,16 @@ Address Address::from_string(std::string ip) {
 
     uint16_t port;
     try {
-        port = (uint16_t)std::stoi(args[3]);
+        port = (uint16_t)std::stoi(args[2]);
     } catch (const std::exception& e) {
-        throw std::runtime_error("Could not convert '" + args[3] + "' to an integer");
+        throw std::runtime_error("Could not convert '" + args[2] + "' to an integer");
     }
 
     if (nettype != 4 && nettype != 6)
         throw std::runtime_error(args[1] + " is not a valid NetType"); 
 
     NetType::Type n = (nettype == 4) ? NetType::IPv4 : NetType::IPv6;
-    return Address(ConnectionType(t, n), args[2], port);
+    return Address(ConnectionType(t, n), args[3], port);
 }
 
 void Address::write_stream(std::ostream& os) const {
