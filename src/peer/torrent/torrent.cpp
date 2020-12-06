@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <fstream>
 
 #include "peer/connections/tracker/connections.h"
 
@@ -12,11 +13,12 @@
 #include "shared/torrent/file/io/fragmentHandler.h"
 #include "shared/torrent/file/torrentFile.h"
 #include "shared/util/print.h"
+#include "shared/util/hash/hasher.h"
 #include "torrent.h"
 
 
 
-static IPTable compose_peertable(const IPTable& trackers) {
+static IPTable compose_peertable(const std::string& hash, const IPTable& trackers) {
     std::vector<IPTable> peertables(trackers.size());
 
     // 2. Connect to trackers in list
@@ -40,8 +42,6 @@ static IPTable compose_peertable(const IPTable& trackers) {
             continue;
         }
 
-        auto hash = "@Mariska, how do we generate the torrent hash for the TorrentFile tf here?";
-
         // 3. Request trackers to provide peertables
         // 4. Receive peertables
         if (!connections::tracker::receive(tracker_conn, hash, peertables[idx])) {
@@ -63,12 +63,29 @@ static IPTable compose_peertable(const IPTable& trackers) {
     return maintable;
 }
 
+static std::string generate_hash(std::string tf) {
+    std::ifstream reader(tf, std::ios::binary | std::ios::ate);
+    std::streamsize size = reader.tellg();
+    reader.seekg(0, std::ios::beg);
+
+    uint8_t* const data = (uint8_t*)malloc(size);
+    if (!reader.read((char*)data, size))
+        return "";
+
+    const uint8_t* ptr = data;
+    std::string hash = "";
+    hash::sha256(hash, ptr, size);
+    return hash;
+}
+
 bool torrent::run(const std::string& torrentfile) {   
     // 1. Load trackerlist from tf
     TorrentFile tf = TorrentFile::from(torrentfile);
     const IPTable& tracker_table = tf.getTrackerTable();
 
-    IPTable table = compose_peertable(tracker_table);
+
+    std::string hash = generate_hash(torrentfile);
+    IPTable table = compose_peertable(hash, tracker_table);
     if (table.size() == 0) // We have a dead torrent
         return false;
 
@@ -101,28 +118,36 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
         std::cerr << print::RED << "[ERROR] Cannot make torrentfile without any trackers given" << print::CLEAR << '\n';
         return false;
     }
-
-    auto torrent_hash = "some placeholder hash"; //TODO @Mariska: Implement hashing-one-liner
     // try {
         IPTable table = IPTable::from(trackers);
+        TorrentFile::make_for(table, in).save(out); 
+        std::string torrent_hash = generate_hash(out);
+        if (torrent_hash == "") {
+            std::cerr << print::RED << "[ERROR] TorrentFile could not be hashed properly" << print::CLEAR << '\n';
+            return false;
+        }
+
         size_t success = 0;
         for (auto it = table.iterator_begin(); it != table.iterator_end(); ++it) {
-            const auto& ip = it->first;
+            const std::string& ip = it->first;
             uint16_t port = it->second.port;
 
             auto conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(ip).withPort(port).create();
             if (conn->get_state() != ClientConnection::READY) {
                 std::cerr << print::YELLOW << "[WARN] Could not initialize connection to tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+                //TODO: dont?
                 table.remove_ip(it->first);
                 continue;
             }
             if (!conn->doConnect()) {
                 std::cerr << "Could not connect to tracker ";conn->print(std::cerr);std::cerr << '\n';
+                //TODO: dont?
                 table.remove_ip(it->first);
                 continue;
             }
             if (!connections::tracker::make_torrent(conn, torrent_hash)) {
                 std::cerr << print::YELLOW << "[WARN] Could not send torrent request for tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+                //TODO: dont?
                 table.remove_ip(it->first);
                 continue;
             }
@@ -145,7 +170,7 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
             std::cerr << print::GREEN << "[SUCCESS] Registered torrentfile-in-progress at " << success << '/' << t_size << " trackers" << print::CLEAR << '\n';
         }
 
-        TorrentFile::make_for(table, in).save(out);  
+         
     // } catch (const std::exception& e) {
     //     std::cerr << print::RED << "[ERROR] " << e.what() << std::endl;
     //     return false;
