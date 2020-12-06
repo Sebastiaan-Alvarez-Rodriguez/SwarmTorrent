@@ -17,6 +17,13 @@ namespace fs {
     inline bool is_file(const std::string& path) {
         return std::filesystem::is_regular_file(path);
     }
+    inline bool is_dir(const std::string& path) {
+        return std::filesystem::is_directory(path);
+    }
+    // Construct a series of directories. Returns true on success, false on failure
+    inline bool mkdir(const std::string& path) {
+        return std::filesystem::create_directories(path);
+    }
     // Appends two paths 
     std::string append(const std::string& p1, const std::string& p2);
 }

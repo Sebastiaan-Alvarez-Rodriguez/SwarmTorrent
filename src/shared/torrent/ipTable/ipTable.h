@@ -77,7 +77,7 @@ public:
         //     Address a(ConnectionType(TransportType(), NetType()), "", 0);
         //     reader = a.read_buffer(reader);
         //     if (!table.add_ip(a)) {
-        //         message::standard::send(client_conn, message::standard::type::ERROR);
+        //         message::standard::send(client_conn, message::standard::ERROR);
         //         return;
         //     }
         // }

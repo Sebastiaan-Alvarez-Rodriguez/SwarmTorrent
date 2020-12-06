@@ -6,6 +6,7 @@
 
 #include "shared/torrent/metadata/metaData.h"
 
+// Object responsible to read from and write to fragments for a single file
 class FragmentHandler {
 protected:
     const uint64_t file_size;
@@ -22,12 +23,18 @@ public:
     FragmentHandler(const TorrentMetadata& meta, const std::string& path) : FragmentHandler(meta.size, meta.get_fragment_size(), meta.get_num_fragments(), path) {}
     ~FragmentHandler();
 
-    // Reads fragment from file, saves it in data
-    // Warning: data requires to be freed at the end of its use
-    // Pre: peer has fragment
+    // Reads fragment from file, saves it in data.
+    // '''Note:''' data requires to be freed at the end of its use.
+    // '''Warning:''' It is up to the caller to find out whether file fragment is available or not
     // Returns false if read_head is invalid
     bool read(unsigned index, uint8_t* data, unsigned& data_size);
-    
+
+    // Just like read(index, data, data_size). Allocates a buffer with leading_size extra bytes.
+    // Reader allocates bytes after the leading bytes.
+    // This function is useful if you want to add a header (e.g. for a message) without having to memcpy all read data.
+    bool read_with_leading(unsigned index, uint8_t* data, unsigned& data_size, unsigned leading_size);
+
+
     // Writes fragment to file, if the fragment is valid
     // Returns whether the fragment is valid
     bool write(unsigned index, const uint8_t* data, unsigned data_size);    

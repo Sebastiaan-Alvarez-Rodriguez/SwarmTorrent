@@ -12,6 +12,7 @@
 #include "shared/torrent/file/io/fragmentHandler.h"
 #include "shared/torrent/file/torrentFile.h"
 #include "shared/util/print.h"
+#include "shared/util/fs/fs.h"
 #include "torrent.h"
 
 
@@ -63,7 +64,13 @@ static IPTable compose_peertable(const IPTable& trackers) {
     return maintable;
 }
 
-bool torrent::run(const std::string& torrentfile) {   
+bool torrent::run(const std::string& torrentfile, const std::string& workpath) {
+    // 0. Prepare and check output location
+    if (!fs::mkdir(workpath)) {
+        std::cerr << print::RED << "[ERROR] Could not construct path '" << workpath << "'" << print::CLEAR << std::endl;
+        return false;
+    }
+
     // 1. Load trackerlist from tf
     TorrentFile tf = TorrentFile::from(torrentfile);
     const IPTable& tracker_table = tf.getTrackerTable();
@@ -75,16 +82,25 @@ bool torrent::run(const std::string& torrentfile) {
     // 6. Construct torrent session (to maintain received fragments)
     auto session = torrent::Session(tf);
 
+    auto metadata = tf.getMetadata();
+    const std::string fileloc = workpath + metadata.name;
+    auto fragmentHandler = FragmentHandler(tf.getMetadata(), fileloc);
+
     bool stop = false;
+
+    // unsigned connected_peers = 0;
+    
     while (!stop) {
-        // 7. Pick a bunch of peers to request filedata from!
+        // 7. Initialize peer network: send requests to a number of peers to exchange data
+
+        // 8. After building a large enough network, we must continually send and recv data.
+        //    Best approach is to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
+        //    We should use different ports for requesting and receiving data, because these things do not wait nicely on each other.
 
         // 8. Request filedata, receive fragments
         // 8b. If we have a dead torrent, return false? Or periodically request trackers for new peertable
         // 9. Write data using fragmentHandler, after checking of course
-
-        std::string path_placeholder = "/tmp/oof.output"; //TODO: Intelligently construct full file paths here
-        auto fragmentHandler = FragmentHandler(tf.getMetadata(), path_placeholder);
+        
         // std::string hash;
         // hash::sha256(hash, data, data_size);
         // if (!torrentfile.check_hash(index, hash))
@@ -128,7 +144,7 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
             }
 
             message::standard::Header h;
-            if (message::standard::from(conn, h) && h.formatType == message::standard::type::OK) {
+            if (message::standard::recv(conn, h) && h.formatType == message::standard::OK) {
                 ++success;
             } else {
                 std::cerr << print::YELLOW << "[WARN] No confirming message received from tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';

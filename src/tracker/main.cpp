@@ -18,14 +18,14 @@ void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& c
 
     IPTable table;
     if (!session.get_table(hash, table)) { //No table for hash found, return error
-        message::standard::send(client_conn, message::standard::type::ERROR);
+        message::standard::send(client_conn, message::standard::ERROR);
         std::cerr << "Error" << std::endl;
         return;
     }
     size_t buf_length = table.size() * Address::size() + sizeof(message::standard::Header);
     uint8_t* const table_buffer = (uint8_t*)malloc(buf_length);
     uint8_t* writer = table_buffer;
-    *((message::standard::Header*) writer) = message::standard::make(table.size()*Address::size(), message::standard::type::OK);
+    *((message::standard::Header*) writer) = message::standard::from(table.size()*Address::size(), message::standard::OK);
     writer += sizeof(message::standard::Header);
     for (auto it = table.iterator_begin(); it != table.iterator_end(); ++it) 
         writer = (*it).second.write_buffer(writer);
@@ -48,7 +48,7 @@ void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& cl
         auto port = client_conn->getPort();
         session.add_peer(hash, {{TransportType::TCP, NetType::IPv4}, addr, port});
     }
-    message::standard::send(client_conn, message::standard::type::OK);
+    message::standard::send(client_conn, message::standard::OK);
 }
 
 bool run(uint16_t port) {
@@ -69,7 +69,7 @@ bool run(uint16_t port) {
     while (true) {
         message::standard::Header standard;
         
-        if (!message::standard::from(client_conn, standard)) {
+        if (!message::standard::recv(client_conn, standard)) {
             std::cout << "Unable to peek. System hangup?" << std::endl;
             continue;
         }
@@ -84,7 +84,7 @@ bool run(uint16_t port) {
         switch (header->tag) {
             case message::tracker::Tag::TEST:
                 std::cout << "Got a test message" << std::endl;
-                message::standard::send(client_conn, message::standard::type::OK);
+                message::standard::send(client_conn, message::standard::OK);
                 break;
             case message::tracker::Tag::MAKE_TORRENT: handle_make_torrent(session, client_conn, ptr, standard.size); break;
             case message::tracker::Tag::RECEIVE: {
@@ -93,7 +93,7 @@ bool run(uint16_t port) {
             }
             case message::tracker::Tag::UPDATE:
                 std::cout << "Got an update" << std::endl;
-                message::standard::send(client_conn, message::standard::type::OK);
+                message::standard::send(client_conn, message::standard::OK);
                 break;
             default: std::cout << "Got unknown header tag: " << (uint16_t) header->tag << std::endl;break;
         }

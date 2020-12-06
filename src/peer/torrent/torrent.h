@@ -15,11 +15,10 @@
 //     TorrentFile::make_for(input_loc).save(outputfile);
 // }
 namespace torrent {
-
-    // Torrent a torrentfile provided by `torrentfile`
-    bool run(const std::string& torrentfile);
-
     // Make a torrentfile from path in, write created torrentfile to out
     bool make(const std::string& in, const std::string& out, std::vector<std::string>& trackers);
+
+    // Torrent a torrentfile provided by torrentfile, with given workpath
+    bool run(const std::string& torrentfile, const std::string& workpath);
 }
 #endif

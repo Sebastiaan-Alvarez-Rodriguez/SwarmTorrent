@@ -1,5 +1,5 @@
-#ifndef TP_CONNECTION_PEER_H
-#define TP_CONNECTION_PEER_H
+#ifndef TP_CONNECTION_PEER_TRACKER_H
+#define TP_CONNECTION_PEER_TRACKER_H
 
 #include <string>
 #include <memory>
