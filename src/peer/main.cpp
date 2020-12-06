@@ -39,6 +39,7 @@ void do_test(int argc, char const ** argv) {
             std::cerr << "Cannot send a MAKE_TORRENT request. use 'make' instead of 'test'\n"; 
             return;
         case 3:
+            // return torrent::make(in, out, trackers);
             // TODO @Mariska: No idea what you are doing here. Please fix this stuff yourself.
             // peertable.add_ip(Address(ConnectionType(TransportType::Type::TCP, NetType::Type::IPv4), addr, port));
             // connections::tracker::make_torrent(tracker_conn, torrent_hash, peertable); 
