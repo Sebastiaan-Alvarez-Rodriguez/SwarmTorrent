@@ -25,7 +25,7 @@ public:
     // Returns whether insertion is success
     bool add_ip(const Address& a) { return ips.insert({a.ip, Address(a.type, a.ip, a.port)}).second; };
 
-    // Adds an address to the table with its IP and port
+    // Adds an address to the table with its IP and sourcePort
     // Returns whether insersion is success
     bool add_ip(ConnectionType type, const std::string& ip, uint16_t port) { return ips.insert({ip, Address(type, ip, port)}).second; };
 

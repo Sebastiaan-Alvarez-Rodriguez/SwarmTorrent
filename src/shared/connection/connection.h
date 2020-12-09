@@ -17,7 +17,7 @@
 
 class Connection {
 public:
-    Connection(ConnectionType type, uint16_t port) : type(type), port(port) {};
+    Connection(ConnectionType type, uint16_t sourcePort) : type(type), sourcePort(sourcePort) {};
     ~Connection() = default;
 
     /** Returns type of connection we use */
@@ -25,7 +25,7 @@ public:
 
     inline virtual void print(std::ostream& stream) const = 0;
 
-    inline virtual uint16_t getPort() const {return port;}
+    inline virtual uint16_t getSourcePort() const {return sourcePort;}
 
 
     enum State {
@@ -42,18 +42,22 @@ protected:
     State state = State::DISCONNECTED;
     const ConnectionType type;
 
-    uint16_t port;
+    uint16_t sourcePort;
 };
 
 class ClientConnection : public Connection {
 public:
-    explicit ClientConnection(ConnectionType type, std::string address, uint16_t port) : Connection(type, port), address(std::move(address)) {};
+    explicit ClientConnection(ConnectionType type, std::string address, uint16_t sourcePort, uint16_t destinationPort) : Connection(type, sourcePort), address(std::move(address)), destinationPort(destinationPort) {};
     ~ClientConnection() = default;
 
     class Factory;
 
     inline virtual const std::string& getAddress() const {
         return address;
+    }
+
+    inline virtual uint16_t getDestinationPort() const {
+        return destinationPort;
     }
 
     virtual bool doConnect() = 0;
@@ -69,12 +73,13 @@ public:
     virtual bool discardmsg(unsigned length) const = 0;
 protected:
     std::string address;
+    uint16_t destinationPort;
 
 };
 
 class HostConnection : public Connection {
 public:
-    explicit HostConnection(ConnectionType type, uint16_t port) : Connection(type, port) {};
+    explicit HostConnection(ConnectionType type, uint16_t hostPort) : Connection(type, hostPort) {};
     ~HostConnection() = default;
 
     class Factory;
@@ -98,8 +103,20 @@ public:
         return *this;
     }
 
-    Factory& withPort(uint16_t p) {
-        port = p;
+    /**
+     * Sets our local port to use for the connection.
+     *
+     * '''Convention:''' If `port=0` given (default), we use a random source port
+     * @param p Source port to use
+     * @return current factory instance
+     */
+    Factory& withSourcePort(uint16_t p) {
+        sourcePort = p;
+        return *this;
+    }
+
+    Factory& withDestinationPort(uint16_t p) {
+        destinationPort = p;
         return *this;
     }
 
@@ -108,15 +125,22 @@ public:
 protected:
     ConnectionType type;
     std::string address;
-    uint16_t port = 0;
+    uint16_t sourcePort = 0, destinationPort = 0;
 };
 
 class HostConnection::Factory {
 public:
     explicit Factory(ConnectionType type) : type(type) {}
 
-    Factory& withPort(uint16_t p) {
-        port = p;
+    /**
+    * Sets our local port to use for listening for connections.
+    *
+    * '''Convention:''' If `port=0` given (default), we use a random source port
+    * @param p Source port to use
+    * @return current factory instance
+    */
+    Factory& withSourcePort(uint16_t p) {
+        sourcePort = p;
         return *this;
     }
 
@@ -124,6 +148,6 @@ public:
 
 protected:
     ConnectionType type;
-    uint16_t port = 0;
+    uint16_t sourcePort = 0;
 };
 #endif

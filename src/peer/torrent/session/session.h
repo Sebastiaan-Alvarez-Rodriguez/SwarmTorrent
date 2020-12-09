@@ -18,6 +18,7 @@ namespace torrent {
         size_t num_fragments_completed = 0;
         std::vector<bool> fragments_completed;
         
+        // std::vector<std::unique_ptr<Client
 
     public:
         explicit Session(const TorrentFile& tf) : htable(tf.getHashTable()), metadata(tf.getMetadata()), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false) {}

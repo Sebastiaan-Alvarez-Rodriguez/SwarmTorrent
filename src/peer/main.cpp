@@ -11,7 +11,7 @@
 void do_test(int argc, char const ** argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Peer Test", ' ', "0.1");
     TCLAP::ValueArg<std::string> addrArg("a","address","Address of host",false,"127.0.0.1","ADDR", cmd);
-    TCLAP::ValueArg<uint16_t> portArg("p","port","Port of host",true,1042,"PORT", cmd);
+    TCLAP::ValueArg<uint16_t> portArg("p","sourcePort","Port of host",true,1042,"PORT", cmd);
     TCLAP::ValueArg<uint16_t> sendArg("s","sendarg","Argument to send",false, (uint16_t) message::tracker::Tag::TEST, "ARG", cmd);
     
     cmd.parse(argc, argv);
@@ -22,8 +22,8 @@ void do_test(int argc, char const ** argv) {
 
      if (port < 1000)
         std::cerr << print::YELLOW << "Port numbers lower than 1000 may be reserved by the OS!" << print::CLEAR << std::endl;
-    
-    auto tracker_conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(addr).withPort(port).create();
+
+    auto tracker_conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(addr).withDestinationPort(port).create();
     std::string torrent_hash = "some cool hash";
     if (!tracker_conn->doConnect()) {
         std::cerr << print::RED << "[ERROR] Could not connect to remote!" << print::CLEAR << std::endl;
@@ -69,11 +69,10 @@ bool run_torrent(int argc, char const ** argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Peer Torrent", ' ', "0.1");
     TCLAP::ValueArg<std::string> torrentfileArg("f","file","The torrentfile to open",true,"","File", cmd);
     TCLAP::ValueArg<std::string> workpathArg("w","workpath","The location to load/store the data",true,"","File", cmd);
-    cmd.parse(argc, argv);
+    TCLAP::ValueArg<uint16_t> portArg("p","port","Port to receive torrent requests on",true,1042,"PORT", cmd);
     
-    std::string tf = workpathArg.getValue();
-    std::string workpath = workpathArg.getValue();
-    return torrent::run(tf, workpath);
+    cmd.parse(argc, argv);
+    return torrent::run(torrentfileArg.getValue(), workpathArg.getValue(), portArg.getValue());
 }
 
 // Parse arguments for torrent::make and execute

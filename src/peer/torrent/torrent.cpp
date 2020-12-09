@@ -19,7 +19,7 @@
 
 
 
-static IPTable compose_peertable(const std::string& hash, const IPTable& trackers) {
+static IPTable compose_peertable(const std::string& hash, const IPTable& trackers, uint16_t sourcePort) {
     std::vector<IPTable> peertables(trackers.size());
 
     // 2. Connect to trackers in list
@@ -33,7 +33,7 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection for non-TCP transport type: '" << addr_info.type.t_type << '\'' << print::CLEAR << '\n';
             continue;
         }
-        auto tracker_conn = TCPClientConnection::Factory::from(addr_info.type.n_type).withAddress(address).withPort(port).create();
+        auto tracker_conn = TCPClientConnection::Factory::from(addr_info.type.n_type).withAddress(address).withSourcePort(sourcePort).withDestinationPort(port).create();
         if (tracker_conn->get_state() != ClientConnection::READY) {
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
             continue;
@@ -86,7 +86,7 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
             continue;
         }
 
-        auto conn = TCPClientConnection::Factory::from(type.n_type).withAddress(ip).withPort(port).create();
+        auto conn = TCPClientConnection::Factory::from(type.n_type).withAddress(ip).withDestinationPort(port).create();
         if (conn->get_state() != ClientConnection::READY) {
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
@@ -115,7 +115,68 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
     return accepted.size() >= needed_peers;
 }
 
-bool torrent::run(const std::string& torrentfile, const std::string& workpath) {
+bool torrent::make(const std::string& in, const std::string& out, std::vector<std::string>& trackers) {
+    auto t_size = trackers.size(); 
+    if (t_size == 0) {
+        std::cerr << print::RED << "[ERROR] Cannot make torrentfile without any trackers given" << print::CLEAR << '\n';
+        return false;
+    }
+    // try {
+        IPTable table = IPTable::from(trackers);
+        TorrentFile tf = TorrentFile::make_for(table, in);
+        tf.save(out);
+        std::string torrent_hash = tf.getMetadata().content_hash;
+        if (torrent_hash == "") {
+            std::cerr << print::RED << "[ERROR] TorrentFile could not be hashed properly" << print::CLEAR << '\n';
+            return false;
+        }
+
+
+        IPTable connected;
+        for (auto it = table.iterator_begin(); it != table.iterator_end(); ++it) {
+            const std::string& ip = it->first;
+            const auto addr = it->second;
+
+            auto conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(ip).withDestinationPort(addr.port).create();
+            if (conn->get_state() != ClientConnection::READY) {
+                std::cerr << print::YELLOW << "[WARN] Could not initialize connection to tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+                continue;
+            }
+            if (!conn->doConnect()) { // TODO: Need timeout here probably
+                std::cerr << "Could not connect to tracker ";conn->print(std::cerr);std::cerr << '\n';
+                continue;
+            }
+            if (!connections::tracker::make_torrent(conn, torrent_hash)) { // TODO: Need timeout here probably
+                std::cerr << print::YELLOW << "[WARN] Could not send torrent request for tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+                continue;
+            }
+
+            message::standard::Header h;
+            if (message::standard::recv(conn, h) && h.formatType == message::standard::OK) {
+                connected.add_ip(addr);
+            } else {
+                std::cerr << print::YELLOW << "[WARN] No confirming message received from tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            }
+        }
+        if (connected.size() == 0) {
+            std::cerr << print::RED << "[ERROR] No successful connections to any tracker" << print::CLEAR << '\n';
+            return false;
+        } else if (connected.size() < t_size) {
+            std::cerr << print::YELLOW << "[WARN] Could only register at "<< connected.size() << '/' << t_size << " trackers" << print::CLEAR << '\n';
+            //TODO: Maybe should mention which trackers were the failed ones
+        } else {
+            std::cerr << print::GREEN << "[SUCCESS] Registered torrentfile-in-progress at " << connected.size() << '/' << t_size << " trackers" << print::CLEAR << '\n';
+        }
+
+         
+    // } catch (const std::exception& e) {
+    //     std::cerr << print::RED << "[ERROR] " << e.what() << std::endl;
+    //     return false;
+    // }
+    return true;
+}
+
+bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort) {
     // 0. Prepare and check output location
     if (!fs::mkdir(workpath)) {
         std::cerr << print::RED << "[ERROR] Could not construct path '" << workpath << "'" << print::CLEAR << std::endl;
@@ -128,7 +189,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath) {
     //TODO: hash in TorrentFile?
     // std::string hash = generate_hash(torrentfile);
     std::string hash = "test";
-    IPTable table = compose_peertable(hash, tracker_table);
+    IPTable table = compose_peertable(hash, tracker_table, sourcePort);
     if (table.size() == 0) // We have a dead torrent
         return false;
 
@@ -166,72 +227,5 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath) {
         // 10. Send filedata to others, if we own the required data
         stop = true;
     }
-    return true;
-}
-
-bool torrent::make(const std::string& in, const std::string& out, std::vector<std::string>& trackers) {
-    auto t_size = trackers.size(); 
-    if (t_size == 0) {
-        std::cerr << print::RED << "[ERROR] Cannot make torrentfile without any trackers given" << print::CLEAR << '\n';
-        return false;
-    }
-    // try {
-        IPTable table = IPTable::from(trackers);
-        TorrentFile tf = TorrentFile::make_for(table, in);
-        tf.save(out);
-        std::string torrent_hash = tf.getMetadata().content_hash;
-        if (torrent_hash == "") {
-            std::cerr << print::RED << "[ERROR] TorrentFile could not be hashed properly" << print::CLEAR << '\n';
-            return false;
-        }
-
-        size_t success = 0;
-        for (auto it = table.iterator_begin(); it != table.iterator_end(); ++it) {
-            const std::string& ip = it->first;
-            uint16_t port = it->second.port;
-
-            auto conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(ip).withPort(port).create();
-            if (conn->get_state() != ClientConnection::READY) {
-                std::cerr << print::YELLOW << "[WARN] Could not initialize connection to tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
-                //TODO: dont?
-                table.remove_ip(it->first);
-                continue;
-            }
-            if (!conn->doConnect()) {
-                std::cerr << "Could not connect to tracker ";conn->print(std::cerr);std::cerr << '\n';
-                //TODO: dont?
-                table.remove_ip(it->first);
-                continue;
-            }
-            if (!connections::tracker::make_torrent(conn, torrent_hash)) {
-                std::cerr << print::YELLOW << "[WARN] Could not send torrent request for tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
-                //TODO: dont?
-                table.remove_ip(it->first);
-                continue;
-            }
-
-            message::standard::Header h;
-            if (message::standard::recv(conn, h) && h.formatType == message::standard::OK) {
-                ++success;
-            } else {
-                std::cerr << print::YELLOW << "[WARN] No confirming message received from tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
-                table.remove_ip(it->first);
-            }
-        }
-        if (success == 0) {
-            std::cerr << print::RED << "[ERROR] No successful connections to any tracker" << print::CLEAR << '\n';
-            return false;
-        } else if (success < t_size) {
-            std::cerr << print::YELLOW << "[WARN] Could only register at "<< success << '/' << t_size << " trackers" << print::CLEAR << '\n';
-            //TODO: Maybe should mention which trackers were the failed ones
-        } else {
-            std::cerr << print::GREEN << "[SUCCESS] Registered torrentfile-in-progress at " << success << '/' << t_size << " trackers" << print::CLEAR << '\n';
-        }
-
-         
-    // } catch (const std::exception& e) {
-    //     std::cerr << print::RED << "[ERROR] " << e.what() << std::endl;
-    //     return false;
-    // }
     return true;
 }

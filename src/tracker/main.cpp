@@ -40,19 +40,19 @@ void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& cl
     IPTable table;
     if (!session.get_table(hash, table)) { // Table does not exist yet, insert new table.
         auto addr = client_conn->getAddress();
-        auto port = client_conn->getPort();
+        auto port = client_conn->getSourcePort();
         table.add_ip({TransportType::TCP, NetType::IPv4}, addr, port);
         session.add_table(hash, table);
     } else { // Table already exists. Add this peer to the list.
         auto addr = client_conn->getAddress();
-        auto port = client_conn->getPort();
+        auto port = client_conn->getSourcePort();
         session.add_peer(hash, {{TransportType::TCP, NetType::IPv4}, addr, port});
     }
     message::standard::send(client_conn, message::standard::OK);
 }
 
 bool run(uint16_t port) {
-    auto conn = TCPHostConnection::Factory::from(NetType::IPv4).withPort(port).create();
+    auto conn = TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(port).create();
     if (conn->get_state() != ClientConnection::READY) {
         std::cerr << print::RED << "[ERROR] Could not initialize connection" << print::CLEAR << std::endl;
         return false;
@@ -60,13 +60,13 @@ bool run(uint16_t port) {
 
     Session session;
     std::cout << "Session initialized" << std::endl;
-    std::cout << "Listening started on port " << port << std::endl;
+    std::cout << "Listening started on sourcePort " << port << std::endl;
 
     // bool running = true;
 
     while (true) {
         auto client_conn = conn->acceptConnection();
-        std::cout << "ClientConnection accepted with address "<< client_conn->getAddress() << ':' << client_conn->getPort() << std::endl;
+        std::cout << "ClientConnection accepted with address " << client_conn->getAddress() << ':' << client_conn->getDestinationPort() << std::endl;
 
         message::standard::Header standard;
         
@@ -104,7 +104,7 @@ bool run(uint16_t port) {
 
 int main(int argc, char const **argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Tracker Run", ' ', "0.1");
-    TCLAP::ValueArg<uint16_t> portArg("p","port","Port for peer connections",true,1042,"PORT", cmd);
+    TCLAP::ValueArg<uint16_t> portArg("p","port","Port to which peer connect",true,1042,"PORT", cmd);
     cmd.parse(argc, argv);
 
     uint16_t port = portArg.getValue();

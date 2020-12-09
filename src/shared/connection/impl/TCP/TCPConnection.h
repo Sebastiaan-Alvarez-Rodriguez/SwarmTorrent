@@ -19,12 +19,12 @@
 #include "generic/generic.h"
 
 //TODO: https://www.geeksforgeeks.org/explicitly-assigning-port-number-client-socket/
-// Need to explicitly bind to port for client connections?
+// Need to explicitly bind to sourcePort for client connections?
 class TCPClientConnection : public ClientConnection {
 public:
     class Factory;
 
-    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t port) : ClientConnection::ClientConnection(type, address, port) {
+    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t  sourcePort, uint16_t destinationPort) : ClientConnection::ClientConnection(type, address, sourcePort, destinationPort) {
         this->state = ClientConnection::ERROR;
         if ((this->sockfd = sock::make(type)) < 0) {
             std::cerr << "Could not build socket!" << std::endl;
@@ -33,17 +33,27 @@ public:
 
         struct sockaddr_in addr_in;
         addr_in.sin_family = type.n_type.to_ctype();
-        addr_in.sin_port = htons(port);
+        addr_in.sin_port = htons(destinationPort);
 
         if(inet_pton(type.n_type.to_ctype(), address.c_str(), &addr_in.sin_addr) <= 0) {
             std::cerr << "Could not assign address!" << std::endl;
             return;
         }
         this->sock_addr = *(struct sockaddr*) &addr_in;
+
+        if (sourcePort > 0) {
+            struct sockaddr_in own_addr;
+            // We should explicitly bind to the user-specified port
+            own_addr.sin_family = type.n_type.to_ctype(); 
+            own_addr.sin_addr.s_addr = INADDR_ANY; 
+            own_addr.sin_port = htons(sourcePort); 
+            if (!bind(this->sockfd, (struct sockaddr*) &own_addr, sizeof(struct sockaddr_in)) == 0) 
+                throw std::runtime_error("Could not make connection have port "+sourcePort);
+        }
         this->state = READY;
     }
 
-    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t port, int sockfd, struct sockaddr sock_addr): ClientConnection::ClientConnection(type, address, port), sockfd(sockfd), sock_addr(sock_addr) {
+    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t  sourcePort, uint16_t destinationPort, int sockfd, struct sockaddr sock_addr): ClientConnection::ClientConnection(type, address, sourcePort, destinationPort), sockfd(sockfd), sock_addr(sock_addr) {
         this->state = CONNECTED;
     }
 
@@ -73,11 +83,11 @@ public:
 
     inline virtual bool discardmsg(__attribute__ ((unused)) unsigned length) const {
         // uint8_t* buf = malloc(length);
-        return recvmsg(NULL, 0, MSG_TRUNC);
+        return recvmsg(nullptr, 0, MSG_TRUNC);
     };
 
     inline void print(std::ostream& stream) const override {
-        stream << "Client target:" << type << ": " << address << ':' << port;
+        stream << "Client target:" << type << ": " << address << ':' << sourcePort;
     }
 
 protected:
@@ -89,7 +99,7 @@ class TCPHostConnection: public HostConnection {
 public:
     class Factory;
 
-    explicit inline TCPHostConnection(ConnectionType type, uint16_t port) : HostConnection(type, port) {
+    explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort) : HostConnection(type, sourcePort) {
         this->state = ClientConnection::ERROR;
         if ((sockfd = sock::make(type)) < 0) {
             std::cerr << "Could not build socket!" << std::endl;
@@ -101,7 +111,7 @@ public:
         // bzero((char *) &sock, sizeof(sock));
         addr_in->sin_family = this->type.n_type.to_ctype();
         addr_in->sin_addr.s_addr = INADDR_ANY;
-        addr_in->sin_port = htons(port);
+        addr_in->sin_port = htons(sourcePort);
 
         if(bind(sockfd, (struct sockaddr*) addr_in, sizeof(sockaddr_in)) < 0) {
             std::cerr << "Could not bind socket! Maybe address already in use?" << std::endl;
@@ -128,13 +138,13 @@ public:
             return nullptr;
         }
         std::string addr(inet_ntoa(address.sin_addr));
-        auto ptr = std::make_unique<TCPClientConnection>(type, addr, ntohs(address.sin_port), new_socket, *(struct sockaddr*) &address);
+        auto ptr = std::make_unique<TCPClientConnection>(type, addr, sourcePort, ntohs(address.sin_port), new_socket, *(struct sockaddr*) &address);
         this->state = CONNECTED;
         return ptr;
     }
 
     inline void print(std::ostream& stream) const override {
-        stream << "Server " << type << ": INADDR_ANY" << ':' << port;
+        stream << "Server " << type << ": INADDR_ANY" << ':' << sourcePort;
     }
 
 protected:
@@ -154,7 +164,7 @@ public:
     }
 
     inline std::unique_ptr<ClientConnection> create() const override {
-        return std::make_unique<TCPClientConnection>(type, address, port);
+        return std::make_unique<TCPClientConnection>(type, address, sourcePort, destinationPort);
     }
 };
 
@@ -170,7 +180,7 @@ public:
     }
 
     inline std::unique_ptr<HostConnection> create() const override {
-        return std::make_unique<TCPHostConnection>(type, port);
+        return std::make_unique<TCPHostConnection>(type, sourcePort);
     }
 };
 #endif
