@@ -131,6 +131,18 @@ public:
             std::cerr << "Could not bind socket! Maybe address already in use?" << std::endl;
             return;
         }
+
+        if (listen(sockfd, 10) < 0) { //TODO: Change hardcoded 10 for connection backlog to a global constant somewhere
+            //TODO: Check if this listen to socket could return < 0 on non-blocking sockets, while being alright.
+            //      If so, we should fix it.
+            // if (this->blockmode/* || (!this->blockmode && errno != EWOULDBLOCK)*/) {
+            //     this->state = ERROR;
+            //     std::cerr << "Could not listen to socket!" << std::endl;
+            // }
+            std::cerr << "Could not listen to socket!" << std::endl;
+            return;
+        }
+
         this->state = ClientConnection::READY;
     }
 
@@ -139,14 +151,6 @@ public:
     }
 
     inline std::unique_ptr<ClientConnection> acceptConnection() override {
-        if (listen(sockfd, 10) < 0) { //TODO: Change hardcoded 10 for connection backlog to a global constant somewhere
-            if (this->blockmode/* || (!this->blockmode && errno != EWOULDBLOCK)*/) {
-                this->state = ERROR;
-                std::cerr << "Could not listen to socket!" << std::endl;
-            }
-            return nullptr;
-        }
-
         struct sockaddr_in address;
         size_t addrlen = sizeof(address);
         int new_socket = accept(sockfd, (struct sockaddr*) &address, (socklen_t*) &addrlen);

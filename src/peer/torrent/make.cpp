@@ -13,11 +13,10 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
         std::cerr << print::RED << "[ERROR] Cannot make torrentfile without any trackers given" << print::CLEAR << '\n';
         return false;
     }
-    // try {
     IPTable table = IPTable::from(trackers);
     TorrentFile tf = TorrentFile::make_for(table, in);
     tf.save(out);
-    std::string torrent_hash = tf.getMetadata().content_hash;
+    const std::string torrent_hash = tf.getMetadata().content_hash;
     if (torrent_hash == "") {
         std::cerr << print::RED << "[ERROR] TorrentFile could not be hashed properly" << print::CLEAR << '\n';
         return false;
@@ -59,11 +58,5 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
     } else {
         std::cerr << print::GREEN << "[SUCCESS] Registered torrentfile-in-progress at " << connected.size() << '/' << t_size << " trackers" << print::CLEAR << '\n';
     }
-
-
-    // } catch (const std::exception& e) {
-    //     std::cerr << print::RED << "[ERROR] " << e.what() << std::endl;
-    //     return false;
-    // }
     return true;
 }

@@ -14,6 +14,7 @@ protected:
     IPTable trackertable; // Information to connect with trackers
     TorrentMetadata metadata; // Information about the streamed file
     HashTable hashtable; // SHA256's for every fragment
+
 public:
     TorrentFile(IPTable& tt, TorrentMetadata& tm, HashTable& ht) : trackertable(tt), metadata(tm), hashtable(ht) {}
 

@@ -25,8 +25,11 @@ public:
 
     // Add a peer to the table with hash as identifier. 
     // Returns true on insertion, false when IPTable not found or peer already added.
-    bool add_peer(const std::string& hash, const Address& peer);
+    bool add_peer(const std::string& hash, const Address& peer, bool exist_ok=true);
 
+    // // Add a peer to the table with hash as identifier. 
+    // // Returns true on insertion, false when IPTable not found.    
+    // bool add_peer_fast(const std::string& hash, const Address& peer);
     
     // Update the table with hash as identifier
     // TODO: diffTable?
@@ -37,6 +40,7 @@ public:
     // Remove peer from table with hash as identifier
     bool remove_peer(const std::string& hash, const std::string& peer);
 
+    inline size_t size() const { return peertables.size(); }
 
     // Garbage collect the peertables vector
     void garbage_collect();

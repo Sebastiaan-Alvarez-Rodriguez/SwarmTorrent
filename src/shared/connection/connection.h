@@ -16,6 +16,8 @@
 // https://stackoverflow.com/questions/4181784/
 // Quick post about using non-blocking connections sensibly:
 // https://jameshfisher.com/2017/04/05/set_socket_nonblocking/
+// Next next step: polling system for accepting connections?
+// https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_71/rzab6/poll.htm
 #include "shared/connection/meta/type.h"
 
 

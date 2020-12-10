@@ -7,6 +7,7 @@
 
 #include "shared/connection/connection.h"
 #include "shared/torrent/file/torrentFile.h"
+#include "shared/torrent/ipTable/ipTable.h"
 #include "shared/torrent/hashTable/hashTable.h"
 #include "shared/torrent/metadata/metaData.h"
 
@@ -42,6 +43,8 @@ namespace torrent {
         std::shared_ptr<HostConnection> recv_conn;
 
         Registry registry;
+        IPTable peertable;
+
         size_t num_fragments;
         size_t num_fragments_completed = 0;
         std::vector<bool> fragments_completed;
@@ -58,8 +61,6 @@ namespace torrent {
          */
         explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn) : htable(tf.getHashTable()), metadata(tf.getMetadata()), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false) {}
 
-        inline const HashTable& table() const { return htable; }
-
         inline void mark(size_t index) {
             if (!fragments_completed[index]) {
                 fragments_completed[index] = true;
@@ -71,13 +72,19 @@ namespace torrent {
             return num_fragments == num_fragments_completed;
         }
 
-        inline const auto& get_conn() const {
-            return recv_conn;
-        }
+        inline const auto& get_hashtable() const { return htable; }
 
-        inline const auto& get_registry() const {
-            return registry;
-        }
+        inline const auto& get_metadata() const { return metadata; }
+
+        inline const auto& get_conn() const { return recv_conn; }
+
+        inline const auto& get_registry() const { return registry; }
+
+        inline const auto& get_peertable() const { return peertable; }
+
+        inline auto& get_peertable() { return peertable; }
+        inline bool add_peer(const Address& a) { return peertable.add_ip(a); }
+        inline bool add_peer(ConnectionType type, const std::string& ip, uint16_t port) { return peertable.add_ip(type, ip, port); }  
     };
 }
 #endif

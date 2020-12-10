@@ -11,10 +11,10 @@
 
 struct TorrentMetadata : public Streamable {
     TorrentMetadata() = default;
-    TorrentMetadata(std::string name, uint64_t size, uint64_t fragment_size, std::string hash) : name(std::move(name)), content_hash(hash), size(size), fragment_size(fragment_size)  {}
-    
+    TorrentMetadata(std::string name, uint64_t size, uint64_t fragment_size, std::string hash) : name(std::move(name)), content_hash(hash), size(size), fragment_size(fragment_size) {}
+
     std::string name; // Suggested name to save the file
-    std::string content_hash; // Hash of the content of the complete file
+    std::string content_hash; // Hash of the entire content
     uint64_t size; //Total size of the file we stream, in bytes
     uint64_t fragment_size = torrent::file::defaults::fragment_size; // Size of one fragment, in bytes
 

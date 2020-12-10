@@ -24,15 +24,15 @@ static bool send_request(std::unique_ptr<ClientConnection>& connection, const st
 }
 
 bool connections::tracker::test(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash) {
-    return send_request(connection, torrent_hash, message::tracker::Tag::TEST);
+    return send_request(connection, torrent_hash, message::tracker::TEST);
 }
 
 bool connections::tracker::make_torrent(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash) {
-    return send_request(connection, torrent_hash, message::tracker::Tag::MAKE_TORRENT);
+    return send_request(connection, torrent_hash, message::tracker::MAKE_TORRENT);
 }
 
 bool connections::tracker::receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable) {
-    if (!send_request(connection, torrent_hash, message::tracker::Tag::RECEIVE))
+    if (!send_request(connection, torrent_hash, message::tracker::RECEIVE))
         return false;
 
     message::standard::Header header;
@@ -49,4 +49,18 @@ bool connections::tracker::receive(std::unique_ptr<ClientConnection>& connection
     }
     free(table_buffer);
     return true;
+}
+
+bool connections::tracker::register_self(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port) {
+    const auto m_size = torrent_hash.size();
+    uint8_t* const data = (uint8_t*) malloc(sizeof(message::tracker::Header)+sizeof(uint16_t)+m_size);
+    uint8_t* ptr = data;
+    *((message::tracker::Header*) data) = message::tracker::from(m_size, message::tracker::REGISTER);
+    ptr += sizeof(message::tracker::Header);
+    *((uint16_t* ) ptr) = port;
+    ptr += sizeof(uint16_t);
+    memcpy(ptr, torrent_hash.c_str(), m_size);
+    bool val = connection->sendmsg(data, sizeof(message::tracker::Header)+m_size);
+    free(data);
+    return val;
 }

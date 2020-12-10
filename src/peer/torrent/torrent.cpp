@@ -33,15 +33,18 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection for non-TCP transport type: '" << addr_info.type.t_type << '\'' << print::CLEAR << '\n';
             continue;
         }
-        auto tracker_conn = TCPClientConnection::Factory::from(addr_info.type.n_type).withAddress(address).withSourcePort(sourcePort).withDestinationPort(port).create();
+        auto tracker_conn = TCPClientConnection::Factory::from(addr_info.type.n_type).withAddress(address).withDestinationPort(port).create();
         if (tracker_conn->get_state() != ClientConnection::READY) {
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
+
         if (!tracker_conn->doConnect()) {
             std::cerr<<"Could not connect to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
             continue;
         }
+        // TODO: Stop registering self if possible?
+        connections::tracker::register_self(tracker_conn, hash, sourcePort);
 
         // 3. Request trackers to provide peertables
         // 4. Receive peertables
@@ -68,7 +71,7 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
 // We stop once there are no more peers left in `options`, or if we reach `needed_peers` peers.
 // Returns true if we reached `needed_peers`, false otherwise
 static bool join_peers(torrent::Session& session, const IPTable& options, unsigned needed_peers) {
-    auto torrent_hash = "some placeholder hash"; //TODO: fetch hash from tf?
+    auto torrent_hash = session.get_metadata().content_hash;
     // unsigned random_start = 0; 
     //TODO @Mariska: 
     // Need something to balance load between peers. Now all peers will probably connect to same others first.
@@ -78,8 +81,8 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
     // Using iterator to pick a random starting point is inefficient-ish, but maybe the only choice:
         // https://stackoverflow.com/questions/15425442/
 
-    IPTable accepted;
-    for (auto it = options.iterator_begin(); it != options.iterator_end() && accepted.size() < needed_peers; ++it) {
+    auto& peertable = session.get_peertable();
+    for (auto it = options.iterator_begin(); it != options.iterator_end() && peertable.size() < needed_peers; ++it) {
         const auto& ip = it->first;
         uint16_t port = it->second.port;
         const auto& type = it->second.type;
@@ -109,78 +112,40 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
             continue;
         }
         if (header.formatType == message::standard::OK) {
-            accepted.add_ip({TransportType::TCP, NetType::IPv4}, ip, port);
+            peertable.add_ip({TransportType::TCP, NetType::IPv4}, ip, port);
         } else if (header.formatType == message::standard::REJECT) {
             std::cerr << print::CYAN << "[TEST] We got a REJECT for our join request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         } else {
             std::cerr <<print::YELLOW << "[WARN] Received non-standard-conforming response ("<<header.formatType<<") from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         }
     }
-    return accepted.size() >= needed_peers;
+    return peertable.size() >= needed_peers;
 }
 
-bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort) {
-    // 0. Prepare and check output location
-    if (!fs::mkdir(workpath)) {
-        std::cerr << print::RED << "[ERROR] Could not construct path '" << workpath << "'" << print::CLEAR << std::endl;
-        return false;
-    }
-    // 1. Load trackerlist from tf
-    TorrentFile tf = TorrentFile::from(torrentfile);
-    const IPTable& tracker_table = tf.getTrackerTable();
+static bool requests_send(torrent::Session& session) {
+    //TODO: Stub
+    // 9. Send requests to get data
+    //TODO: 2 options for sending
+    // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
+    // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
+    // For now we make 1. Adaption to 2 is simple enough to not be a waste of time.
 
-    //TODO: must get hash. Hash in TorrentFile?
-    // std::string hash = generate_hash(torrentfile);
-    std::string hash = "test";
-    IPTable table = compose_peertable(hash, tracker_table, sourcePort);
-    if (table.size() == 0) // We have a dead torrent
-        return false;
+    return true || session.download_completed();
+}
 
-    // 6. Construct torrent session (to maintain received fragments)
-    auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create());
-    
-    // 7. Initialize peer network: send requests to a number of peers to join.
-    // TODO: Need reasonable cap on connected peers. 
-    // In reality, cap depends on network bandwidth: Keep accepting, until bandwidth is filled up.
-    const unsigned needed_peers = 1;
-    join_peers(session, table, needed_peers);
+static bool requests_receive(torrent::Session& session) {
+    //TODO: 2 options for handling receiving fragments
+    // 1. Use connection used by the request to send back the data. Pro: easy to make. Con: Makes sending and receiving non-separable
+    // 2. Send received fragments to a specific port. Pro: Separates sending and receiving. Con: We have to somehow remember which requests we sent out.
+    //    In order to maintain which requests we sent, need a registry mapping fragment to Address.
+    //    Because we request fragments only once, we should have unique keys.
+    //    The registry needs a notion of timing: "When was request sent?"
+    //    This is the only way to check for dead requests, and clean them up.
+    //    Efficiently finding dead requests is pretty much impossible, unless we find some very smart data structure.
 
-
-    auto metadata = tf.getMetadata();
-    const std::string fileloc = workpath + metadata.name;
-    auto fragmentHandler = FragmentHandler(metadata, fileloc);
-
-    bool stop = false;
-
-
-    // Continually send and recv data.
-    // Best approach might be to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
-    // We should use the same connection (and thus port) for requesting and receiving data, because otherwise, we would have to disconnect and reconnect a lot.
-    // TODO: If we have a dead torrent, return false? Or periodically request trackers for new peertable
-
-    const uint32_t max_outstanding_fragment_requests = 10;
-    while (!stop) {
-
-        // if (torrent is dead) {
-        //     Request for new peertable? Keep handling requests below though!
-        // }
-
-        // 9. Send requests to get data
-        //TODO: 2 options for sending
-        // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
-        // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
-        // For now we make 1. Adaption to 2 is simple enough to not be a waste of time.
-
-        //TODO: 2 options for handling receiving fragments
-        // 1. Use connection used by the request to send back the data. Pro: easy to make. Con: Makes sending and receiving non-separable
-        // 2. Send received fragments to a specific port. Pro: Separates sending and receiving. Con: We have to somehow remember which requests we sent out.
-        //    In order to maintain which requests we sent, need a registry mapping fragment to Address.
-        //    Because we request fragments only once, we should have unique keys.
-        //    The registry needs a notion of timing: "When was request sent?"
-        //    This is the only way to check for dead requests, and clean them up.
-        //    Efficiently finding dead requests is pretty much impossible, unless we find some very smart data structure.
-
-        // 10. Handle incoming connections
+    // 10. Handle incoming connections
+    //TODO: Probably should use polling to accept clients?
+    while (true) {
         const auto req_conn = session.get_conn();
         auto connection = req_conn->acceptConnection();
         if (connection == nullptr) {
@@ -226,6 +191,51 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
             }
             free(data);
         }
+    }
+}
+
+bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort) {
+    // 0. Prepare and check output location
+    if (!fs::is_dir(workpath) && !fs::mkdir(workpath)) {
+        std::cerr << print::RED << "[ERROR] Could not construct path '" << workpath << "'" << print::CLEAR << std::endl;
+        return false;
+    }
+    // 1. Load trackerlist from tf
+    TorrentFile tf = TorrentFile::from(torrentfile);
+    const IPTable& tracker_table = tf.getTrackerTable();
+
+    IPTable table = compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort);
+    if (table.size() == 0) // We have a dead torrent
+        return false;
+
+    // 6. Construct torrent session (to maintain received fragments)
+    auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create());
+
+    auto metadata = tf.getMetadata();
+    const std::string fileloc = workpath + metadata.name;
+    auto fragmentHandler = FragmentHandler(metadata, fileloc);
+
+    bool stop = false;
+
+    // Continually send and recv data.
+    // Best approach might be to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
+    // We should use the same connection (and thus port) for requesting and receiving data, because otherwise, we would have to disconnect and reconnect a lot.
+    // TODO: If we have a dead torrent, return false? Or periodically request trackers for new peertable
+
+    const uint32_t max_outstanding_fragment_requests = 10;
+    while (!stop) {
+        if (session.get_peertable().size() == 0 && !session.download_completed()) {
+            // 7. Initialize peer network: send requests to a number of peers to join.
+            const unsigned needed_peers = 1;
+            // TODO: Need reasonable cap on connected peers. 
+            // In reality, cap depends on network bandwidth: Keep accepting, until bandwidth is filled up.
+            join_peers(session, table, needed_peers);
+            // Even if we don't have any/enough peers, we still must handle requests.
+            requests_receive(session);
+            continue;
+        }
+        requests_send(session);
+        requests_receive(session);
     }
     return true;
 }

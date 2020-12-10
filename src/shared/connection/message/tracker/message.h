@@ -14,7 +14,8 @@ namespace message::tracker {
         TEST = 0,
         MAKE_TORRENT = 1,
         RECEIVE = 2,
-        UPDATE = 3
+        UPDATE = 3,
+        REGISTER = 4
     };
     struct Header {
         size_t size;

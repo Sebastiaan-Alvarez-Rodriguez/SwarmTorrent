@@ -48,7 +48,6 @@ void do_test(int argc, char const ** argv) {
                 std::cerr << print::RED << "[ERROR] Make Torrent failed" << print::CLEAR << '\n';
                 return;
             }
-            //TODO: @Mariska: fix torrent_hash
             if (!connections::tracker::receive(tracker_conn, torrent_hash, peertable))
                 return;
 
