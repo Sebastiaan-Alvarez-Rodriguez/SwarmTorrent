@@ -60,3 +60,22 @@ SwarmTorrent has the following content:
  1. [Distributed Hash Tables (DHT)](https://en.wikipedia.org/wiki/Distributed_hash_table) a system which removes the swarms dependance on the tracker server. *"Responsibility for maintaining the mapping from keys to values is distributed among the nodes, in such a way that a change in the set of participants causes a minimal amount of disruption."*
  1. [Peer EXchange (PEX)](https://en.wikipedia.org/wiki/Peer_exchange), so a peer in a swarm can tell others that a new peer has joined/one has left
 
+## High-Level Overview
+To give an idea of what is happening "behind the screens", we have a story to provide exactly that.
+
+In the beginning, a peer `A` creates a torrentfile. When creating this file, `A` registered the torrentfile at tracker `T`.
+
+Next up, torrent `A` registers itself at `T`, using port `x`.
+Another peer `B` wants to torrent the content from `A`.
+`B` connects to `T`, and asks for the registered peers.
+`T` has an entry for `A`.
+This entry provides the address and port `x` of `A`.
+These and any other entries are returned to `B`.
+
+`B` picks a number of peers from the entries it got from `T`, and sends join requests.
+`A` receives a join request from `B`, and accepts it.
+Now, `A` and `B` can exchange data.
+`B` asks for a number of fragments of the file we torrent.
+`A` sends these requested fragments.
+`B` writes the fragments to disk.
+Once done, `B` will stop requesting data.

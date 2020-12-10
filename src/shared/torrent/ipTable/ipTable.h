@@ -86,6 +86,13 @@ public:
         //     }
         // }
     }
+
+    inline void print(std::ostream& stream) {
+        //stream << "IPTable: name=" << name << ", hash=" << content_hash << ", size=" << size << ", fragment_size=" << fragment_size << std::endl;
+        stream << "IPTable: \n";
+        for (auto it = iterator_begin(); it != iterator_end(); ++it)
+            stream << "\tentry: " << it->second.type << ", " << it->second.ip << ':' << it->second.port << '\n';
+    }
 protected: 
     std::unordered_map<std::string, Address> ips;
 };

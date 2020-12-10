@@ -40,17 +40,17 @@ bool HashTable::add_hash(const std::string& hash) {
 }
 
 void HashTable::write_stream(std::ostream& os) const {
-    os.write((char*)(&hash_type), sizeof(hash_type));
+    os.write((char*) &hash_type, sizeof(hash_type));
     unsigned size = hashes.size();
-    os.write((char*)(&size), sizeof(size));
+    os.write((char*) &size, sizeof(size));
     for (auto hash : hashes) 
         os.write((char*)hash.data(), hash_type);
 }
 
 void HashTable::read_stream(std::istream& is) {
-    is.read((char*)hash_type, sizeof(hash_type));
+    is.read((char*) &hash_type, sizeof(hash_type));
     unsigned size;
-    is.read((char*)(&size), sizeof(size)); 
+    is.read((char*) &size, sizeof(size)); 
     hashes.resize(size);
     for (unsigned i = 0; i < size; ++i)
         is.read((char*)hashes[i].data(), hash_type);

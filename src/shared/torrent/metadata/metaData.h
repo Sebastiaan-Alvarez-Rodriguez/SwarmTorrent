@@ -2,7 +2,7 @@
 #define TORRENT_METADATA_H
 
 #include <cstdint>
-#include <iostream>
+#include <ostream>
 #include <string>
 #include <utility>
 
@@ -32,6 +32,10 @@ struct TorrentMetadata : public Streamable {
         TorrentMetadata m;
         m.read_stream(stream);
         return m;
+    }
+
+    inline void print(std::ostream& stream) {
+        stream << "TorrentMetadata: name=" << name << ", hash=" << content_hash << ", size=" << size << ", fragment_size=" << fragment_size << std::endl;
     }
 };
 #endif
