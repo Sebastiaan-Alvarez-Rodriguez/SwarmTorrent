@@ -11,6 +11,23 @@
 #include "shared/util/print.h"
 #include "tracker/session/session.h"
 
+void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
+    std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
+    std::cout << "Got a Make Torrent request (hash=" << hash << ")" << std::endl;
+
+    IPTable table;
+    if (!session.get_table(hash, table)) { // Table does not exist yet, insert new table.
+        auto addr = client_conn->getAddress();
+        auto port = client_conn->getSourcePort();
+        table.add_ip({TransportType::TCP, NetType::IPv4}, addr, port);
+        session.add_table(hash, table);
+    } else { // Table already exists. Add this peer to the list.
+        auto addr = client_conn->getAddress();
+        auto port = client_conn->getSourcePort();
+        session.add_peer(hash, {{TransportType::TCP, NetType::IPv4}, addr, port});
+    }
+    message::standard::send(client_conn, message::standard::OK);
+}
 
 void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
     std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
@@ -31,24 +48,6 @@ void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& c
         writer = (*it).second.write_buffer(writer);
     client_conn->sendmsg(table_buffer, buf_length);
     free(table_buffer);
-}
-
-void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
-    std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
-    std::cout << "Got a Make Torrent request (hash=" << hash << ")" << std::endl;
-
-    IPTable table;
-    if (!session.get_table(hash, table)) { // Table does not exist yet, insert new table.
-        auto addr = client_conn->getAddress();
-        auto port = client_conn->getSourcePort();
-        table.add_ip({TransportType::TCP, NetType::IPv4}, addr, port);
-        session.add_table(hash, table);
-    } else { // Table already exists. Add this peer to the list.
-        auto addr = client_conn->getAddress();
-        auto port = client_conn->getSourcePort();
-        session.add_peer(hash, {{TransportType::TCP, NetType::IPv4}, addr, port});
-    }
-    message::standard::send(client_conn, message::standard::OK);
 }
 
 bool run(uint16_t port) {

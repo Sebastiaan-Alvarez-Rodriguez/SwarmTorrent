@@ -3,7 +3,7 @@
 #include <iostream>
 #include <memory>
 
-#include "peer/connections/message/peer/message.h"
+#include "peer/connection/message/peer/message.h"
 #include "shared/connection/message/message.h"
 #include "shared/torrent/file/io/fragmentHandler.h"
 #include "connections.h"
@@ -30,11 +30,12 @@ bool connections::peer::test(__attribute__ ((unused)) std::unique_ptr<ClientConn
     return false;
 }
 
-bool connections::peer::join(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash) {
-    auto datasize = torrent_hash.size();
+bool connections::peer::join(std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& torrent_hash) {
+    auto datasize = sizeof(uint16_t)+torrent_hash.size();
     uint8_t* const data = prepare_peer_message(datasize, message::peer::EXCHANGE_REQ);
     uint8_t* const ptr = data + sizeof(message::peer::Header);
-    memcpy(ptr, torrent_hash.c_str(), datasize);
+    *(uint16_t*) ptr = port;
+    memcpy(ptr+sizeof(uint16_t), torrent_hash.c_str(), torrent_hash.size());
     bool val = connection->sendmsg(data, sizeof(message::peer::Header)+datasize);
     free(data);
     return val;
@@ -61,7 +62,7 @@ bool connections::peer::data_req(std::unique_ptr<ClientConnection>& connection, 
 }
 
 bool connections::peer::data_reply_fast(std::unique_ptr<ClientConnection>& connection, uint8_t* data, unsigned size) {
-    *((message::standard::Header*) data) = message::standard::from_r(size, message::standard::OK);
+    *((message::peer::Header*) data) = message::peer::from_r(size, message::peer::DATA_REPLY);
     bool val = connection->sendmsg(data, size);
     free(data);
     return val;

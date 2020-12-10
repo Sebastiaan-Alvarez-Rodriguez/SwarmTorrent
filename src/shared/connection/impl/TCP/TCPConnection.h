@@ -1,6 +1,7 @@
 #ifndef TCPCONNECTION_H
 #define TCPCONNECTION_H
 
+#include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -24,10 +25,15 @@ class TCPClientConnection : public ClientConnection {
 public:
     class Factory;
 
-    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t  sourcePort, uint16_t destinationPort) : ClientConnection::ClientConnection(type, address, sourcePort, destinationPort) {
+    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t  sourcePort, uint16_t destinationPort, bool blockmode) : ClientConnection::ClientConnection(type, address, sourcePort, destinationPort, blockmode) {
         this->state = ClientConnection::ERROR;
         if ((this->sockfd = sock::make(type)) < 0) {
             std::cerr << "Could not build socket!" << std::endl;
+            return;
+        }
+
+        if (!blockmode && !sock::set_blocking(this->sockfd, false)) {
+            std::cerr << "Could not set blockmode to false\n";
             return;
         }
 
@@ -42,8 +48,8 @@ public:
         this->sock_addr = *(struct sockaddr*) &addr_in;
 
         if (sourcePort > 0) {
+            // Convention says we should explicitly bind to the user-specified local port
             struct sockaddr_in own_addr;
-            // We should explicitly bind to the user-specified port
             own_addr.sin_family = type.n_type.to_ctype(); 
             own_addr.sin_addr.s_addr = INADDR_ANY; 
             own_addr.sin_port = htons(sourcePort); 
@@ -53,7 +59,7 @@ public:
         this->state = READY;
     }
 
-    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t  sourcePort, uint16_t destinationPort, int sockfd, struct sockaddr sock_addr): ClientConnection::ClientConnection(type, address, sourcePort, destinationPort), sockfd(sockfd), sock_addr(sock_addr) {
+    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode, int sockfd, struct sockaddr sock_addr): ClientConnection::ClientConnection(type, address, sourcePort, destinationPort, blockmode), sockfd(sockfd), sock_addr(sock_addr) {
         this->state = CONNECTED;
     }
 
@@ -82,9 +88,12 @@ public:
     }
 
     inline virtual bool discardmsg(__attribute__ ((unused)) unsigned length) const {
-        // uint8_t* buf = malloc(length);
         return recvmsg(nullptr, 0, MSG_TRUNC);
     };
+
+    inline virtual bool setBlocking(bool blockmode) {
+        return blockmode == this->blockmode || sock::set_blocking(this->sockfd, blockmode);
+    }
 
     inline void print(std::ostream& stream) const override {
         stream << "Client target:" << type << ": " << address << ':' << sourcePort;
@@ -99,10 +108,15 @@ class TCPHostConnection: public HostConnection {
 public:
     class Factory;
 
-    explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort) : HostConnection(type, sourcePort) {
+    explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort, bool blockmode) : HostConnection(type, sourcePort, blockmode) {
         this->state = ClientConnection::ERROR;
-        if ((sockfd = sock::make(type)) < 0) {
+        if ((this->sockfd = sock::make(type)) < 0) {
             std::cerr << "Could not build socket!" << std::endl;
+            return;
+        }
+
+        if (!blockmode && !sock::set_blocking(this->sockfd, false)) {
+            std::cerr << "Could not set blockmode to false\n";
             return;
         }
 
@@ -126,7 +140,10 @@ public:
 
     inline std::unique_ptr<ClientConnection> acceptConnection() override {
         if (listen(sockfd, 10) < 0) { //TODO: Change hardcoded 10 for connection backlog to a global constant somewhere
-            std::cerr << "Could not listen to socket!" << std::endl;
+            if (this->blockmode/* || (!this->blockmode && errno != EWOULDBLOCK)*/) {
+                this->state = ERROR;
+                std::cerr << "Could not listen to socket!" << std::endl;
+            }
             return nullptr;
         }
 
@@ -134,13 +151,20 @@ public:
         size_t addrlen = sizeof(address);
         int new_socket = accept(sockfd, (struct sockaddr*) &address, (socklen_t*) &addrlen);
         if (new_socket < 0) {
-            std::cerr << "Could not accept to socket!" << std::endl;
+            if (this->blockmode/* || (!this->blockmode && errno != EWOULDBLOCK)*/) {
+                this->state = ERROR;
+                std::cerr << "Could not accept to socket!" << std::endl;
+            }
             return nullptr;
         }
         std::string addr(inet_ntoa(address.sin_addr));
-        auto ptr = std::make_unique<TCPClientConnection>(type, addr, sourcePort, ntohs(address.sin_port), new_socket, *(struct sockaddr*) &address);
+        auto ptr = std::make_unique<TCPClientConnection>(type, addr, sourcePort, ntohs(address.sin_port), true, new_socket, *(struct sockaddr*) &address);
         this->state = CONNECTED;
         return ptr;
+    }
+
+    inline virtual bool setBlocking(bool blockmode) {
+        return blockmode == this->blockmode || sock::set_blocking(this->sockfd, blockmode);
     }
 
     inline void print(std::ostream& stream) const override {
@@ -164,7 +188,7 @@ public:
     }
 
     inline std::unique_ptr<ClientConnection> create() const override {
-        return std::make_unique<TCPClientConnection>(type, address, sourcePort, destinationPort);
+        return std::make_unique<TCPClientConnection>(type, address, sourcePort, destinationPort, blockmode);
     }
 };
 
@@ -180,7 +204,7 @@ public:
     }
 
     inline std::unique_ptr<HostConnection> create() const override {
-        return std::make_unique<TCPHostConnection>(type, sourcePort);
+        return std::make_unique<TCPHostConnection>(type, sourcePort, blockmode);
     }
 };
 #endif

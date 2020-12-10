@@ -1,7 +1,7 @@
 #include <iostream>
 #include <tclap/CmdLine.h>
 
-#include "connections/tracker/connections.h"
+#include "peer/connection/tracker/connections.h"
 #include "shared/connection/impl/TCP/TCPConnection.h"
 #include "shared/connection/message/tracker/message.h"
 #include "shared/torrent/file/torrentFile.h"
@@ -70,7 +70,7 @@ bool run_torrent(int argc, char const ** argv) {
     TCLAP::ValueArg<std::string> torrentfileArg("f","file","The torrentfile to open",true,"","File", cmd);
     TCLAP::ValueArg<std::string> workpathArg("w","workpath","The location to load/store the data",true,"","File", cmd);
     TCLAP::ValueArg<uint16_t> portArg("p","port","Port to receive torrent requests on",true,1042,"PORT", cmd);
-    
+
     cmd.parse(argc, argv);
     return torrent::run(torrentfileArg.getValue(), workpathArg.getValue(), portArg.getValue());
 }

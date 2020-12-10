@@ -13,7 +13,8 @@ namespace message::peer {
         TEST = 0,
         EXCHANGE_REQ = 1,   // Request to start sharing data (other side responds with either OK or REJ)
         EXCHANGE_CLOSE = 2, // Close a request. The receiving side does not respond with anything.
-        DATA_REQ     = 3    // Request a piece of data (other side responds with OK and a piece of data)
+        DATA_REQ = 3,       // Request a piece of data (other side responds with OK and a piece of data)
+        DATA_REPLY = 4      // Reply containing a batch of data. first 8 bytes of body are fragment id, the rest is the data.
     };
     struct Header {
         size_t size;
@@ -36,6 +37,14 @@ namespace message::peer {
     inline Header from(size_t datasize, Tag t) {
         Header h;
         h.size = datasize+sizeof(message::peer::Header);
+        h.formatType = id;
+        h.tag = t;
+        return h;
+    }
+
+    inline Header from_r(size_t size, Tag t) {
+        Header h;
+        h.size = size;
         h.formatType = id;
         h.tag = t;
         return h;

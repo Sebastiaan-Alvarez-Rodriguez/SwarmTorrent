@@ -11,22 +11,33 @@
 // Simple tutorial to get started
 // https://www.geeksforgeeks.org/socket-programming-cc/
 // https://www.tutorialspoint.com/cplusplus/cpp_interfaces.htm
+
+// Next step: Make connections/sends/recvs with a timeout, or maybe even non-blocking?
+// https://stackoverflow.com/questions/4181784/
+// Quick post about using non-blocking connections sensibly:
+// https://jameshfisher.com/2017/04/05/set_socket_nonblocking/
 #include "shared/connection/meta/type.h"
 
 
 
 class Connection {
 public:
-    Connection(ConnectionType type, uint16_t sourcePort) : type(type), sourcePort(sourcePort) {};
+    Connection(ConnectionType type, uint16_t sourcePort, bool blockmode) : type(type), sourcePort(sourcePort), blockmode(blockmode) {};
     ~Connection() = default;
 
     /** Returns type of connection we use */
-    virtual const ConnectionType& get_type() {return type;}
+    virtual const ConnectionType& get_type() const {return type;}
 
     inline virtual void print(std::ostream& stream) const = 0;
 
     inline virtual uint16_t getSourcePort() const {return sourcePort;}
 
+
+    inline virtual bool setBlocking(bool blockmode) = 0;
+
+    inline virtual bool isBlocking() const {
+        return blockmode;
+    }
 
     enum State {
         DISCONNECTED,
@@ -43,11 +54,14 @@ protected:
     const ConnectionType type;
 
     uint16_t sourcePort;
+
+    // True means blocking, false means non-blocking
+    bool blockmode;
 };
 
 class ClientConnection : public Connection {
 public:
-    explicit ClientConnection(ConnectionType type, std::string address, uint16_t sourcePort, uint16_t destinationPort) : Connection(type, sourcePort), address(std::move(address)), destinationPort(destinationPort) {};
+    explicit ClientConnection(ConnectionType type, std::string address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode) : Connection(type, sourcePort, blockmode), address(std::move(address)), destinationPort(destinationPort) {};
     ~ClientConnection() = default;
 
     class Factory;
@@ -79,7 +93,7 @@ protected:
 
 class HostConnection : public Connection {
 public:
-    explicit HostConnection(ConnectionType type, uint16_t hostPort) : Connection(type, hostPort) {};
+    explicit HostConnection(ConnectionType type, uint16_t hostPort, bool blockmode) : Connection(type, hostPort, blockmode) {};
     ~HostConnection() = default;
 
     class Factory;
@@ -107,16 +121,24 @@ public:
      * Sets our local port to use for the connection.
      *
      * '''Convention:''' If `port=0` given (default), we use a random source port
-     * @param p Source port to use
-     * @return current factory instance
      */
-    Factory& withSourcePort(uint16_t p) {
-        sourcePort = p;
+    Factory& withSourcePort(uint16_t port) {
+        sourcePort = port;
         return *this;
     }
 
-    Factory& withDestinationPort(uint16_t p) {
-        destinationPort = p;
+    Factory& withDestinationPort(uint16_t port) {
+        destinationPort = port;
+        return *this;
+    }
+
+    /** 
+     * Sets blockmode. If `true` (default), socket calls like `send, recv, listen` etc block.
+     * If `false`, these calls do not block. 
+     * If there is nothing to do, the socket calls commonly return `-1` and set errno to `EWOULDBLOCK`.
+     */
+    Factory& withBlocking(bool blockmode) {
+        this->blockmode = blockmode;
         return *this;
     }
 
@@ -126,6 +148,7 @@ protected:
     ConnectionType type;
     std::string address;
     uint16_t sourcePort = 0, destinationPort = 0;
+    bool blockmode = true;
 };
 
 class HostConnection::Factory {
@@ -136,11 +159,20 @@ public:
     * Sets our local port to use for listening for connections.
     *
     * '''Convention:''' If `port=0` given (default), we use a random source port
-    * @param p Source port to use
-    * @return current factory instance
     */
-    Factory& withSourcePort(uint16_t p) {
-        sourcePort = p;
+    Factory& withSourcePort(uint16_t port) {
+        sourcePort = port;
+        return *this;
+    }
+
+
+    /** 
+     * Sets blockmode. If `true` (default), socket calls like `send, recv, listen` etc block.
+     * If `false`, these calls do not block. 
+     * If there is nothing to do, the socket calls commonly return `-1` and set errno to `EWOULDBLOCK`.
+     */
+    Factory& withBlocking(bool blockmode) {
+        this->blockmode = blockmode;
         return *this;
     }
 
@@ -149,5 +181,6 @@ public:
 protected:
     ConnectionType type;
     uint16_t sourcePort = 0;
+    bool blockmode = true;
 };
 #endif

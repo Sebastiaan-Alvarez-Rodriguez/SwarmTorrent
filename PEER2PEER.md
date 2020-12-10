@@ -14,9 +14,9 @@ Peer2Peer communication consists of several mechanisms.
 
 ### Join
 Pattern is simple:
- 1. Peer `A` sends a [PeerMessage](/src/peer/connection/message/peer/message.h) containing tag `EXCHANGE_REQ`, with the hash for the torrentfile in the message body.
+ 1. Peer `A` sends a [PeerMessage](/src/peer/connection/message/peer/message.h) containing tag `EXCHANGE_REQ`, with a port `x` to connect to and the hash for the torrentfile in the message body.
  2. Peer `B` receives, and replies with a [standard message](/src/shared/connection/message/message.h) containing `OK` to accept, `REJECT` otherwise.
- If `B` accepts, it will send all future requests to `A` by using this port. It expects `A` to send all future requests to the port `A` sent its `EXCHANGE_REQ` to.
+ If `B` accepts, it will send all future requests to `A` by using port `x`. It expects `A` to send all future requests to the port `A` sent its `EXCHANGE_REQ` to.
 
 > Note: In the future, `B` will probably not reply anything instead of `REJECT`. It is up to the sender to set a reasonable timeout and move on then.
  3. `A` receives status. 
