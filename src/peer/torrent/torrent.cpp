@@ -35,7 +35,7 @@ static bool tmp_send_register(ConnectionType type, std::string address, uint16_t
         connections::tracker::register_self(tracker_conn, hash, sourcePort);
         message::standard::Header header;
         if (!message::standard::recv(tracker_conn, header)) {
-            std::cerr <<print::YELLOW << "[WARN] Could not receive join request response from tracker: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
+            std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from tracker: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
             return false;
         }
         return header.formatType == message::standard::OK;
@@ -116,8 +116,7 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
     // Using iterator to pick a random starting point is inefficient-ish, but maybe the only choice:
         // https://stackoverflow.com/questions/15425442/
 
-    auto& peertable = session.get_peertable();
-    for (auto it = options.cbegin(); it != options.cend() && peertable.size() < needed_peers; ++it) {
+    for (auto it = options.cbegin(); it != options.cend() && session.peers_amount() < needed_peers; ++it) {
         const auto& ip = it->first;
         uint16_t port = it->second.port;
         const auto& type = it->second.type;
@@ -137,24 +136,24 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
             continue;
         }
         uint16_t sourcePort = session.get_conn()->getSourcePort();
-        if (!connections::peer::join(conn, sourcePort, torrent_hash)) {
-            std::cerr << print::YELLOW << "[WARN] Could not send join request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+        if (!connections::peer::send::join(conn, sourcePort, torrent_hash)) {
+            std::cerr << print::YELLOW << "[WARN] Could not send send_exchange request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
         message::standard::Header header;
         if (!message::standard::recv(conn, header)) {
-            std::cerr <<print::YELLOW << "[WARN] Could not receive join request response from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
         if (header.formatType == message::standard::OK) {
-            peertable.add_ip({TransportType::TCP, NetType::IPv4}, ip, port);
+            session.add_peer(conn->get_type(), ip, port);
         } else if (header.formatType == message::standard::REJECT) {
-            std::cerr << print::CYAN << "[TEST] We got a REJECT for our join request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            std::cerr << print::CYAN << "[TEST] We got a REJECT for our send_exchange request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         } else {
             std::cerr <<print::YELLOW << "[WARN] Received non-standard-conforming response ("<<header.formatType<<") from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         }
     }
-    return peertable.size() >= needed_peers;
+    return session.peers_amount() >= needed_peers;
 }
 
 static bool requests_send(torrent::Session& session) {
@@ -168,20 +167,38 @@ static bool requests_send(torrent::Session& session) {
     return true || session.download_completed();
 }
 
-static bool handle_exchange_req(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+static void handle_join(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     //TODO: For now always accept join requests. In the future, add reasonable limit on joined peers
-    uint16_t req_port = *(uint16_t*) (data+sizeof(message::peer::Header));
-    std::string hash((char*)data+sizeof(message::peer::Header), (size-sizeof(uint16_t)-sizeof(message::peer::Header)));
-    std::cerr << "Got an EXCHANGE_REQ (hash=" << hash << ", req_port=" << req_port << ")\n";
+    uint16_t req_port;
+    std::string hash;
+    connections::peer::recv::join(data, size, hash, req_port);
+    std::cerr << "Got an JOIN (hash=" << hash << ", req_port=" << req_port << ")\n";
     if (session.get_metadata().content_hash != hash) { // Torrent mismatch, Reject
         std::cerr << "Above hash mismatched with our own (" << session.get_metadata().content_hash <<"), rejected.\n";
         message::standard::send(connection, message::standard::REJECT);
-        return false;
+        return;
     }
     session.add_peer(connection->get_type(), connection->getAddress(), req_port);
     message::standard::send(connection, message::standard::OK);
-    return true;
 }
+
+static void handle_leave(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+    uint16_t req_port;
+    std::string hash;
+    connections::peer::recv::leave(data, size, hash, req_port);
+    std::cerr << "Got a lEAVE (hash=" << hash << ", req_port=" << req_port << ")\n";
+    if (session.get_metadata().content_hash != hash) // Torrent mismatch, ignore
+        return;
+    session.remove_peer(connection->getAddress(), req_port);
+}
+
+static void handle_data_req(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+    //STOPSHIP 2020-12-11:
+    // 1. Check if peer ip is in session
+    // 2. Read data from disk with fragmentHandler
+    // 3. Use fast sending method to reply data.
+}
+
 static bool requests_receive(torrent::Session& session) {
     //TODO: 2 options for handling receiving fragments
     // 1. Use connection used by the request to send back the data. Pro: easy to make. Con: Makes sending and receiving non-separable
@@ -225,9 +242,9 @@ static bool requests_receive(torrent::Session& session) {
             connection->recvmsg(data, standard.size);
             message::peer::Header* header = (message::peer::Header*) data;
             switch (header->tag) {
-                case message::peer::EXCHANGE_REQ: handle_exchange_req(session, connection, data, standard.size); break;
-                case message::peer::EXCHANGE_CLOSE: break;
-                case message::peer::DATA_REQ: break;
+                case message::peer::JOIN: handle_join(session, connection, data, standard.size); break;
+                case message::peer::LEAVE: handle_leave(session, connection, data, standard.size); break;
+                case message::peer::DATA_REQ: handle_data_req(session, connection, data, standard.size); break;
                 case message::peer::DATA_REPLY: 
                 // TODO: Write data using fragmentHandler, after checking of course
                 // std::string hash;

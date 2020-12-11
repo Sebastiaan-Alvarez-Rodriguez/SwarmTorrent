@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "shared/connection/message/message.h"
-#include "shared/connection/message/interpretable.h"
 
 namespace message::tracker {
     static const inline uint8_t id = 32;

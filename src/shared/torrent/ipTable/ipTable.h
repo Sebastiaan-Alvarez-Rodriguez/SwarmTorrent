@@ -37,18 +37,16 @@ public:
     //TODO @Mariska: Erasure on hashmaps is expensive if it triggers recomputation of the hash. Maybe just use 'dirty' flag?
     void remove_ip(const std::string& ip) { ips.erase(ip); };
 
-    // If IPTable contains ip string,
-    // Sets Address struct corresponding to ip string
+    // If IPTable contains ip string, sets Address struct corresponding to ip string.
     // Returns whether IPTable contains ip string
-    //TODO @Mariska: Comments in 2 lines above this make no sense?
-    //TODO @Sebastiaan: better?
-    bool get_Addr(std::string ip, Address& a) const;
+    bool get_addr(std::string ip, Address& a) const;
 
     // Read and write to a SwarmTorrent file
     void write_stream(std::ostream& os) const override;
     
     void read_stream(std::istream& is) override;
 
+    inline bool contains(const std::string& ip) const { return ips.find(ip) != ips.end(); }
     inline auto cbegin() const { return ips.begin(); }
     inline auto cend() const { return ips.end(); }
 

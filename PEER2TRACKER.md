@@ -18,7 +18,7 @@ The idea is that the peer ends up receiving the peertable of the tracker.
 
 ## Register for a peertable
 When peers want, they can register themselves on a list of trackers.
-Once registered, fellow peers will send requests to join a local network.
+Once registered, fellow peers will send requests to send_join_req a local network.
 Peers register using a [TrackerMessage](/src/shared/connection/message/tracker/message.h) containing tag `REGISTER`, with in the body a hash for a torrentfile and a port `x` to register.
 The system sends `OK` on successfully registering.
 It sends `ERROR` if no such torrentfile hash is found.

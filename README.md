@@ -72,8 +72,8 @@ Another peer `B` wants to torrent the content from `A`.
 This entry provides the address and port `x` of `A`.
 These and any other entries are returned to `B`.
 
-`B` picks a number of peers from the entries it got from `T`, and sends join requests.
-`A` receives a join request from `B`, and accepts it.
+`B` picks a number of peers from the entries it got from `T`, and sends send_join_req requests.
+`A` receives a send_join_req request from `B`, and accepts it.
 Now, `A` and `B` can exchange data.
 `B` asks for a number of fragments of the file we torrent.
 `A` sends these requested fragments.

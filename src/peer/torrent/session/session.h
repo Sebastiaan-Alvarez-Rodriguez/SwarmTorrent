@@ -44,7 +44,7 @@ namespace torrent {
         std::shared_ptr<HostConnection> recv_conn;
 
         Registry registry;
-        IPTable peertable;
+        IPTable ptable;
 
         size_t num_fragments;
         size_t num_fragments_completed = 0;
@@ -81,11 +81,24 @@ namespace torrent {
 
         inline const auto& get_registry() const { return registry; }
 
-        inline const auto& get_peertable() const { return peertable; }
+        inline const auto& get_peertable() const { return ptable; }
 
-        inline auto& get_peertable() { return peertable; }
-        inline bool add_peer(const Address& a) { return peertable.add_ip(a); }
-        inline bool add_peer(ConnectionType type, const std::string& ip, uint16_t port) { return peertable.add_ip(type, ip, port); }  
+        // inline auto& peertable() { return ptable; }
+        inline bool add_peer(const Address& a) { return ptable.add_ip(a); }
+        inline bool add_peer(ConnectionType type, const std::string& ip, uint16_t port) { return ptable.add_ip(type, ip, port); }  
+
+        inline bool remove_peer(const std::string& ip, uint16_t port) {
+            Address a;
+            if (!ptable.get_addr(ip, a))
+                return false;
+            if (a.ip == ip && a.port == port) {// Only remove peer if both ip and port match
+                ptable.remove_ip(ip);
+                return true;
+            }
+            return false;
+        }
+
+        inline size_t peers_amount() { return ptable.size(); }
     };
 }
 #endif

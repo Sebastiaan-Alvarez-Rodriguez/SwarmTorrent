@@ -11,7 +11,7 @@
 #include "shared/util/print.h"
 #include "tracker/session/session.h"
 
-void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
+static void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
     std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
     std::cout << "Got a Make Torrent request (hash=" << hash << ")" << std::endl;
 
@@ -23,7 +23,7 @@ void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& cl
     message::standard::send(client_conn, message::standard::OK);
 }
 
-void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
+static void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
     std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
     std::cout << "Got a Receive request (hash=" << hash << ")" << std::endl;
 
@@ -48,7 +48,7 @@ void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& c
     free(table_buffer);
 }
 
-void handle_register(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
+static void handle_register(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
     uint16_t port_to_register = *(uint16_t*)(msg+sizeof(message::tracker::Header));
     std::string hash((char*)msg+sizeof(uint16_t)+sizeof(message::tracker::Header), (bufsize-sizeof(uint16_t)-sizeof(message::tracker::Header)));
     std::cout << "Got a Register request (hash=" << hash << ", port="<< port_to_register<<")" << std::endl;
@@ -68,7 +68,7 @@ void handle_register(Session& session, std::unique_ptr<ClientConnection>& client
     }        
 }
 
-bool run(uint16_t port) {
+static bool run(uint16_t port) {
     auto conn = TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(port).create();
     if (conn->get_state() != ClientConnection::READY) {
         std::cerr << print::RED << "[ERROR] Could not initialize connection" << print::CLEAR << std::endl;
@@ -76,8 +76,7 @@ bool run(uint16_t port) {
     }
 
     Session session;
-    std::cout << "Session initialized" << std::endl;
-    std::cout << "Listening started on sourcePort " << port << std::endl;
+    std::cout << "Session initialized. Listening started on port " << port << std::endl;
 
     while (true) {
         auto client_conn = conn->acceptConnection();

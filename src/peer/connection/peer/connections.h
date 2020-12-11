@@ -10,28 +10,39 @@
 
 namespace connections::peer {
     // Send a simple test message to peer
-    bool test(std::unique_ptr<ClientConnection>& connection);
+    bool test(std::unique_ptr<ClientConnection> &connection);
 
-    /**
-     * Request to join peer for given torrent hash. 
-     * Peer will send all future communication to given port.
-     * '''Note:''' other end will first send an accept/reject using current established connection.
-     */
-    bool join(std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& torrent_hash);
+    namespace send {
+        /**
+         * Request to join peer for given torrent hash.
+         * Peer will send all future communication to given port.
+         * '''Note:''' other end will first send an accept/reject using current established connection.
+         */
+        bool join(std::unique_ptr<ClientConnection> &connection, uint16_t port, const std::string &torrent_hash);
 
-    // Tell peer that we no longer cooperate with them
-    bool leave(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash);
+        // Tell peer that we no longer cooperate with them
+        bool leave(std::unique_ptr<ClientConnection> &connection, const std::string &torrent_hash);
 
-    // Request peer to send us fragment with given fragment number
-    bool data_req(std::unique_ptr<ClientConnection>& connection, size_t fragment_nr);
+        // Request peer to send us fragment with given fragment number
+        bool data_req(std::unique_ptr<ClientConnection> &connection, size_t fragment_nr);
 
-    /** Reply to peer with a data fragment
-     *
-     * '''Warning:''' assumes that the data buffer
-     *                contains sizeof(message::peer::Header) leading bytes of free space.
-     * '''Note:''' This function frees the data after transmission.
-     */
-    bool data_reply_fast(std::unique_ptr<ClientConnection>& connection, uint8_t* data, unsigned size);
+        /** Reply to peer with a data fragment
+          *
+          * '''Warning:''' assumes that the data buffer
+          *                contains sizeof(message::peer::Header) leading bytes of free space.
+          * '''Note:''' This function frees the data after transmission.
+          */
+        bool data_reply_fast(std::unique_ptr<ClientConnection> &connection, uint8_t *data, unsigned size);
+    }
+
+    namespace recv {
+        // Get arguments for EXCHANGE_REQ messages from raw buffer
+        bool join(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port);
+
+        // Ger arguments for EXCHANGE_CLOSE messages from raw buffer 
+        inline bool leave(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port) {
+            return join(data, size, hash, port); // We just call join implementation, as it has same data scheme
+        }
+    }
 }
-
 #endif
