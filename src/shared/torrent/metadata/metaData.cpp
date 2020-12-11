@@ -1,4 +1,3 @@
-#include <iostream>
 #include <string>
 
 #include "metaData.h"
@@ -18,7 +17,6 @@ void TorrentMetadata::read_stream(std::istream& stream) {
 
 void TorrentMetadata::write_stream(std::ostream& stream) const {
     unsigned name_length = name.size();
-    std::cerr << "Going to write a name length of: " << name_length << '\n';
     stream.write((char*)(&name_length), sizeof(name_length));
     stream.write((char*)name.data(), name_length);
     unsigned hash_length = content_hash.size();

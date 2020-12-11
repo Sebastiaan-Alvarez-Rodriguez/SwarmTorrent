@@ -2,7 +2,7 @@
 #define TORRENT_METADATA_H
 
 #include <cstdint>
-#include <ostream>
+#include <iostream>
 #include <string>
 #include <utility>
 

@@ -52,14 +52,14 @@ bool connections::tracker::receive(std::unique_ptr<ClientConnection>& connection
 }
 
 bool connections::tracker::register_self(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port) {
-    const auto m_size = torrent_hash.size();
-    uint8_t* const data = (uint8_t*) malloc(sizeof(message::tracker::Header)+sizeof(uint16_t)+m_size);
+    const auto m_size = sizeof(uint16_t)+torrent_hash.size();
+    uint8_t* const data = (uint8_t*) malloc(sizeof(message::tracker::Header)+m_size);
     uint8_t* ptr = data;
     *((message::tracker::Header*) data) = message::tracker::from(m_size, message::tracker::REGISTER);
     ptr += sizeof(message::tracker::Header);
     *((uint16_t* ) ptr) = port;
     ptr += sizeof(uint16_t);
-    memcpy(ptr, torrent_hash.c_str(), m_size);
+    memcpy(ptr, torrent_hash.c_str(), m_size-sizeof(uint16_t));
     bool val = connection->sendmsg(data, sizeof(message::tracker::Header)+m_size);
     free(data);
     return val;

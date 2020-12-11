@@ -2,7 +2,9 @@
 #define TRACKERMESSAGE_H
 
 #include <cstdlib>
+#include <initializer_list>
 #include <memory>
+#include <vector>
 
 #include "shared/connection/message/message.h"
 #include "shared/connection/message/interpretable.h"
@@ -11,11 +13,11 @@ namespace message::tracker {
     static const inline uint8_t id = 32;
 
     enum Tag : uint8_t {
-        TEST = 0,
-        MAKE_TORRENT = 1,
-        RECEIVE = 2,
-        UPDATE = 3,
-        REGISTER = 4
+        TEST = 1,
+        MAKE_TORRENT = 2,
+        REGISTER = 4,
+        RECEIVE = 8,
+        UPDATE = 16
     };
     struct Header {
         size_t size;
@@ -24,13 +26,27 @@ namespace message::tracker {
     };
 
 
-
     /** Initializes a Header */
     inline Header from(Tag t) {
         Header h;
         h.formatType = id;
         h.tag = t;
         return h;
+    }
+
+    inline Header from(std::initializer_list<Tag> list) {
+        uint8_t composition = 0;
+        for (auto t : list)
+            composition |= t;
+        return from((Tag) composition);
+    }
+
+    inline bool has_tag(const Header& h, const Tag t) {
+        return h.tag & t;
+    }
+
+    inline bool has_other_tags_than(const Header& h, const Tag t) {
+        return (h.tag & t) == t;
     }
 
     /**

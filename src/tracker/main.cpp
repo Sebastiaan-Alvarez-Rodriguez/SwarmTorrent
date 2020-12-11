@@ -52,6 +52,7 @@ void handle_register(Session& session, std::unique_ptr<ClientConnection>& client
     IPTable table;
     if (!session.get_table(hash, table)) { // Table does not exist yet, insert new table.
         // table.add_ip(client_conn->get_type(), client_conn->getAddress(), port_to_register);
+        std::cerr << "Could not find table for hash " << hash << "\n";
         message::standard::send(client_conn, message::standard::ERROR);
     } else { // Table already exists. Add this peer to the list.
         if (session.add_peer(hash, {client_conn->get_type(), client_conn->getAddress(), port_to_register})) {
@@ -91,21 +92,26 @@ bool run(uint16_t port) {
         }
         uint8_t* ptr = (uint8_t*) malloc(standard.size);
         client_conn->recvmsg(ptr, standard.size);
-        message::tracker::Header* header = (message::tracker::Header*) ptr;
-        switch (header->tag) {
-            case message::tracker::TEST:
-                std::cout << "Got a test message" << std::endl;
-                message::standard::send(client_conn, message::standard::OK);
-                break;
-            case message::tracker::MAKE_TORRENT: handle_make_torrent(session, client_conn, ptr, standard.size); break;
-            case message::tracker::RECEIVE: handle_receive(session, client_conn, ptr, standard.size); break;
-            case message::tracker::UPDATE:
+        message::tracker::Header header = *(message::tracker::Header*) ptr;
+
+        if (message::tracker::has_tag(header, message::tracker::TEST)) {
+            std::cout << "Got a test message" << std::endl;
+            message::standard::send(client_conn, message::standard::OK);
+            continue;
+        }
+        if (message::tracker::has_tag(header, message::tracker::MAKE_TORRENT))
+            handle_make_torrent(session, client_conn, ptr, standard.size);
+
+        if (message::tracker::has_tag(header, message::tracker::REGISTER))
+            handle_register(session, client_conn, ptr, standard.size);
+
+        if (message::tracker::has_tag(header, message::tracker::RECEIVE))
+            handle_receive(session, client_conn, ptr, standard.size);
+
+        if (message::tracker::has_tag(header, message::tracker::UPDATE)) {
                 std::cout << "Got an update" << std::endl;
                 //TODO: Implement update?
                 message::standard::send(client_conn, message::standard::OK);
-                break;
-            case message::tracker::REGISTER: handle_register(session, client_conn, ptr, standard.size); break;
-            default: std::cout << "Got unknown header tag: " << (uint16_t) header->tag << std::endl;break;
         }
     }
     return 0;

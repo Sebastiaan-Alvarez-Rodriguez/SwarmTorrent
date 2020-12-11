@@ -43,8 +43,8 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             std::cerr<<"Could not connect to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
             continue;
         }
-        // TODO: Stop registering self if possible?
-        connections::tracker::register_self(tracker_conn, hash, sourcePort);
+        // // TODO: Stop registering self if possible?
+        // connections::tracker::register_self(tracker_conn, hash, sourcePort);
 
         // 3. Request trackers to provide peertables
         // 4. Receive peertables
@@ -205,8 +205,6 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     const IPTable& tracker_table = tf.getTrackerTable();
 
     IPTable table = compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort);
-    if (table.size() == 0) // We have a dead torrent
-        return false;
 
     // 6. Construct torrent session (to maintain received fragments)
     auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create());

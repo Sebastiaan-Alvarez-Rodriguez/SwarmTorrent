@@ -31,9 +31,7 @@ TorrentFile TorrentFile::from(const std::string& path) {
     auto ht = HashTable();
 
     tb.read_stream(stream);
-    tb.print(std::cerr);
     tm.read_stream(stream);
-    tm.print(std::cerr);
     ht.read_stream(stream);
     stream.close();
     return TorrentFile(tb, tm, ht);
