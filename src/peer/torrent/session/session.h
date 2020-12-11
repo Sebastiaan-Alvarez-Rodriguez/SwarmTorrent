@@ -3,10 +3,13 @@
 
 #include <cstdint>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "shared/connection/connection.h"
+#include "shared/torrent/file/defaults.h"
 #include "shared/torrent/file/torrentFile.h"
+#include "shared/torrent/file/io/fragmentHandler.h"
 #include "shared/torrent/ipTable/ipTable.h"
 #include "shared/torrent/hashTable/hashTable.h"
 #include "shared/torrent/metadata/metaData.h"
@@ -41,6 +44,9 @@ namespace torrent {
         const HashTable htable;
         const TorrentMetadata metadata;
 
+        std::string workpath; // Base path to prepend to suggested names for files
+        std::unordered_map<std::string, FragmentHandler> fileHandles; // Provides a 'cache' to fileHandles
+
         std::shared_ptr<HostConnection> recv_conn;
 
         Registry registry;
@@ -60,7 +66,7 @@ namespace torrent {
          * '''Note:''' Ownership of `recv_conn` is passed to this session upon construction.
          *             Connection is closed when the session is deconstructed.
          */
-        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn) : htable(tf.getHashTable()), metadata(tf.getMetadata()), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false) {}
+        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), workpath(workpath), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false) {}
 
         inline void mark(size_t index) {
             if (!fragments_completed[index]) {
@@ -76,6 +82,21 @@ namespace torrent {
         inline const auto& get_hashtable() const { return htable; }
 
         inline const auto& get_metadata() const { return metadata; }
+
+        inline FragmentHandler& getHandler(const std::string& suggested_name) {
+
+            // TODO @Mariska, maximum priority: Finish caching system
+            auto it = fileHandles.find(suggested_name);
+            if (it != fileHandles.end())
+                return it->second;
+            const std::string fileloc = workpath + metadata.name;
+            if (fileHandles.size() < torrent::file::defaults::max_filehandles) {
+                auto test = std::make_pair<std::string, FragmentHandler>(std::string(suggested_name), FragmentHandler(metadata, fileloc));
+                return fileHandles.insert(test).first->second;
+            } else { //TODO: Cannot have too many open filehandles. Close a fragmenthandler
+                throw std::runtime_error("Did not implement fragmentHandler recycling!");
+            }
+        }
 
         inline const auto& get_conn() const { return recv_conn; }
 

@@ -197,6 +197,11 @@ static void handle_data_req(torrent::Session& session, const std::unique_ptr<Cli
     // 1. Check if peer ip is in session
     // 2. Read data from disk with fragmentHandler
     // 3. Use fast sending method to reply data.
+    if (!session.knows_peer(connection->getAddress())) { //Reject data requests from unknown entities
+        message::standard::send(connection, message::standard::REJECT);
+        return;
+    }
+
 }
 
 static bool requests_receive(torrent::Session& session) {
@@ -210,7 +215,7 @@ static bool requests_receive(torrent::Session& session) {
     //    Efficiently finding dead requests is pretty much impossible, unless we find some very smart data structure.
 
     // 10. Handle incoming connections
-    //TODO: Probably should use polling to accept clients?
+    //TODO: Maybe should use polling to accept clients?
     while (true) {
         const auto req_conn = session.get_conn();
         auto connection = req_conn->acceptConnection();
@@ -223,12 +228,6 @@ static bool requests_receive(torrent::Session& session) {
             }
             continue;
         } else { // We are dealing with an actual connection
-            //TODO: Check what kind of connection we have!
-            // Should be one of:
-            // 1. join request
-            // 2. leave message
-            // 3. request for a fragment
-            // 4. delivery of a fragment
             message::standard::Header standard;
             if (!message::standard::recv(connection, standard)) {
                 std::cout << "Unable to peek. System hangup?" << std::endl;
@@ -273,11 +272,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     IPTable table = compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort);
 
     // 6. Construct torrent session (to maintain received fragments)
-    auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create());
-
-    auto metadata = tf.getMetadata();
-    const std::string fileloc = workpath + metadata.name;
-    auto fragmentHandler = FragmentHandler(metadata, fileloc);
+    auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create(), workpath);
 
     bool stop = false;
 
