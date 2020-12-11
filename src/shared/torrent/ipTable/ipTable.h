@@ -57,38 +57,7 @@ public:
     }
     inline size_t size() const { return ips.size(); }
 
-    inline void send_table_stub() {
-        // Contains some info on how to intelligently load a peertable onto a buffer
-        // auto peertable_size = sizeof(size_t) + peertable.size() * Address::size();
-        // *((size_t*) writer) = peertable.size();
-        // writer += sizeof(size_t);
-
-        // for (auto it = peertable.cbegin(); it != peertable.cend(); ++it) 
-        //     writer = (*it).second.write_buffer(writer);
-    }
-
-    inline void recv_table_stub() {
-        // TODO: use reserve
-        // TODO: find fast insert 
-        // Contains some info on how to intellibently load a peertable from a buffer
-        // Note: @Sebastiaan does not agree with some of the content here: 
-        // "Please don't send an error message when insertion fails!"
-        // size_t nr_peers = *((size_t*) reader);
-        // reader += sizeof(size_t);
-
-        // IPTable table;
-        // for (size_t i = 0; i < nr_peers; ++i) {
-        //     Address a(ConnectionType(TransportType(), NetType()), "", 0);
-        //     reader = a.read_buffer(reader);
-        //     if (!table.add_ip(a)) {
-        //         message::standard::send(client_conn, message::standard::ERROR);
-        //         return;
-        //     }
-        // }
-    }
-
     inline void print(std::ostream& stream) {
-        //stream << "IPTable: name=" << name << ", hash=" << content_hash << ", size=" << size << ", fragment_size=" << fragment_size << std::endl;
         stream << "IPTable: \n";
         for (auto it = cbegin(); it != cend(); ++it)
             stream << "\tentry: " << it->second.type << ", " << it->second.ip << ':' << it->second.port << '\n';

@@ -35,6 +35,7 @@ namespace torrent {
             return 10;
         }
     };
+
     class Session {
     protected:
         const HashTable htable;

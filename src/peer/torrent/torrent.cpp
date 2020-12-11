@@ -17,6 +17,8 @@
 #include "shared/util/hash/hasher.h"
 #include "torrent.h"
 
+//TODO: Temporary function to send register requests.
+// Inefficient, because we have to open a separate connection for that
 static bool tmp_send_register(ConnectionType type, std::string address, uint16_t port, std::string hash, uint16_t sourcePort) {
     auto tracker_conn = TCPClientConnection::Factory::from(type.n_type).withAddress(address).withDestinationPort(port).create();
         if (tracker_conn->get_state() != ClientConnection::READY) {
@@ -81,9 +83,8 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             continue;
         } else {
             std::cerr<<"Received a peertable from tracker ";tracker_conn->print(std::cerr);std::cerr<<". It has "<< table.size() << " peers\n";
-            for (auto it = table.cbegin(); it != table.cend(); ++it) {
+            for (auto it = table.cbegin(); it != table.cend(); ++it)
                 std::cerr << it->second.ip << ':' << it->second.port << '\n';
-            }
         }
         peertables.push_back(table);
     }
@@ -167,6 +168,20 @@ static bool requests_send(torrent::Session& session) {
     return true || session.download_completed();
 }
 
+static bool handle_exchange_req(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+    //TODO: For now always accept join requests. In the future, add reasonable limit on joined peers
+    uint16_t req_port = *(uint16_t*) (data+sizeof(message::peer::Header));
+    std::string hash((char*)data+sizeof(message::peer::Header), (size-sizeof(uint16_t)-sizeof(message::peer::Header)));
+    std::cerr << "Got an EXCHANGE_REQ (hash=" << hash << ", req_port=" << req_port << ")\n";
+    if (session.get_metadata().content_hash != hash) { // Torrent mismatch, Reject
+        std::cerr << "Above hash mismatched with our own (" << session.get_metadata().content_hash <<"), rejected.\n";
+        message::standard::send(connection, message::standard::REJECT);
+        return false;
+    }
+    session.add_peer(connection->get_type(), connection->getAddress(), req_port);
+    message::standard::send(connection, message::standard::OK);
+    return true;
+}
 static bool requests_receive(torrent::Session& session) {
     //TODO: 2 options for handling receiving fragments
     // 1. Use connection used by the request to send back the data. Pro: easy to make. Con: Makes sending and receiving non-separable
@@ -210,7 +225,7 @@ static bool requests_receive(torrent::Session& session) {
             connection->recvmsg(data, standard.size);
             message::peer::Header* header = (message::peer::Header*) data;
             switch (header->tag) {
-                case message::peer::EXCHANGE_REQ: break;
+                case message::peer::EXCHANGE_REQ: handle_exchange_req(session, connection, data, standard.size); break;
                 case message::peer::EXCHANGE_CLOSE: break;
                 case message::peer::DATA_REQ: break;
                 case message::peer::DATA_REPLY: 
@@ -252,7 +267,6 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     // Continually send and recv data.
     // Best approach might be to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
     // We should use the same connection (and thus port) for requesting and receiving data, because otherwise, we would have to disconnect and reconnect a lot.
-    // TODO: If we have a dead torrent, return false? Or periodically request trackers for new peertable
 
     const uint32_t max_outstanding_fragment_requests = 10;
     while (!stop) {
@@ -266,7 +280,9 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
             requests_receive(session);
             continue;
         }
-        requests_send(session);
+        // Only send requests for file fragments if we are not done already
+        if (!session.download_completed())
+            requests_send(session);
         requests_receive(session);
     }
     return true;
