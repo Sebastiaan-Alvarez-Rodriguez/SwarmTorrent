@@ -32,17 +32,20 @@ namespace connections::peer {
           *                contains sizeof(message::peer::Header) leading bytes of free space.
           * '''Note:''' This function frees the data after transmission.
           */
-        bool data_reply_fast(std::unique_ptr<ClientConnection> &connection, uint8_t *data, unsigned size);
+        bool data_reply_fast(const std::unique_ptr<ClientConnection> &connection, uint8_t* data, unsigned size);
     }
 
     namespace recv {
         // Get arguments for EXCHANGE_REQ messages from raw buffer
         bool join(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port);
 
-        // Ger arguments for EXCHANGE_CLOSE messages from raw buffer 
+        // Get arguments for EXCHANGE_CLOSE messages from raw buffer 
         inline bool leave(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port) {
             return join(data, size, hash, port); // We just call join implementation, as it has same data scheme
         }
+
+        // Get arguments for DATA_REQ messages from raw buffer
+        bool data_req(const uint8_t* const data, size_t size, size_t& fragment_nr);
     }
 }
 #endif

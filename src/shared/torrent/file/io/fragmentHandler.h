@@ -24,7 +24,7 @@ public:
     ~FragmentHandler();
 
     // Reads fragment from file, saves it in data.
-    // '''Note:''' data requires to be freed at the end of its use.
+    // '''Note:''' data is allocated in this function. data requires to be freed at the end of its use.
     // '''Warning:''' It is up to the caller to find out whether file fragment is available or not
     // Returns false if read_head is invalid
     bool read(unsigned index, uint8_t* data, unsigned& data_size);

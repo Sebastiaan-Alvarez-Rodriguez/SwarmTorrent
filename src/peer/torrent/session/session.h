@@ -41,12 +41,14 @@ namespace torrent {
         const HashTable htable;
         const TorrentMetadata metadata;
 
+        FragmentHandler fragmentHandler;
+
         std::shared_ptr<HostConnection> recv_conn;
 
         Registry registry;
         IPTable ptable;
 
-        size_t num_fragments;
+        const size_t num_fragments;
         size_t num_fragments_completed = 0;
         std::vector<bool> fragments_completed;
 
@@ -60,13 +62,17 @@ namespace torrent {
          * '''Note:''' Ownership of `recv_conn` is passed to this session upon construction.
          *             Connection is closed when the session is deconstructed.
          */
-        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn) : htable(tf.getHashTable()), metadata(tf.getMetadata()), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false) {}
+        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false) {}
 
         inline void mark(size_t index) {
             if (!fragments_completed[index]) {
                 fragments_completed[index] = true;
                 ++num_fragments_completed;
             }
+        }
+
+        inline size_t get_num_fragments() {
+            return num_fragments;
         }
 
         inline bool download_completed() const {
@@ -77,6 +83,9 @@ namespace torrent {
 
         inline const auto& get_metadata() const { return metadata; }
 
+        inline auto& get_handler() {
+            return fragmentHandler;
+        }
         inline const auto& get_conn() const { return recv_conn; }
 
         inline const auto& get_registry() const { return registry; }
@@ -96,6 +105,9 @@ namespace torrent {
                 return true;
             }
             return false;
+        }
+        inline bool has_registered_peer(const std::string& ip) {
+            return ptable.contains(ip);
         }
 
         inline size_t peers_amount() { return ptable.size(); }

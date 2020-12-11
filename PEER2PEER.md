@@ -32,7 +32,6 @@ If communication fails, and the `LEAVE` from `A` does not reach `B` somehow, the
 
 
 ### Requests for data
-The idea is that peer `A` ends up receiving data fragment `x` of another peer `B`.
  1. Peer `A` sends a [PeerMessage](/src/peer/connection/message/peer/message.h) containing tag `DATA_REQ`, with the fragment number `x` in the body.
  2. Peer `B` receives, reads fragment `x` from disk, finally returns [standard message](/src/shared/connection/message/message.h) containing `OK` on success, `REJECT` when this fragment is unavailable. When `OK`, the body contains the requested fragment `x`. When `REJECT`, the body contains a boolean vector, where `true` values represent fragments that are present in `B`, and `false` represents fragment not (yet) present in `B`.
 

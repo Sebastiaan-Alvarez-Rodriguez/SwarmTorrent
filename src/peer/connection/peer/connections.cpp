@@ -61,12 +61,13 @@ bool connections::peer::send::data_req(std::unique_ptr<ClientConnection>& connec
     return val;
 }
 
-bool connections::peer::send::data_reply_fast(std::unique_ptr<ClientConnection>& connection, uint8_t* data, unsigned size) {
+bool connections::peer::send::data_reply_fast(const std::unique_ptr<ClientConnection>& connection, uint8_t* data, unsigned size) {
     *((message::peer::Header*) data) = message::peer::from_r(size, message::peer::DATA_REPLY);
     bool val = connection->sendmsg(data, size);
     free(data);
     return val;
 }
+
 
 bool connections::peer::recv::join(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port) {
     port = *(uint16_t*) (data+sizeof(message::peer::Header));
@@ -74,5 +75,12 @@ bool connections::peer::recv::join(const uint8_t* const data, size_t size, std::
 
     hash.resize(hash_size);
     memcpy((char*) hash.data(), (char*)(data+sizeof(message::peer::Header)), hash_size);
+    return true;
+}
+
+bool connections::peer::recv::data_req(const uint8_t* const data, size_t size, size_t& fragment_nr) {
+    if (size != sizeof(message::peer::Header) + sizeof(size_t))
+        return false;
+    fragment_nr = *(size_t*) (data+sizeof(message::peer::Header));
     return true;
 }

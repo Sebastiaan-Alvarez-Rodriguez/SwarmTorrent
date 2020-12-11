@@ -193,10 +193,40 @@ static void handle_leave(torrent::Session& session, const std::unique_ptr<Client
 }
 
 static void handle_data_req(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+    if (!session.has_registered_peer(connection->getAddress())) { //Reject data requests from unknown entities
+        message::standard::send(connection, message::standard::REJECT);
+        return;
+    }
+    size_t fragment_nr;
+    connections::peer::recv::data_req(data, size, fragment_nr);
+    if (fragment_nr > session.get_num_fragments()) {
+        std::cerr << "Cannot get fragment number " << fragment_nr << ", only " << session.get_num_fragments() << " fragments exist!\n";
+        message::standard::send(connection, message::standard::REJECT); //TODO: Maybe pick another flag? This flag suggests other end should disconnect
+        return;
+    }
+
+    auto& handler = session.get_handler();
+    uint8_t* diskdata;
+    unsigned data_size;
+    if (!handler.read_with_leading(fragment_nr, (uint8_t*) &diskdata, data_size, sizeof(message::peer::Header))) {
+        std::cerr << "There was a problem reading fragment " << fragment_nr << " from disk\n";
+        free(diskdata);
+        return;
+    }
+
     //STOPSHIP 2020-12-11:
-    // 1. Check if peer ip is in session
-    // 2. Read data from disk with fragmentHandler
-    // 3. Use fast sending method to reply data.
+    // TODO: Think about processing.
+    // Now, we send the data back to the requesting connection.
+    // That blocks connections for long (request processing, data reading, data sending)
+    // Instead, should immediately discard connection after request processing.
+    // DATA_REPLY can be sent to the address registered for that IP in our session.
+    // This way, we hold the connection way shorter, 
+    // and other side can request some more peers for other fragments while we are busy with their request.
+    if (!connections::peer::send::data_reply_fast(connection, diskdata, data_size)) {
+        std::cerr << "Could not send data to peer. Hangup? Some other problem?\n";
+    } else {
+        std::cerr << "Sent fragment nr " << fragment_nr << ", size=" << data_size << " bytes to peer "; connection->print(std::cerr); std::cerr << '\n';
+    }
 }
 
 static bool requests_receive(torrent::Session& session) {
@@ -210,7 +240,7 @@ static bool requests_receive(torrent::Session& session) {
     //    Efficiently finding dead requests is pretty much impossible, unless we find some very smart data structure.
 
     // 10. Handle incoming connections
-    //TODO: Probably should use polling to accept clients?
+    //TODO: Maybe should use polling to accept clients?
     while (true) {
         const auto req_conn = session.get_conn();
         auto connection = req_conn->acceptConnection();
@@ -223,12 +253,6 @@ static bool requests_receive(torrent::Session& session) {
             }
             continue;
         } else { // We are dealing with an actual connection
-            //TODO: Check what kind of connection we have!
-            // Should be one of:
-            // 1. join request
-            // 2. leave message
-            // 3. request for a fragment
-            // 4. delivery of a fragment
             message::standard::Header standard;
             if (!message::standard::recv(connection, standard)) {
                 std::cout << "Unable to peek. System hangup?" << std::endl;
@@ -273,11 +297,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     IPTable table = compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort);
 
     // 6. Construct torrent session (to maintain received fragments)
-    auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create());
-
-    auto metadata = tf.getMetadata();
-    const std::string fileloc = workpath + metadata.name;
-    auto fragmentHandler = FragmentHandler(metadata, fileloc);
+    auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create(), workpath);
 
     bool stop = false;
 
