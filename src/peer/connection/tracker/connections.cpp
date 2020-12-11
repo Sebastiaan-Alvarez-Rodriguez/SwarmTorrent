@@ -37,12 +37,16 @@ bool connections::tracker::receive(std::unique_ptr<ClientConnection>& connection
 
     message::standard::Header header;
     connection->peekmsg((uint8_t*)&header, sizeof(header));
-    size_t buf_length = header.size;
-    uint8_t* const table_buffer = (uint8_t*)malloc(buf_length);
-    connection->recvmsg(table_buffer, buf_length);
+
+    uint8_t* const table_buffer = (uint8_t*)malloc(header.size);
+    connection->recvmsg(table_buffer, header.size);
+
+    // Body of the message only contains a number of addresses.
+    // Each address is const-size, so we can get amount of addresses simply by doing below.
+    const size_t amount = (header.size - sizeof(header)) / Address::size();
     const uint8_t* reader = table_buffer + sizeof(header);
-    while (reader < table_buffer + buf_length) {
-        Address a(ConnectionType(TransportType(), NetType()), "", 0);
+    for (size_t x = 0; x < amount; ++x) {
+        Address a;
         reader = a.read_buffer(reader);
         if (!peertable.add_ip(a))
             return false;

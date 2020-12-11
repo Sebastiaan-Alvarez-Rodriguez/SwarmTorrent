@@ -14,6 +14,8 @@ struct Address : public Streamable {
 
     Address(ConnectionType type, std::string ip, uint16_t port) : type(type), ip(std::move(ip)), port(port) {};
 
+    Address() : Address(ConnectionType(TransportType(), NetType()), "", 0) {}
+
     // Constructs an Address by reading from a stream
     static Address from(std::istream& is);
 

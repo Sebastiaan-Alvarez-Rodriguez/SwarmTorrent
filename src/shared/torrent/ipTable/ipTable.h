@@ -49,11 +49,11 @@ public:
     
     void read_stream(std::istream& is) override;
 
-    inline auto iterator_begin() const { return ips.begin(); }
-    inline auto iterator_end() const { return ips.end(); }
+    inline auto cbegin() const { return ips.begin(); }
+    inline auto cend() const { return ips.end(); }
 
     inline void merge(const IPTable& other) {
-        ips.insert(other.iterator_begin(), other.iterator_end());
+        ips.insert(other.cbegin(), other.cend());
     }
     inline size_t size() const { return ips.size(); }
 
@@ -63,7 +63,7 @@ public:
         // *((size_t*) writer) = peertable.size();
         // writer += sizeof(size_t);
 
-        // for (auto it = peertable.iterator_begin(); it != peertable.iterator_end(); ++it) 
+        // for (auto it = peertable.cbegin(); it != peertable.cend(); ++it) 
         //     writer = (*it).second.write_buffer(writer);
     }
 
@@ -90,7 +90,7 @@ public:
     inline void print(std::ostream& stream) {
         //stream << "IPTable: name=" << name << ", hash=" << content_hash << ", size=" << size << ", fragment_size=" << fragment_size << std::endl;
         stream << "IPTable: \n";
-        for (auto it = iterator_begin(); it != iterator_end(); ++it)
+        for (auto it = cbegin(); it != cend(); ++it)
             stream << "\tentry: " << it->second.type << ", " << it->second.ip << ':' << it->second.port << '\n';
     }
 protected: 

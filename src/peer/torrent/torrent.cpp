@@ -17,14 +17,35 @@
 #include "shared/util/hash/hasher.h"
 #include "torrent.h"
 
+static bool tmp_send_register(ConnectionType type, std::string address, uint16_t port, std::string hash, uint16_t sourcePort) {
+    auto tracker_conn = TCPClientConnection::Factory::from(type.n_type).withAddress(address).withDestinationPort(port).create();
+        if (tracker_conn->get_state() != ClientConnection::READY) {
+            std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
+            return false;
+        }
+
+        if (!tracker_conn->doConnect()) {
+            std::cerr<<"Could not connect to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
+            return false;
+        }
+        std::cerr << "torrent.cpp: registering source port " << sourcePort << '\n';
+        // TODO: Stop registering self if possible?
+        connections::tracker::register_self(tracker_conn, hash, sourcePort);
+        message::standard::Header header;
+        if (!message::standard::recv(tracker_conn, header)) {
+            std::cerr <<print::YELLOW << "[WARN] Could not receive join request response from tracker: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
+            return false;
+        }
+        return header.formatType == message::standard::OK;
+}
 
 
 static IPTable compose_peertable(const std::string& hash, const IPTable& trackers, uint16_t sourcePort) {
-    std::vector<IPTable> peertables(trackers.size());
+    std::vector<IPTable> peertables;
+    peertables.reserve(trackers.size());
 
     // 2. Connect to trackers in list
-    size_t idx = 0;
-    for (auto it = trackers.iterator_begin(); it != trackers.iterator_end(); ++it, ++idx) {
+    for (auto it = trackers.cbegin(); it != trackers.cend(); ++it) {
         auto address = it->first;
         auto addr_info = it->second;
         uint16_t port = addr_info.port;
@@ -33,6 +54,14 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection for non-TCP transport type: '" << addr_info.type.t_type << '\'' << print::CLEAR << '\n';
             continue;
         }
+
+        // // TODO: Stop registering self if possible?
+        if (!tmp_send_register(addr_info.type, address, port, hash, sourcePort)) {
+            std::cerr << "Could not register at a tracker\n";
+            continue;
+        }
+
+
         auto tracker_conn = TCPClientConnection::Factory::from(addr_info.type.n_type).withAddress(address).withDestinationPort(port).create();
         if (tracker_conn->get_state() != ClientConnection::READY) {
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
@@ -43,20 +72,25 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             std::cerr<<"Could not connect to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
             continue;
         }
-        // // TODO: Stop registering self if possible?
-        // connections::tracker::register_self(tracker_conn, hash, sourcePort);
 
         // 3. Request trackers to provide peertables
         // 4. Receive peertables
-        if (!connections::tracker::receive(tracker_conn, hash, peertables[idx])) {
+        IPTable table;
+        if (!connections::tracker::receive(tracker_conn, hash, table)) {
             std::cerr<<"Could not send RECEIVE request to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
             continue;
+        } else {
+            std::cerr<<"Received a peertable from tracker ";tracker_conn->print(std::cerr);std::cerr<<". It has "<< table.size() << " peers\n";
+            for (auto it = table.cbegin(); it != table.cend(); ++it) {
+                std::cerr << it->second.ip << ':' << it->second.port << '\n';
+            }
         }
+        peertables.push_back(table);
     }
     // 5. Unify peertables
-    auto maintable = peertables[0];
-    for (idx = 1; idx < peertables.size(); ++idx)
-        maintable.merge(peertables[idx]);
+    IPTable maintable;
+    for (const auto& t : peertables)
+        maintable.merge(t);
 
     //TODO @Sebastiaan: vectorize above for-loop, make parallel processing tasks?
     // Maybe even the for-loop above that, so each process fetches its own table as well, and we simultaneously ask tables.
@@ -82,7 +116,7 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
         // https://stackoverflow.com/questions/15425442/
 
     auto& peertable = session.get_peertable();
-    for (auto it = options.iterator_begin(); it != options.iterator_end() && peertable.size() < needed_peers; ++it) {
+    for (auto it = options.cbegin(); it != options.cend() && peertable.size() < needed_peers; ++it) {
         const auto& ip = it->first;
         uint16_t port = it->second.port;
         const auto& type = it->second.type;

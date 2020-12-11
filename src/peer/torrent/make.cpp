@@ -24,7 +24,7 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
 
 
     IPTable connected;
-    for (auto it = table.iterator_begin(); it != table.iterator_end(); ++it) {
+    for (auto it = table.cbegin(); it != table.cend(); ++it) {
         const std::string& ip = it->first;
         const auto addr = it->second;
 

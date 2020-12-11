@@ -34,21 +34,6 @@ namespace message::tracker {
         return h;
     }
 
-    inline Header from(std::initializer_list<Tag> list) {
-        uint8_t composition = 0;
-        for (auto t : list)
-            composition |= t;
-        return from((Tag) composition);
-    }
-
-    inline bool has_tag(const Header& h, const Tag t) {
-        return h.tag & t;
-    }
-
-    inline bool has_other_tags_than(const Header& h, const Tag t) {
-        return (h.tag & t) == t;
-    }
-
     /**
      * Initializes a Header.
      * '''Note:''' provided size is assumed to be size of extra data. Header size will be added.
