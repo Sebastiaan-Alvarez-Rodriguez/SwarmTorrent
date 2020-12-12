@@ -1,41 +1,18 @@
 #ifndef PEER_TORRENT_SESSION_H
 #define PEER_TORRENT_SESSION_H
 
+#include <chrono>
 #include <cstdint>
 #include <memory>
-#include <vector>
 
 #include "shared/connection/connection.h"
 #include "shared/torrent/file/torrentFile.h"
 #include "shared/torrent/ipTable/ipTable.h"
 #include "shared/torrent/hashTable/hashTable.h"
 #include "shared/torrent/metadata/metaData.h"
+#include "registry/registry.h"
 
 namespace torrent {
-    class Registry {
-    public:
-        Registry() = default;
-        ~Registry() = default;
-        
-        inline void request_add(size_t fragment_idx, const Address& address) {
-            //TODO: Nothing yet
-        }
-
-        inline void request_complete(size_t fragment_idx) {
-            //TODO: Nothing yet
-        }
-
-        inline std::vector<size_t> get_stale_requests() {
-            auto vec = std::vector<size_t>();
-            //TODO: Nothing yet
-            return vec;
-        }
-
-        inline size_t size() const {
-            return 10;
-        }
-    };
-
     class Session {
     protected:
         const HashTable htable;
@@ -64,15 +41,16 @@ namespace torrent {
          */
         explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false) {}
 
-        inline void mark(size_t index) {
-            if (!fragments_completed[index]) {
-                fragments_completed[index] = true;
+        inline void mark(size_t fragment_nr) {
+            if (!fragments_completed[fragment_nr]) {
+                fragments_completed[fragment_nr] = true;
                 ++num_fragments_completed;
+                registry.remove(fragment_nr); // Remove requests for collected fragment
             }
         }
 
-        inline bool fragment_completed(size_t index) {
-            return fragments_completed[index];
+        inline bool fragment_completed(size_t fragment_nr) {
+            return fragments_completed[fragment_nr];
         }
         inline size_t get_num_fragments() {
             return num_fragments;

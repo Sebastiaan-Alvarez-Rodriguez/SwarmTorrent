@@ -6,15 +6,14 @@
 #include "peer/connection/peer/connections.h"
 #include "peer/connection/message/peer/message.h"
 #include "peer/connection/tracker/connections.h"
+#include "peer/torrent/pipeline/pipe_ops.h"
 #include "peer/torrent/session/session.h"
 #include "shared/connection/impl/TCP/TCPConnection.h"
 #include "shared/connection/message/message.h"
 #include "shared/connection/meta/type.h"
-#include "shared/torrent/file/io/fragmentHandler.h"
 #include "shared/torrent/file/torrentFile.h"
 #include "shared/util/print.h"
 #include "shared/util/fs/fs.h"
-#include "shared/util/hash/hasher.h"
 #include "torrent.h"
 
 //TODO: Temporary function to send register requests.
@@ -57,7 +56,7 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             continue;
         }
 
-        // // TODO: Stop registering self if possible?
+        // TODO: Stop registering self if possible?
         if (!tmp_send_register(addr_info.type, address, port, hash, sourcePort)) {
             std::cerr << "Could not register at a tracker\n";
             continue;
@@ -156,146 +155,30 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
     return session.peers_amount() >= needed_peers;
 }
 
+// Send request to peers in our local network
 static bool requests_send(torrent::Session& session) {
-    //TODO: Stub
-    // 9. Send requests to get data
     //TODO: 2 options for sending
     // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
     // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
     // For now we make 1. Adaption to 2 is simple enough to not be a waste of time.
 
+    if (session.get_registry().size() < peer::defaults::torrent::max_outstanding_requests)
     return true || session.download_completed();
 }
 
-static void handle_join(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
-    //TODO: For now always accept join requests. In the future, add reasonable limit on joined peers
-    uint16_t req_port;
-    std::string hash;
-    connections::peer::recv::join(data, size, hash, req_port);
-    std::cerr << "Got an JOIN (hash=" << hash << ", req_port=" << req_port << ")\n";
-    if (session.get_metadata().content_hash != hash) { // Torrent mismatch, Reject
-        std::cerr << "Above hash mismatched with our own (" << session.get_metadata().content_hash <<"), rejected.\n";
-        message::standard::send(connection, message::standard::REJECT);
-        return;
-    }
-    session.add_peer(connection->get_type(), connection->getAddress(), req_port);
-    message::standard::send(connection, message::standard::OK);
-}
 
-static void handle_leave(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
-    uint16_t req_port;
-    std::string hash;
-    connections::peer::recv::leave(data, size, hash, req_port);
-    std::cerr << "Got a lEAVE (hash=" << hash << ", req_port=" << req_port << ")\n";
-    if (session.get_metadata().content_hash != hash) // Torrent mismatch, ignore
-        return;
-    session.remove_peer(connection->getAddress(), req_port);
-}
-
-// Handles DATA_REQs. Closes incoming connection, reads fragment from storage, sends data to registered port for given ip.
-static void handle_data_req(torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
-    auto connected_ip = connection->getAddress();
-    
-    if (!session.has_registered_peer(connected_ip)) { //Reject data requests from unknown entities
-        message::standard::send(connection, message::standard::REJECT);
-        return;
-    }
-    size_t fragment_nr;
-    connections::peer::recv::data_req(data, size, fragment_nr);
-    if (fragment_nr > session.get_num_fragments()) {
-        std::cerr << "Cannot get fragment number " << fragment_nr << ", only " << session.get_num_fragments() << " fragments exist!\n";
-        message::standard::send(connection, message::standard::REJECT); //TODO: Maybe pick another flag? This flag suggests other end should disconnect
-        return;
-    }
-    connection.reset(); // Closes the connection
-
-    auto& handler = session.get_handler();
-    uint8_t* diskdata;
-    unsigned data_size;
-    if (!handler.read_with_leading(fragment_nr, (uint8_t*) &diskdata, data_size, sizeof(message::peer::Header)+sizeof(size_t))) {
-        std::cerr << "There was a problem reading fragment " << fragment_nr << " from disk\n";
-        free(diskdata);
-        return;
-    }
-
-    Address a;
-    session.get_peertable().get_addr(connected_ip, a);
-    auto target_conn = TCPClientConnection::Factory::from(a.type.n_type).withAddress(a.ip).withDestinationPort(a.port).create();
-    if (target_conn->get_state() != ClientConnection::READY) {
-        std::cerr << print::YELLOW << "[WARN] Could not initialize connection to peer: " << print::CLEAR; target_conn->print(std::cerr);std::cerr << '\n';
-        free(diskdata);
-        return;
-    }
-    if (!target_conn->doConnect()) {
-        std::cerr << "Could not connect to peer ";target_conn->print(std::cerr);std::cerr << '\n';
-        free(diskdata);
-        return;
-    }
-    if (!connections::peer::send::data_reply_fast(target_conn, fragment_nr, diskdata, data_size)) {
-        std::cerr << "Could not send data to peer. Hangup? Some other problem?\n";
-    } else {
-        std::cerr << "Sent fragment nr " << fragment_nr << ", size=" << data_size << " bytes to peer "; target_conn->print(std::cerr); std::cerr << '\n';
-    }
-    free(diskdata);
-}
-
-static void handle_data_reply(torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
-    //For incoming connections:
-    // 1. Check if in session
-    // 2. Maybe (send on other side and) check if content hash equals our content hash?
-    // 3. Check if we already own the data
-    // 4. Maybe check if we have asked for that data from this particular node in the registry
-    // 5. Check if data matches hash for that data
-    // 6. Write to disk at right location.
-    // 7. Mark object as completed when finished
-    // 8. Change registry to reflect newly fetched components
-    auto connected_ip = connection->getAddress();
-
-    if (!session.has_registered_peer(connected_ip)) { //Reject data replies from unknown entities
-        // TODO: Think a bit about this. Perhaps it is okay to accept data replies from unknowns, as long as their data matches the hash?
-        message::standard::send(connection, message::standard::REJECT);
-        return;
-    }
-    connection.reset(); // Closes the connection
-
-    size_t fragment_nr;
-    uint8_t* fragment_data;
-    connections::peer::recv::data_reply(data, size, fragment_nr, fragment_data);
-
-    if (session.fragment_completed(fragment_nr)) // We already have this fragment
-        return;
-
-    const size_t fragment_size = size - sizeof(message::peer::Header) - sizeof(size_t);
-
-    std::string fragment_hash;
-    hash::sha256(fragment_hash, fragment_data, fragment_size);
-    if (!session.get_hashtable().check_hash(fragment_nr, fragment_hash)) {// Hash mismatch, wrong data
-        std::cerr << "There was a hash mismatch for fragment " << fragment_nr << '\n';
-        return;
-    }
-
-    auto& handler = session.get_handler();
-    if (!handler.write(fragment_nr, fragment_data, fragment_size)) { // Could not write data?
-        std::cerr << "There was a problem writing fragment " << fragment_nr << " to disk\n";
-        return;
-    }
-
-    session.mark(fragment_nr);
-}
-
+// Handle requests we receive
 static bool requests_receive(torrent::Session& session) {
-    //TODO: 2 options for handling receiving fragments
-    // 1. Use connection used by the request to send back the data. Pro: easy to make. Con: Makes sending and receiving non-separable
-    // 2. Send received fragments to a specific port. Pro: Separates sending and receiving. Con: We have to somehow remember which requests we sent out.
-    //    In order to maintain which requests we sent, need a registry mapping fragment to Address.
-    //    Because we request fragments only once, we should have unique keys.
-    //    The registry needs a notion of timing: "When was request sent?"
-    //    This is the only way to check for dead requests, and clean them up.
-    //    Efficiently finding dead requests is pretty much impossible, unless we find some very smart data structure.
+    // TODO: Should make this a separate thread
 
-    // 10. Handle incoming connections
-    //TODO: Maybe should use polling to accept clients?
-    while (true) {
+    // All requests are sent to one specific port.
+    // In order to maintain which requests we sent, need a registry mapping fragment to Address.
+    // Because we request fragments only once, we should have unique keys.
+    // The registry needs a notion of timing: "When was request sent?"
+    // This is the only way to check for dead requests, and clean them up.
+    // Efficiently finding dead requests is pretty much impossible, unless we find some very smart data structure.
+
+    for (uint8_t x = 0; x < 16; ++x) {
         const auto req_conn = session.get_conn();
         auto connection = req_conn->acceptConnection();
         if (connection == nullptr) {
@@ -303,7 +186,8 @@ static bool requests_receive(torrent::Session& session) {
                 std::cerr << "Experienced error when checking for inbound communication: ";req_conn->print(std::cerr); std::cerr << '\n';
             } else {
                 // Connection is not used at this time
-                // TODO: Sleep for a little bit here
+                // TODO: Sleep for a little bit here,
+                // or make connection wait for some timeout instead of non-blocking
             }
             continue;
         } else { // We are dealing with an actual connection
@@ -320,38 +204,41 @@ static bool requests_receive(torrent::Session& session) {
             connection->recvmsg(data, standard.size);
             message::peer::Header* header = (message::peer::Header*) data;
             switch (header->tag) {
-                case message::peer::JOIN: handle_join(session, connection, data, standard.size); break;
-                case message::peer::LEAVE: handle_leave(session, connection, data, standard.size); break;
-                case message::peer::DATA_REQ: handle_data_req(session, connection, data, standard.size); break;
-                case message::peer::DATA_REPLY: handle_data_reply(session, connection, data, standard.size); break;
-                default: // We get here when testing
+                case message::peer::JOIN: peer::pipeline::join(session, connection, data, standard.size); break;
+                case message::peer::LEAVE: peer::pipeline::leave(session, connection, data, standard.size); break;
+                case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, data, standard.size); break;
+                case message::peer::DATA_REPLY: peer::pipeline::data_reply(session, connection, data, standard.size); break;
+                default: // We get here when testing or corrupt tag
                     break;
             }
             free(data);
         }
     }
+    return true;
 }
 
 bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort) {
     // 0. Prepare and check output location
+    // 1. Load trackerlist from tf
+    // 2. Get peertables from trackers
+    // 3. Merge peertables
+    // 4. Construct torrent session (to maintain received fragments, maintain receive connection etc)
+    // 5. Continually send and receive data
+
     if (!fs::is_dir(workpath) && !fs::mkdir(workpath)) {
         std::cerr << print::RED << "[ERROR] Could not construct path '" << workpath << "'" << print::CLEAR << std::endl;
         return false;
     }
-    // 1. Load trackerlist from tf
     TorrentFile tf = TorrentFile::from(torrentfile);
     const IPTable& tracker_table = tf.getTrackerTable();
 
     IPTable table = compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort);
 
-    // 6. Construct torrent session (to maintain received fragments)
     auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create(), workpath);
-
     bool stop = false;
 
-    // Continually send and recv data.
+    // Continually send and recv data. TODO:
     // Best approach might be to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
-    // We should use the same connection (and thus port) for requesting and receiving data, because otherwise, we would have to disconnect and reconnect a lot.
 
     const uint32_t max_outstanding_fragment_requests = 10;
     while (!stop) {
