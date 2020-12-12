@@ -15,7 +15,7 @@ typename std::conditional<
 >::type;
 class RandomGenerator {
 public:
-    RandomGenerator(std::random_device rd) : gen(rd()) {};
+    RandomGenerator(std::random_device& rd) : gen(rd()) {};
 
     // Generates random number of type T in range [min, max]
     T generate(T min, T max) { uniform_distribution<T> dist(min, max); return dist(gen); };
