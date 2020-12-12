@@ -55,7 +55,7 @@ void do_test(int argc, char const ** argv) {
                 std::cerr << print::RED << "[ERROR] Make Torrent failed" << print::CLEAR << '\n';
                 return;
             }
-            if (!connections::tracker::recv::receive(tracker_conn, torrent_hash, peertable, own_address))
+            if (!connections::tracker::recv::receive(tracker_conn, torrent_hash, peertable, own_address, port))
                 return;
 
             break;

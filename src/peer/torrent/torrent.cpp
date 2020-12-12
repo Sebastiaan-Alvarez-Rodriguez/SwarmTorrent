@@ -63,7 +63,6 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             continue;
         }
 
-
         auto tracker_conn = TCPClientConnection::Factory::from(addr_info.type.n_type).withAddress(address).withDestinationPort(port).create();
         if (tracker_conn->get_state() != ClientConnection::READY) {
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
@@ -79,10 +78,11 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
         // 4. Receive peertables
         IPTable table;
         Address own_address;
-        if (!connections::tracker::recv::receive(tracker_conn, hash, table, own_address)) {
+        if (!connections::tracker::recv::receive(tracker_conn, hash, table, own_address, sourcePort)) {
             std::cerr<<"Could not send RECEIVE request to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
             continue;
         } else {
+            std::cerr << "own address: " << own_address.ip << ':' << own_address.port << '\n';
             std::cerr<<"Received a peertable from tracker ";tracker_conn->print(std::cerr);std::cerr<<". It has "<< table.size() << " peers\n";
             for (auto it = table.cbegin(); it != table.cend(); ++it)
                 std::cerr << it->second.ip << ':' << it->second.port << '\n';

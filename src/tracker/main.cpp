@@ -44,7 +44,8 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
     writer += sizeof(message::standard::Header);
 
     //Writing peeraddress
-    Address a(client_conn->get_type(), client_conn->getAddress(), client_conn->getDestinationPort());
+    std::cerr << "dest port: " << client_conn->getSourcePort() << std::endl;
+    Address a(client_conn->get_type(), client_conn->getAddress(), client_conn->getSourcePort());
     writer = a.write_buffer(writer);
 
     //Writing table
@@ -52,7 +53,7 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
         writer = it->second.write_buffer(writer);
 
 
-    client_conn->sendmsg(table_buffer, sizeof(message::standard::Header)+table_size);
+    client_conn->sendmsg(table_buffer, msg_size);
     std::cerr << "Sent table containing " << table.size() << " entries:\n";
     for (auto it = table.cbegin(); it != table.cend(); ++it) {
         std::cerr << it->second.ip << ':' << it->second.port << '\n';

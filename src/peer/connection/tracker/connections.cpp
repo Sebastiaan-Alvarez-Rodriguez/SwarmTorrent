@@ -46,7 +46,7 @@ bool connections::tracker::send::register_self(std::unique_ptr<ClientConnection>
 }
 
 
-bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable, Address& own_address) {
+bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable, Address& own_address, uint16_t sourcePort) {
     if (!send_request(connection, torrent_hash, message::tracker::RECEIVE))
         return false;
 
@@ -59,9 +59,10 @@ bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& conn
     // Body of the message only contains a number of addresses.
     // Each address is const-size, so we can get amount of addresses simply by doing below.
     // First address is own address
-    const size_t amount = ((header.size - sizeof(header)) / Address::size()) - Address::size();
+    const size_t amount = ((header.size - sizeof(header)) / Address::size()) - 1;
     const uint8_t* reader = table_buffer + sizeof(header);
     reader = own_address.read_buffer(reader);
+    own_address.port = sourcePort;
     for (size_t x = 0; x < amount; ++x) {
         Address a;
         reader = a.read_buffer(reader);
