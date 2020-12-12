@@ -9,7 +9,8 @@ namespace message::standard {
     enum Tag : uint8_t {
         OK = 0,
         REJECT = 1,
-        ERROR = 2
+        ERROR = 2,
+        LOCAL_DISCOVERY = 4
     };
 
     struct Header {

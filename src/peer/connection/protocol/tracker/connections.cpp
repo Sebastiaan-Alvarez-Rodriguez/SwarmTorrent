@@ -31,6 +31,11 @@ bool connections::tracker::send::make_torrent(std::unique_ptr<ClientConnection>&
     return send_request(connection, torrent_hash, message::tracker::MAKE_TORRENT);
 }
 
+bool connections::tracker::send::receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash) {
+    return send_request(connection, torrent_hash, message::tracker::RECEIVE);
+}
+
+
 bool connections::tracker::send::register_self(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port) {
     const auto m_size = sizeof(uint16_t)+torrent_hash.size();
     uint8_t* const data = (uint8_t*) malloc(sizeof(message::tracker::Header)+m_size);
@@ -47,9 +52,6 @@ bool connections::tracker::send::register_self(std::unique_ptr<ClientConnection>
 
 
 bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable) {
-    if (!send_request(connection, torrent_hash, message::tracker::RECEIVE))
-        return false;
-
     message::standard::Header header;
     connection->peekmsg((uint8_t*)&header, sizeof(header));
 

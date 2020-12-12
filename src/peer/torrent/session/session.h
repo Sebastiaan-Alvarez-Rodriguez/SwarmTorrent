@@ -52,6 +52,11 @@ namespace torrent {
         inline bool fragment_completed(size_t fragment_nr) {
             return fragments_completed[fragment_nr];
         }
+
+        inline const auto& get_fragments_completed() {
+            return fragments_completed;
+        }
+
         inline size_t get_num_fragments() {
             return num_fragments;
         }

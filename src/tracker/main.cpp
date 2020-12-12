@@ -33,19 +33,20 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
         return;
     }
 
-    size_t table_size = table.size() * Address::size();
-    uint8_t* const table_buffer = (uint8_t*) malloc(sizeof(message::standard::Header)+table_size);
-    uint8_t* writer = table_buffer;
-    *((message::standard::Header*) writer) = message::standard::from(table_size, message::standard::OK);
-    writer += sizeof(message::standard::Header);
-    for (auto it = table.cbegin(); it != table.cend(); ++it)
-        writer = it->second.write_buffer(writer);
-    client_conn->sendmsg(table_buffer, sizeof(message::standard::Header)+table_size);
-    std::cerr << "Sent table containing " << table.size() << " entries:\n";
-    for (auto it = table.cbegin(); it != table.cend(); ++it) {
-        std::cerr << it->second.ip << ':' << it->second.port << '\n';
-    }
-    free(table_buffer);
+    connections::shared::send::peertable(client_conn, table, message::standard::OK);
+    // size_t table_size = table.size() * Address::size();
+    // uint8_t* const table_buffer = (uint8_t*) malloc(sizeof(message::standard::Header)+table_size);
+    // uint8_t* writer = table_buffer;
+    // *((message::standard::Header*) writer) = message::standard::from(table_size, message::standard::OK);
+    // writer += sizeof(message::standard::Header);
+    // for (auto it = table.cbegin(); it != table.cend(); ++it)
+    //     writer = it->second.write_buffer(writer);
+    // client_conn->sendmsg(table_buffer, sizeof(message::standard::Header)+table_size);
+    // std::cerr << "Sent table containing " << table.size() << " entries:\n";
+    // for (auto it = table.cbegin(); it != table.cend(); ++it) {
+    //     std::cerr << it->second.ip << ':' << it->second.port << '\n';
+    // }
+    // free(table_buffer);
 }
 
 static void handle_register(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
@@ -65,7 +66,7 @@ static void handle_register(Session& session, std::unique_ptr<ClientConnection>&
             std::cout << "Table with hash " << hash << " has "<< table.size() << " entries (added 0 new entries)\n";
         }
         message::standard::send(client_conn, message::standard::OK);
-    }        
+    }
 }
 
 static bool run(uint16_t port) {

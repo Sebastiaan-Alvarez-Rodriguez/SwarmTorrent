@@ -3,7 +3,7 @@
 #include <iostream>
 
 
-#include "peer/connection/peer/connections.h"
+#include "peer/connection/protocol/peer/connections.h"
 #include "peer/connection/message/peer/message.h"
 #include "peer/torrent/session/session.h"
 #include "shared/connection/impl/TCP/TCPConnection.h"

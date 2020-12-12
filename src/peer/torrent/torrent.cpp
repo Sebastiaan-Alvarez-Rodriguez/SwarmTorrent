@@ -3,9 +3,9 @@
 #include <stdexcept>
 #include <vector>
 
-#include "peer/connection/peer/connections.h"
 #include "peer/connection/message/peer/message.h"
-#include "peer/connection/tracker/connections.h"
+#include "peer/connection/protocol/peer/connections.h"
+#include "peer/connection/protocol/tracker/connections.h"
 #include "peer/torrent/pipeline/pipe_ops.h"
 #include "peer/torrent/session/session.h"
 #include "shared/connection/impl/TCP/TCPConnection.h"
@@ -40,12 +40,11 @@ static bool tmp_send_register(ConnectionType type, std::string address, uint16_t
         return header.formatType == message::standard::OK;
 }
 
-
+// Given a number of tracker servers, constructs a table with all peers these trackers know about
 static IPTable compose_peertable(const std::string& hash, const IPTable& trackers, uint16_t sourcePort) {
     std::vector<IPTable> peertables;
     peertables.reserve(trackers.size());
 
-    // 2. Connect to trackers in list
     for (auto it = trackers.cbegin(); it != trackers.cend(); ++it) {
         auto address = it->first;
         auto addr_info = it->second;
@@ -62,7 +61,6 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             continue;
         }
 
-
         auto tracker_conn = TCPClientConnection::Factory::from(addr_info.type.n_type).withAddress(address).withDestinationPort(port).create();
         if (tracker_conn->get_state() != ClientConnection::READY) {
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
@@ -73,9 +71,6 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             std::cerr<<"Could not connect to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
             continue;
         }
-
-        // 3. Request trackers to provide peertables
-        // 4. Receive peertables
         IPTable table;
         if (!connections::tracker::recv::receive(tracker_conn, hash, table)) {
             std::cerr<<"Could not send RECEIVE request to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
@@ -87,7 +82,6 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
         }
         peertables.push_back(table);
     }
-    // 5. Unify peertables
     IPTable maintable;
     for (const auto& t : peertables)
         maintable.merge(t);
@@ -156,16 +150,34 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
 }
 
 // Send request to peers in our local network
-static bool requests_send(torrent::Session& session) {
+static void requests_send(torrent::Session& session) {
     //TODO: 2 options for sending
     // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
     // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
     // For now we make 1. Adaption to 2 is simple enough to not be a waste of time.
 
     while (session.get_registry().size() < peer::defaults::torrent::max_outstanding_requests) { // Let's send a request
-        //TODO: need to ask for a fragment to a peer
+        // 1. Pick a fragment to request <- balance probabilities: Pick one for which the amount of sent requests is low/minimal
+        // 2. Pick a peer to request from  <- balance load: Pick a peer that we did not request much for yet. Somehow pick one that has the data...
+        // 3. Request picked fragment at picked peer
+
+        //TODO: Instead of picking first non-completed fragment, pick a random one?
+        // const auto& completed = session.get_fragments_completed();
+        // const auto& it = std::find(completed.begin(), completed.end(), false);    
+        // if (it == completed.end()) //should never happen, because we call this function only when we actually need some fragments
+        //     return;
+        // size_t fragment_nr = std::distance(completed.begin(), it); //O(1) because vector-like iterator distance results in subtraction
+        size_t fragment_nr = 0;
+        const auto fragment_max = session.get_num_fragments();
+        const auto& registry = session.get_registry();
+        for (; fragment_nr < fragment_max; ++fragment_nr)
+            if (!session.fragment_completed(fragment_nr) && !registry.contains(fragment_nr)) // Fragment needed and no outgoing requests for fragment yet
+                break;
+        if (fragment_nr == fragment_max) // All fragments have been retrieved or have outgoing requests
+            return;
+        //TODO Reminder: need to call gc of registry once in a while
+        //TODO: Pick a peer to request from, and balance load
     }
-    return true || session.download_completed();
 }
 
 
@@ -198,22 +210,32 @@ static bool requests_receive(torrent::Session& session) {
                 std::cout << "Unable to peek. System hangup?" << std::endl;
                 continue;
             }
-            if (standard.formatType != message::peer::id) {
-                std::cerr << "Received invalid message! Not a Peer-message. Skipping..." << std::endl;
+            const bool message_type_peer = standard.formatType == message::peer::id;
+            const bool message_type_standard = standard.formatType == message::standard::id;
+            
+            if (message_type_peer) {
+                uint8_t* const data = (uint8_t*) malloc(standard.size);
+                connection->recvmsg(data, standard.size);
+                message::peer::Header* header = (message::peer::Header*) data;
+                switch (header->tag) {
+                    case message::peer::JOIN: peer::pipeline::join(session, connection, data, standard.size); break;
+                    case message::peer::LEAVE: peer::pipeline::leave(session, connection, data, standard.size); break;
+                    case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, data, standard.size); break;
+                    case message::peer::DATA_REPLY: peer::pipeline::data_reply(session, connection, data, standard.size); break;
+                    default: // We get here when testing or corrupt tag
+                        break;
+                }
+                free(data);
+            } else if (message_type_standard) {
+                switch (standard.tag) {
+                    case LOCAL_DISCOVERY: peer::pipeline::local_discovery(session, connection); break;
+                    default: // We get here when we receive some other or corrupt tag
+                        break;
+                }
+            } else {
+                std::cerr << "Received invalid message! Not a Peer-message nor standard-message. Skipping..." << std::endl;
                 continue;
             }
-            uint8_t* const data = (uint8_t*) malloc(standard.size);
-            connection->recvmsg(data, standard.size);
-            message::peer::Header* header = (message::peer::Header*) data;
-            switch (header->tag) {
-                case message::peer::JOIN: peer::pipeline::join(session, connection, data, standard.size); break;
-                case message::peer::LEAVE: peer::pipeline::leave(session, connection, data, standard.size); break;
-                case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, data, standard.size); break;
-                case message::peer::DATA_REPLY: peer::pipeline::data_reply(session, connection, data, standard.size); break;
-                default: // We get here when testing or corrupt tag
-                    break;
-            }
-            free(data);
         }
     }
     return true;
@@ -242,7 +264,6 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     // Continually send and recv data. TODO:
     // Best approach might be to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
 
-    const uint32_t max_outstanding_fragment_requests = 10;
     while (!stop) {
         if (session.get_peertable().size() == 0 && !session.download_completed()) {
             // 7. Initialize peer network: send requests to a number of peers to join.

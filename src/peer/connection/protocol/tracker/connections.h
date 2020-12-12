@@ -21,15 +21,14 @@ namespace connections::tracker {
          * '''Note:''' TODO: Soon, only initial peers need to do this.
          */
         bool register_self(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port);
+
+        // Send a RECEIVE request to a tracker
+        bool receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash);
     }
 
     namespace recv {
         // Receive peertable from tracker
         bool receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable);
     }
-
-    // Update peertable to tracker
-    // TODO: Probably should not be here? Soon we will need it maybe
-    //bool update(std::unique_ptr<ClientConnection> connection, std::string torrent_hash, );
 }
 #endif
