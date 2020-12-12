@@ -42,8 +42,8 @@ TorrentFile TorrentFile::make_for(IPTable& tb, const std::string& path) {
         throw std::runtime_error("Can only open files for now!");
     TorrentMetadata tm;
     tm.name = fs::basename(path);
-    tm.size = fs::file_size(path);
     tm.content_hash = generate_hash(path);
+    tm.size = fs::file_size(path);
     auto ht = HashTable::make_for(path);
     return TorrentFile(tb, tm, ht);
 }

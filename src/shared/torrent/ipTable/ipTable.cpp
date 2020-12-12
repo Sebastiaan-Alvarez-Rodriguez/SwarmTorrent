@@ -8,7 +8,7 @@ IPTable IPTable::from(std::vector<std::string>& ips) {
     return ip_table;
 }
 
-bool IPTable::get_Addr(std::string ip, Address& a) const {
+bool IPTable::get_addr(std::string ip, Address& a) const {
     auto item = ips.find(ip);
     if (item == ips.end())
         return false;

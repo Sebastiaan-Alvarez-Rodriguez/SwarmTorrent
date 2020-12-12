@@ -14,6 +14,8 @@ struct Address : public Streamable {
 
     Address(ConnectionType type, std::string ip, uint16_t port) : type(type), ip(std::move(ip)), port(port) {};
 
+    Address() : Address(ConnectionType(TransportType(), NetType()), "", 0) {}
+
     // Constructs an Address by reading from a stream
     static Address from(std::istream& is);
 
@@ -23,7 +25,8 @@ struct Address : public Streamable {
     // Returns the maximum size of Address, 
     // We assume ip has a maximum size of 16 bytes (IPv6)
     // Allocate 2 more bytes for NULL terminator and size of ip
-    static size_t size() { return sizeof(ConnectionType) + 16 + 2 + sizeof(uint16_t);};
+    // Lastly, we need 2 bytes for the port number
+    static size_t size() { return sizeof(ConnectionType) + 16 + sizeof(char) + sizeof(uint8_t) + sizeof(uint16_t);};
 
     // Read and write to a SwarmTorrent file
     void write_stream(std::ostream& os) const override;

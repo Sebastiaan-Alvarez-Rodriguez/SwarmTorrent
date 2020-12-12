@@ -11,62 +11,77 @@
 #include "shared/util/print.h"
 #include "tracker/session/session.h"
 
+static void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
+    std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
+    std::cout << "Got a Make Torrent request (hash=" << hash << ")" << std::endl;
 
-void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
+    IPTable table;
+    if (!session.get_table(hash, table)) { // Table does not exist yet, insert new table.
+        session.add_table(hash, table);
+        std::cout << "We have " << session.size() << " tables (added 1 table)\n";
+    }
+    message::standard::send(client_conn, message::standard::OK);
+}
+
+static void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
     std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
     std::cout << "Got a Receive request (hash=" << hash << ")" << std::endl;
 
     IPTable table;
     if (!session.get_table(hash, table)) { //No table for hash found, return error
         message::standard::send(client_conn, message::standard::ERROR);
-        std::cerr << "Error" << std::endl;
         return;
     }
-    size_t buf_length = table.size() * Address::size() + sizeof(message::standard::Header);
-    uint8_t* const table_buffer = (uint8_t*)malloc(buf_length);
+
+    size_t table_size = table.size() * Address::size();
+    uint8_t* const table_buffer = (uint8_t*) malloc(sizeof(message::standard::Header)+table_size);
     uint8_t* writer = table_buffer;
-    *((message::standard::Header*) writer) = message::standard::from(table.size()*Address::size(), message::standard::OK);
+    *((message::standard::Header*) writer) = message::standard::from(table_size, message::standard::OK);
     writer += sizeof(message::standard::Header);
-    for (auto it = table.iterator_begin(); it != table.iterator_end(); ++it) 
-        writer = (*it).second.write_buffer(writer);
-    client_conn->sendmsg(table_buffer, buf_length);
+    for (auto it = table.cbegin(); it != table.cend(); ++it)
+        writer = it->second.write_buffer(writer);
+    client_conn->sendmsg(table_buffer, sizeof(message::standard::Header)+table_size);
+    std::cerr << "Sent table containing " << table.size() << " entries:\n";
+    for (auto it = table.cbegin(); it != table.cend(); ++it) {
+        std::cerr << it->second.ip << ':' << it->second.port << '\n';
+    }
     free(table_buffer);
 }
 
-void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
-    std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
-    std::cout << "Got a Make Torrent request (hash=" << hash << ")" << std::endl;
-
+static void handle_register(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
+    uint16_t port_to_register = *(uint16_t*)(msg+sizeof(message::tracker::Header));
+    std::string hash((char*)msg+sizeof(uint16_t)+sizeof(message::tracker::Header), (bufsize-sizeof(uint16_t)-sizeof(message::tracker::Header)));
+    std::cout << "Got a Register request (hash=" << hash << ", port="<< port_to_register<<")" << std::endl;
+    
     IPTable table;
     if (!session.get_table(hash, table)) { // Table does not exist yet, insert new table.
-        auto addr = client_conn->getAddress();
-        auto port = client_conn->getPort();
-        table.add_ip({TransportType::TCP, NetType::IPv4}, addr, port);
-        session.add_table(hash, table);
+        // table.add_ip(client_conn->get_type(), client_conn->getAddress(), port_to_register);
+        std::cerr << "Could not find table for hash " << hash << "\n";
+        message::standard::send(client_conn, message::standard::ERROR);
     } else { // Table already exists. Add this peer to the list.
-        auto addr = client_conn->getAddress();
-        auto port = client_conn->getPort();
-        session.add_peer(hash, {{TransportType::TCP, NetType::IPv4}, addr, port});
-    }
-    message::standard::send(client_conn, message::standard::OK);
+        if (session.add_peer(hash, {client_conn->get_type(), client_conn->getAddress(), port_to_register})) {
+            std::cout << "Table with hash " << hash << " has "<< table.size() << " entries (added 1 new entry: " << client_conn->getAddress() << ':' << port_to_register << ")\n";
+        } else {
+            std::cout << "Table with hash " << hash << " has "<< table.size() << " entries (added 0 new entries)\n";
+        }
+        message::standard::send(client_conn, message::standard::OK);
+    }        
 }
 
-bool run(uint16_t port) {
-    auto conn = TCPHostConnection::Factory::from(NetType::IPv4).withPort(port).create();
+static bool run(uint16_t port) {
+    auto conn = TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(port).create();
     if (conn->get_state() != ClientConnection::READY) {
         std::cerr << print::RED << "[ERROR] Could not initialize connection" << print::CLEAR << std::endl;
         return false;
     }
 
     Session session;
-    std::cout << "Session initialized" << std::endl;
-    std::cout << "Listening started on port " << port << std::endl;
-
-    // bool running = true;
+    std::cout << "Session initialized. Listening started on port " << port << std::endl;
 
     while (true) {
         auto client_conn = conn->acceptConnection();
-        std::cout << "ClientConnection accepted with address "<< client_conn->getAddress() << ':' << client_conn->getPort() << std::endl;
+        std::cout << "ClientConnection accepted with address " << client_conn->getAddress() << ':' << client_conn->getDestinationPort() << std::endl;
+
         message::standard::Header standard;
         
         if (!message::standard::recv(client_conn, standard)) {
@@ -82,19 +97,18 @@ bool run(uint16_t port) {
         client_conn->recvmsg(ptr, standard.size);
         message::tracker::Header* header = (message::tracker::Header*) ptr;
         switch (header->tag) {
-            case message::tracker::Tag::TEST:
+            case message::tracker::TEST:
                 std::cout << "Got a test message" << std::endl;
                 message::standard::send(client_conn, message::standard::OK);
                 break;
-            case message::tracker::Tag::MAKE_TORRENT: handle_make_torrent(session, client_conn, ptr, standard.size); break;
-            case message::tracker::Tag::RECEIVE: {
-                std::cout << "receive" << std::endl;
-                handle_receive(session, client_conn, ptr, standard.size); break;
-            }
-            case message::tracker::Tag::UPDATE:
+            case message::tracker::MAKE_TORRENT: handle_make_torrent(session, client_conn, ptr, standard.size); break;
+            case message::tracker::RECEIVE: handle_receive(session, client_conn, ptr, standard.size); break;
+            case message::tracker::UPDATE:
                 std::cout << "Got an update" << std::endl;
+                //TODO: Implement update?
                 message::standard::send(client_conn, message::standard::OK);
                 break;
+            case message::tracker::REGISTER: handle_register(session, client_conn, ptr, standard.size); break;
             default: std::cout << "Got unknown header tag: " << (uint16_t) header->tag << std::endl;break;
         }
     }
@@ -103,7 +117,7 @@ bool run(uint16_t port) {
 
 int main(int argc, char const **argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Tracker Run", ' ', "0.1");
-    TCLAP::ValueArg<uint16_t> portArg("p","port","Port for peer connections",true,1042,"PORT", cmd);
+    TCLAP::ValueArg<uint16_t> portArg("p","port","Port to which peer connect",true,1042,"PORT", cmd);
     cmd.parse(argc, argv);
 
     uint16_t port = portArg.getValue();

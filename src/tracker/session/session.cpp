@@ -4,11 +4,11 @@ bool Session::add_table(const std::string& hash, IPTable& peertable) {
     return peertables.insert({hash, peertable}).second;
 }
 
-bool Session::add_peer(const std::string& hash, const Address& peer) {
+bool Session::add_peer(const std::string& hash, const Address& peer, bool exist_ok) {
     auto it = peertables.find(hash);
     if (it == peertables.end())
         return false; 
-    return it->second.add_ip(peer);
+    return it->second.add_ip(peer) || exist_ok;
 }
 
 

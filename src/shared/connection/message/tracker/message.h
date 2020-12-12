@@ -2,26 +2,27 @@
 #define TRACKERMESSAGE_H
 
 #include <cstdlib>
+#include <initializer_list>
 #include <memory>
+#include <vector>
 
 #include "shared/connection/message/message.h"
-#include "shared/connection/message/interpretable.h"
 
 namespace message::tracker {
     static const inline uint8_t id = 32;
 
     enum Tag : uint8_t {
-        TEST = 0,
-        MAKE_TORRENT = 1,
-        RECEIVE = 2,
-        UPDATE = 3
+        TEST = 1,
+        MAKE_TORRENT = 2,
+        REGISTER = 4,
+        RECEIVE = 8,
+        UPDATE = 16
     };
     struct Header {
         size_t size;
         uint8_t formatType = id;
         Tag tag;
     };
-
 
 
     /** Initializes a Header */

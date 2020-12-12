@@ -14,7 +14,7 @@ HashTable HashTable::make_for(const std::string& path) {
     uint64_t f_size = fs::file_size(path);
     uint64_t nr_fragments = ((f_size -1) / fragment_size) + 1;
     HashTable hashTable;
-    
+
     hashTable.hashes.resize(nr_fragments);
     for (uint64_t i = 0; i < nr_fragments; ++i) {
         uint64_t size = (i != nr_fragments-1) ? fragment_size : (f_size % fragment_size);
@@ -40,20 +40,25 @@ bool HashTable::add_hash(const std::string& hash) {
 }
 
 void HashTable::write_stream(std::ostream& os) const {
-    os.write((char*)(&hash_type), sizeof(hash_type));
-    unsigned size = hashes.size();
-    os.write((char*)(&size), sizeof(size));
-    for (auto hash : hashes) 
-        os.write((char*)hash.data(), hash_type);
+    os.write((char*) &hash_type, sizeof(hash_type));
+    size_t amount = hashes.size();
+    os.write((char*) &amount, sizeof(amount));
+    const auto hash_size = hash::size_for(hash_type);
+    for (auto hash : hashes)
+        os.write((char*)hash.data(), hash_size);
 }
 
 void HashTable::read_stream(std::istream& is) {
-    is.read((char*)hash_type, sizeof(hash_type));
-    unsigned size;
-    is.read((char*)(&size), sizeof(size)); 
-    hashes.resize(size);
-    for (unsigned i = 0; i < size; ++i)
-        is.read((char*)hashes[i].data(), hash_type);
+    is.read((char*) &hash_type, sizeof(hash_type));
+    size_t amount;
+    is.read((char*) &amount, sizeof(amount)); 
+    hashes.resize(amount);
+
+    const auto hash_size = hash::size_for(hash_type);
+    for (unsigned i = 0; i < amount; ++i) {
+        hashes[i].resize(hash_size);
+        is.read((char*)hashes[i].data(), hash_size);
+    }
 }
 
 bool HashTable::check_hash(unsigned index, const std::string& hash) const {

@@ -5,7 +5,7 @@
 | Set up Trackers who have a Table with Peers in the Swarm |
 | Peers should be able to collect SwarmTorrent files |
 | Peers should be able to collect other Peers from the Trackers |
-| Peers should be able to join the Swarm |
+| Peers should be able to send_join_req the Swarm |
 | Peers should be able to receive updates concerning the Peers in the Swarm |
 | Peers can connect with each other over TCP(?) |
 | Peers should be able to collect all Fragments of a file |
