@@ -71,6 +71,9 @@ namespace torrent {
             }
         }
 
+        inline bool fragment_completed(size_t index) {
+            return fragments_completed[index];
+        }
         inline size_t get_num_fragments() {
             return num_fragments;
         }

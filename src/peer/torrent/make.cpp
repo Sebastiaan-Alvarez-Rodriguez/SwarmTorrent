@@ -33,11 +33,11 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection to tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
-        if (!conn->doConnect()) { // TODO: Need timeout here probably
+        if (!conn->doConnect()) {
             std::cerr << "Could not connect to tracker ";conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
-        if (!connections::tracker::make_torrent(conn, torrent_hash)) { // TODO: Need timeout here probably
+        if (!connections::tracker::send::make_torrent(conn, torrent_hash)) { // TODO: Need timeout here probably
             std::cerr << print::YELLOW << "[WARN] Could not send torrent request for tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }

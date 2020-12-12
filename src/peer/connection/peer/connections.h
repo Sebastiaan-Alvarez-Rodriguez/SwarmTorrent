@@ -26,13 +26,14 @@ namespace connections::peer {
         // Request peer to send us fragment with given fragment number
         bool data_req(std::unique_ptr<ClientConnection> &connection, size_t fragment_nr);
 
-        /** Reply to peer with a data fragment
-          *
-          * '''Warning:''' assumes that the data buffer
-          *                contains sizeof(message::peer::Header) leading bytes of free space.
-          * '''Note:''' This function frees the data after transmission.
-          */
-        bool data_reply_fast(const std::unique_ptr<ClientConnection> &connection, uint8_t* data, unsigned size);
+        /** 
+         * Reply to peer with a data fragment
+         *
+         * '''Warning:''' assumes that the data buffer contains sizeof(message::peer::Header)+sizeof(size_t)
+         *                leading bytes of free space
+         * '''Note:''' This function frees the data after transmission.
+         */
+        bool data_reply_fast(const std::unique_ptr<ClientConnection>& connection, size_t fragment_nr, uint8_t* data, unsigned size);
     }
 
     namespace recv {
@@ -46,6 +47,9 @@ namespace connections::peer {
 
         // Get arguments for DATA_REQ messages from raw buffer
         bool data_req(const uint8_t* const data, size_t size, size_t& fragment_nr);
+
+
+        bool data_reply(const uint8_t* const data, size_t size, size_t& fragment_nr, uint8_t*& fragment_data);
     }
 }
 #endif
