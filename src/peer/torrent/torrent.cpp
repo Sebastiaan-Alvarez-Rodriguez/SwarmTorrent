@@ -78,7 +78,8 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
         // 3. Request trackers to provide peertables
         // 4. Receive peertables
         IPTable table;
-        if (!connections::tracker::recv::receive(tracker_conn, hash, table)) {
+        Address own_address;
+        if (!connections::tracker::recv::receive(tracker_conn, hash, table, own_address)) {
             std::cerr<<"Could not send RECEIVE request to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
             continue;
         } else {

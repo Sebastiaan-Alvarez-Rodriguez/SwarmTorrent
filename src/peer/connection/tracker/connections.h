@@ -25,7 +25,7 @@ namespace connections::tracker {
 
     namespace recv {
         // Receive peertable from tracker
-        bool receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable);
+        bool receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable, Address& own_address);
     }
 
     // Update peertable to tracker

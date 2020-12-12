@@ -20,11 +20,14 @@ public:
     NetType() = default;
     NetType(Type t) : t(t) {}
 
+    inline bool operator==(const NetType& other) const { return this->t == other.t; }
+
     friend std::ostream& operator<<(std::ostream& stream, const NetType& t);
 
     inline int to_ctype() const {return t == IPv4 ? AF_INET : AF_INET6;}
 
 };
+
 inline std::ostream& operator<<(std::ostream& stream, const NetType& t) {
     switch (t.t) {
         case NetType::IPv4: stream << "IPv4"; break;
@@ -68,10 +71,14 @@ struct ConnectionType {
     ConnectionType(TransportType t_type, NetType n_type) : t_type(t_type), n_type(n_type) {}
     ConnectionType(TransportType::Type t, NetType::Type n) : t_type(t), n_type(n) {}
 
+    inline bool operator==(const ConnectionType& other) { return this->t_type == other.t_type && this->n_type == other.n_type; }
+
 };
 
 inline std::ostream& operator<<(std::ostream& stream, const ConnectionType& c) {
     return stream << c.t_type <<" - " << c.n_type;
 }
+
+
 
 #endif
