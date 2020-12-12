@@ -162,7 +162,9 @@ static bool requests_send(torrent::Session& session) {
     // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
     // For now we make 1. Adaption to 2 is simple enough to not be a waste of time.
 
-    if (session.get_registry().size() < peer::defaults::torrent::max_outstanding_requests)
+    while (session.get_registry().size() < peer::defaults::torrent::max_outstanding_requests) { // Let's send a request
+        //TODO: need to ask for a fragment to a peer
+    }
     return true || session.download_completed();
 }
 
