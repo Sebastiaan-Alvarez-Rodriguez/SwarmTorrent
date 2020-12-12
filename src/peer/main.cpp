@@ -8,27 +8,34 @@
 #include "shared/util/print.h"
 #include "torrent/torrent.h"
 
+/*
+MARISKA TODO
+TODO:
+2) check of peer 'subscriben' goed gaat
+3) test receive peertable
+4) hash over content in torrentfile
+*/
 void do_test(int argc, char const ** argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Peer Test", ' ', "0.1");
-    TCLAP::ValueArg<std::string> addrArg("a","address","Address of host",false,"127.0.0.1","ADDR", cmd);
-    TCLAP::ValueArg<uint16_t> portArg("p","port","Port of host",true,1042,"PORT", cmd);
+    // TCLAP::ValueArg<std::string> addrArg("a","address","Address of host",false,"127.0.0.1","ADDR", cmd);
+    // TCLAP::ValueArg<uint16_t> portArg("p","port","Port of host",true,1042,"PORT", cmd);
     TCLAP::ValueArg<uint16_t> sendArg("s","sendarg","Argument to send",false, (uint16_t) message::tracker::Tag::TEST, "ARG", cmd);
     
-    cmd.parse(argc, argv);
+    // cmd.parse(argc, argv);
 
-    std::string addr = addrArg.getValue();
-    uint16_t port = portArg.getValue();
+    // std::string addr = addrArg.getValue();
+    // uint16_t port = portArg.getValue();
     uint16_t tag = sendArg.getValue();
 
-     if (port < 1000)
-        std::cerr << print::YELLOW << "Port numbers lower than 1000 may be reserved by the OS!" << print::CLEAR << std::endl;
+    //  if (port < 1000)
+    //     std::cerr << print::YELLOW << "Port numbers lower than 1000 may be reserved by the OS!" << print::CLEAR << std::endl;
     
-    auto tracker_conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(addr).withPort(port).create();
-    std::string torrent_hash = "some cool hash";
-    if (!tracker_conn->doConnect()) {
-        std::cerr << print::RED << "[ERROR] Could not connect to remote!" << print::CLEAR << std::endl;
-        return;
-    }
+    // auto tracker_conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(addr).withPort(port).create();
+    // std::string torrent_hash = "some cool hash";
+    // if (!tracker_conn->doConnect()) {
+    //     std::cerr << print::RED << "[ERROR] Could not connect to remote!" << print::CLEAR << std::endl;
+    //     return;
+    // }
 
     IPTable peertable;
     message::standard::Header h;
@@ -39,16 +46,19 @@ void do_test(int argc, char const ** argv) {
             std::cerr << "Cannot send a MAKE_TORRENT request. use 'make' instead of 'test'\n"; 
             return;
         case 3: {
-            std::string in = "test/data/a.out"; 
-            std::string out = "test/tfs/a.tf"; 
-            std::vector<std::string> trackers = {"TCP:4:2323:127.0.0.1"};
-            if (!torrent::make(in, out, trackers))
-                return; 
-            if (!message::standard::recv(tracker_conn, h) && h.formatType == message::standard::OK) {
-                std::cerr << print::RED << "[ERROR] Make Torrent failed" << print::CLEAR << '\n';
+            std::string torrentfile = "test/tfs/a.tf"; 
+            //TODO: @Mariska: fix tracker_conn
+            TorrentFile tf = TorrentFile::from(torrentfile);
+            torrent_hash = tf.getMetadata().content_hash;
+            // Address of first tracker: 
+            auto tracker = *(tf.getTrackerTable().iterator_begin())
+            auto tracker_conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(tracker.ip).withPort(tracker.port).create();
+
+            if (!tracker_conn->doConnect()) {
+                std::cerr << print::RED << "[ERROR] Could not connect to remote!" << print::CLEAR << std::endl;
                 return;
             }
-            //TODO: @Mariska: fix torrent_hash
+
             if (!connections::tracker::receive(tracker_conn, torrent_hash, peertable))
                 return;
 
