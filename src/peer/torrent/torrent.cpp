@@ -19,9 +19,7 @@
 #include "shared/util/random/randomGenerator.h"
 #include "torrent.h"
 
-//TODO: Temporary function to send register requests.
-// Inefficient, because we have to open a separate connection for that
-static bool tmp_send_register(ConnectionType type, std::string address, uint16_t port, std::string hash, uint16_t sourcePort) {
+static bool send_register(ConnectionType type, std::string address, uint16_t port, std::string hash, uint16_t sourcePort) {
     auto tracker_conn = TCPClientConnection::Factory::from(type.n_type).withAddress(address).withDestinationPort(port).create();
         if (tracker_conn->get_state() != ClientConnection::READY) {
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
@@ -44,7 +42,7 @@ static bool tmp_send_register(ConnectionType type, std::string address, uint16_t
 }
 
 // Given a number of tracker servers, constructs a table with all peers these trackers know about
-static IPTable compose_peertable(const std::string& hash, const IPTable& trackers, uint16_t sourcePort) {
+static IPTable compose_peertable(const std::string& hash, const IPTable& trackers, uint16_t sourcePort, bool force_register) {
     std::vector<IPTable> peertables;
     peertables.reserve(trackers.size());
 
@@ -58,8 +56,7 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             continue;
         }
 
-        // TODO: Stop registering self if possible?
-        if (!tmp_send_register(addr_info.type, address, port, hash, sourcePort)) {
+        if (force_register && !send_register(addr_info.type, address, port, hash, sourcePort)) {
             std::cerr << "Could not register at a tracker\n";
             continue;
         }
@@ -108,7 +105,7 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
 // Send join requests to a number of peers. 
 // We stop once there are no more peers left in `options`, or if we reach `needed_peers` peers.
 // Returns true if we reached `needed_peers`, false otherwise
-static bool join_peers(torrent::Session& session, const IPTable& options, unsigned needed_peers) {
+static bool join_peers(torrent::Session& session, unsigned needed_peers) {
     auto torrent_hash = session.get_metadata().content_hash;
     // unsigned random_start = 0; 
     //TODO @Mariska: 
@@ -116,9 +113,8 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
     // Maybe make a random generator in util to generate some random number in a given range?
         // Initialize the random generator with something that is different for every peer... Hostname string? Hostname+ip?
         // Note that initializing with time is maybe/probably not good enough, so only do that if the above option won't work
-    // Using iterator to pick a random starting point is inefficient-ish, but maybe the only choice:
-        // https://stackoverflow.com/questions/15425442/
 
+    auto options = session.get_peertable();
     for (auto it = options.cbegin(); it != options.cend() && session.peers_amount() < needed_peers; ++it) {
         const auto& ip = it->first;
         uint16_t port = it->second.port;
@@ -149,7 +145,7 @@ static bool join_peers(torrent::Session& session, const IPTable& options, unsign
             continue;
         }
         if (header.formatType == message::standard::OK) {
-            session.add_peer(conn->get_type(), ip, port);
+            session.register_peer(conn->get_type(), ip, port);
         } else if (header.formatType == message::standard::REJECT) {
             std::cerr << print::CYAN << "[TEST] We got a REJECT for our send_exchange request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         } else {
@@ -268,7 +264,7 @@ static bool requests_receive(torrent::Session& session) {
     return true;
 }
 
-bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort) {
+bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort, bool force_register) {
     // 0. Prepare and check output location
     // 1. Load trackerlist from tf
     // 2. Get peertables from trackers
@@ -283,9 +279,9 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     TorrentFile tf = TorrentFile::from(torrentfile);
     const IPTable& tracker_table = tf.getTrackerTable();
 
-    IPTable table = compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort);
 
     auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create(), workpath);
+    session.set_peers(compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort, force_register));
     bool stop = false;
 
     // Continually send and recv data. TODO:
@@ -297,7 +293,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
             const unsigned needed_peers = 1;
             // TODO: Need reasonable cap on connected peers. 
             // In reality, cap depends on network bandwidth: Keep accepting, until bandwidth is filled up.
-            join_peers(session, table, needed_peers);
+            join_peers(session, needed_peers);
             // Even if we don't have any/enough peers, we still must handle requests.
             requests_receive(session);
             continue;

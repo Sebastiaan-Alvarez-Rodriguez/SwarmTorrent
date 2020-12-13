@@ -74,13 +74,14 @@ void do_test(int argc, char const ** argv) {
 
 // Parse arguments for torrent::run and execute
 bool run_torrent(int argc, char const ** argv) {
-    TCLAP::CmdLine cmd("SwarmTorrent Peer Torrent", ' ', "0.1");
-    TCLAP::ValueArg<std::string> torrentfileArg("f","file","The torrentfile to open",true,"","File", cmd);
-    TCLAP::ValueArg<std::string> workpathArg("w","workpath","The location to load/store the data",true,"","File", cmd);
+    TCLAP::CmdLine cmd("SwarmTorrent Peer Torrent", ' ', "0.2");
+    TCLAP::ValueArg<std::string> torrentfileArg("f","file","The torrentfile to open",true,"","FILE", cmd);
+    TCLAP::ValueArg<std::string> workpathArg("w","workpath","The location to load/store the data",true,"","FILE", cmd);
     TCLAP::ValueArg<uint16_t> portArg("p","port","Port to receive torrent requests on",true,1042,"PORT", cmd);
+    TCLAP::SwitchArg registerArg("r","register","Explicitly register self at trackers (needed for torrents without peers, for peers with all data ('source peers'))", cmd);
 
     cmd.parse(argc, argv);
-    return torrent::run(torrentfileArg.getValue(), workpathArg.getValue(), portArg.getValue());
+    return torrent::run(torrentfileArg.getValue(), workpathArg.getValue(), portArg.getValue(), registerArg.getValue());
 }
 
 // Parse arguments for torrent::make and execute
@@ -97,12 +98,8 @@ bool make_torrent(int argc, char const ** argv) {
     return torrent::make(in, out, trackers);
 }
 
-// TCLAP manual: http://tclap.sourceforge.net/manual.html
-int main(int argc, char const **argv) {
-    TCLAP::CmdLine cmd("SwarmTorrent Peer Main", ' ', "0.1");
-
-    if (argc < 2) {
-        std::cerr << R"(
+void quick_selector_help() {
+    std::cerr << R"(
 Help
 
 Give a subcommand to the peer. Options:
@@ -110,6 +107,13 @@ Give a subcommand to the peer. Options:
     torrent     Torrent a file
     test        Call test function
 )";
+}
+// TCLAP manual: http://tclap.sourceforge.net/manual.html
+int main(int argc, char const **argv) {
+    TCLAP::CmdLine cmd("SwarmTorrent Peer Main", ' ', "0.1");
+
+    if (argc < 2) {
+        quick_selector_help();
         return 1;
     }
     
@@ -122,5 +126,7 @@ Give a subcommand to the peer. Options:
         return run_torrent(argc, argv_mvd);
     else if (subcommand == "test")
         do_test(argc, argv_mvd);
+    else
+        quick_selector_help();
     return 0;
 }

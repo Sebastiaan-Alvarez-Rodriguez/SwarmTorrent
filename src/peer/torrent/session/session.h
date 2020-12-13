@@ -26,7 +26,7 @@ namespace torrent {
 
         peer::Registry peer_registry;
         request::Registry request_registry;
-        IPTable ptable;
+        IPTable ptable; // table containing peers we might join. For joined peers, see [[peer_registry]]
 
         const size_t num_fragments;
         size_t num_fragments_completed = 0;
@@ -97,6 +97,7 @@ namespace torrent {
         inline bool add_peer(const Address& a) { return ptable.add_ip(a); }
         inline bool add_peer(ConnectionType type, const std::string& ip, uint16_t port) { return ptable.add_ip(type, ip, port); }  
 
+        inline void set_peers(IPTable&& peertable) { ptable = std::move(peertable); }
         inline bool remove_peer(const std::string& ip, uint16_t port) {
             Address a;
             if (!ptable.get_addr(ip, a))
@@ -113,8 +114,15 @@ namespace torrent {
 
         inline size_t peers_amount() { return ptable.size(); }
 
+
         // Registry-related forwarding functions //
 
+        inline void register_peer(const Address& address) {
+            peer_registry.add(address, num_fragments);
+        }
+        inline void register_peer(ConnectionType type, const std::string ip, uint16_t port) {
+            register_peer(Address(type, ip, port));
+        }
         inline void register_request(size_t fragment_nr, const Address& address) {
             request_registry.add(fragment_nr, address);
         }
