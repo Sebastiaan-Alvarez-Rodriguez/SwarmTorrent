@@ -10,7 +10,8 @@
 #include "shared/torrent/ipTable/ipTable.h"
 #include "shared/torrent/hashTable/hashTable.h"
 #include "shared/torrent/metadata/metaData.h"
-#include "registry/registry.h"
+#include "registry/peer/registry.h"
+#include "registry/request/registry.h"
 
 namespace torrent {
     class Session {
@@ -23,7 +24,8 @@ namespace torrent {
         std::shared_ptr<HostConnection> recv_conn;
         Address own_address;
 
-        Registry registry;
+        peer::Registry peer_registry;
+        request::Registry request_registry;
         IPTable ptable;
 
         const size_t num_fragments;
@@ -46,7 +48,7 @@ namespace torrent {
             if (!fragments_completed[fragment_nr]) {
                 fragments_completed[fragment_nr] = true;
                 ++num_fragments_completed;
-                registry.remove(fragment_nr); // Remove requests for collected fragment
+                request_registry.remove(fragment_nr); // Remove requests for collected fragment
             }
         }
 
@@ -85,7 +87,7 @@ namespace torrent {
 
         inline const auto& get_address() const { return own_address; }
 
-        inline const auto& get_registry() const { return registry; }
+        inline const auto& get_request_registry() const { return request_registry; }
 
         inline const auto& get_peertable() const { return ptable; }
 
@@ -114,7 +116,7 @@ namespace torrent {
         // Registry-related forwarding functions //
 
         inline void register_request(size_t fragment_nr, const Address& address) {
-            registry.add(fragment_nr, address);
+            request_registry.add(fragment_nr, address);
         }
     };
 }

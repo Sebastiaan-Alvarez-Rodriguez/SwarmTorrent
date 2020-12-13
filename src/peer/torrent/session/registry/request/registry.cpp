@@ -9,7 +9,7 @@
 #include "registry.h"
 
 
-bool torrent::Registry::gc_internal(std::deque<torrent::Registry::Element>& elems, const std::chrono::steady_clock::time_point& bound) {
+bool torrent::request::Registry::gc_internal(std::deque<torrent::request::Registry::Element>& elems, const std::chrono::steady_clock::time_point& bound) {
     Element e;
     e.timestamp = bound;
     // const auto it = std::lower_bound(elems.begin(), elems.end(), e, [&](const auto& point1) {});
@@ -22,27 +22,27 @@ bool torrent::Registry::gc_internal(std::deque<torrent::Registry::Element>& elem
     return elems.size() > 0;
 }
 
-void torrent::Registry::add(size_t fragment_nr, const Address& address) {
+void torrent::request::Registry::add(size_t fragment_nr, const Address& address) {
     // requests.push_back({fragment_nr, {fragment_nr, address}});
 
-    requests[fragment_nr].push_back(torrent::Registry::Element(fragment_nr, address));
+    requests[fragment_nr].push_back(torrent::request::Registry::Element(fragment_nr, address));
     ++total_requests;
     // if (!requests.emplace(fragment_nr, std::deque<torrent::Registry::Element> e).second)
     //     requests[fragment_nr].push_back({fragment_nr, {fragment_nr, address}});
 }
 
-void torrent::Registry::remove(size_t fragment_nr) {
+void torrent::request::Registry::remove(size_t fragment_nr) {
     const auto size = requests[fragment_nr].size();
     requests.erase(fragment_nr);
     total_requests -= size;
 }
 
-bool torrent::Registry::gc(size_t fragment_nr) {
+bool torrent::request::Registry::gc(size_t fragment_nr) {
     const auto now = std::chrono::steady_clock::now();
     return gc_internal(requests[fragment_nr], now-peer::defaults::torrent::request_stale_after_time);
 }
 
-inline std::vector<size_t> torrent::Registry::gc() {
+inline std::vector<size_t> torrent::request::Registry::gc() {
     auto vec = std::vector<size_t>();
     const auto now = std::chrono::steady_clock::now();
     for (auto& [key, val] : requests)

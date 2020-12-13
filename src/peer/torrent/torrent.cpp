@@ -171,8 +171,8 @@ static void requests_send(torrent::Session& session) {
     // 3. while large jointable -> LEAVE
     // 4. while #requests < max -> DATA_REQ
     // 5. while suspected dead in jointable -> INQUIRE
-    
-    while (session.get_registry().size() < peer::defaults::torrent::max_outstanding_requests) { // Let's send a request
+
+    while (session.get_request_registry().size() < peer::defaults::torrent::max_outstanding_requests) { // Let's send a request
         // 1. Pick a fragment to request <- balance probabilities: Pick one for which the amount of sent requests is low/minimal
         // 2. Pick a peer to request from  <- balance load: Pick a peer that we did not request much for yet. Somehow pick one that has the data...
         // 3. Request picked fragment at picked peer

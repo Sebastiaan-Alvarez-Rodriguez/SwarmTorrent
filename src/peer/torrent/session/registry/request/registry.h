@@ -1,5 +1,5 @@
-#ifndef PEER_SESSION_REGISTRY_H
-#define PEER_SESSION_REGISTRY_H
+#ifndef PEER_SESSION_REQUESTS_REGISTRY_H
+#define PEER_SESSION_REQUESTS_REGISTRY_H
 
 #include <chrono>
 #include <deque>
@@ -9,7 +9,7 @@
 #include "peer/torrent/defaults.h"
 #include "shared/torrent/ipTable/address.h"
 
-namespace torrent {
+namespace torrent::request {
     // Registry to keep track of data requests
     // it has several interesting properties:
     // 1. Can have multiple outstanding requests for the same fragments, but only to different hosts
@@ -23,7 +23,7 @@ namespace torrent {
         std::unordered_map<size_t, std::deque<Element>> requests;
         size_t total_requests = 0;
 
-        bool gc_internal(std::deque<torrent::Registry::Element>& elems, const std::chrono::steady_clock::time_point& bound);
+        bool gc_internal(std::deque<torrent::request::Registry::Element>& elems, const std::chrono::steady_clock::time_point& bound);
     public:
         Registry() = default;
         ~Registry() = default;
