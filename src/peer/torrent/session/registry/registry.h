@@ -32,7 +32,7 @@ namespace torrent {
         void add(size_t fragment_nr, const Address& address);
 
         // Returns `true` if given key was found, `false` otherwise
-        inline bool contains(size_t fragment_nr) {
+        inline bool contains(size_t fragment_nr) const {
             return requests.find(fragment_nr) != requests.end();
         }
 

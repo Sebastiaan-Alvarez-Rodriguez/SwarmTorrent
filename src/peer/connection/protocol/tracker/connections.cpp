@@ -4,6 +4,7 @@
 
 #include "shared/connection/message/tracker/message.h"
 #include "shared/connection/connection.h"
+#include "shared/connection/protocol/connections.h"
 #include "connections.h"
 
 
@@ -31,6 +32,11 @@ bool connections::tracker::send::make_torrent(std::unique_ptr<ClientConnection>&
     return send_request(connection, torrent_hash, message::tracker::MAKE_TORRENT);
 }
 
+bool connections::tracker::send::receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash) {
+    return send_request(connection, torrent_hash, message::tracker::RECEIVE);
+}
+
+
 bool connections::tracker::send::register_self(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port) {
     const auto m_size = sizeof(uint16_t)+torrent_hash.size();
     uint8_t* const data = (uint8_t*) malloc(sizeof(message::tracker::Header)+m_size);
@@ -53,24 +59,27 @@ bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& conn
     message::standard::Header header;
     connection->peekmsg((uint8_t*)&header, sizeof(header));
 
-    uint8_t* const table_buffer = (uint8_t*)malloc(header.size);
-    connection->recvmsg(table_buffer, header.size);
+    uint8_t* const data = (uint8_t*)malloc(header.size);
+    connection->recvmsg(data, header.size);
 
     // Body of the message only contains a number of addresses.
     // Each address is const-size, so we can get amount of addresses simply by doing below.
     // First address is own address
     const size_t amount = ((header.size - sizeof(header)) / Address::size()) - 1;
-    const uint8_t* reader = table_buffer + sizeof(header);
+    const uint8_t* reader = data + sizeof(header);
     reader = own_address.read_buffer(reader);
     own_address.port = sourcePort;
+
     for (size_t x = 0; x < amount; ++x) {
         Address a;
         reader = a.read_buffer(reader);
-        if (a == own_address)
-            continue;
-        if (!peertable.add_ip(a))
+        if (!peertable.add_ip(a)) {
             return false;
+            free(data);
+        }
     }
-    free(table_buffer);
+    free(data);
+
+    peertable.remove_ip(own_address);
     return true;
 }

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <tclap/CmdLine.h>
 
-#include "peer/connection/tracker/connections.h"
+#include "peer/connection/protocol/tracker/connections.h"
 #include "shared/connection/impl/TCP/TCPConnection.h"
 #include "shared/connection/message/tracker/message.h"
 #include "shared/torrent/file/torrentFile.h"
@@ -55,9 +55,11 @@ void do_test(int argc, char const ** argv) {
                 std::cerr << print::RED << "[ERROR] Make Torrent failed" << print::CLEAR << '\n';
                 return;
             }
+
+            if (!connections::tracker::send::receive(tracker_conn, torrent_hash))
+                return;
             if (!connections::tracker::recv::receive(tracker_conn, torrent_hash, peertable, own_address, port))
                 return;
-
             break;
         }
         default:

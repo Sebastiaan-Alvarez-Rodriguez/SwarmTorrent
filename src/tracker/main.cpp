@@ -6,6 +6,7 @@
 #include "shared/connection/impl/TCP/TCPConnection.h"
 
 #include "shared/connection/message/message.h"
+#include "shared/connection/protocol/connections.h"
 #include "shared/connection/message/tracker/message.h"
 #include "shared/torrent/ipTable/ipTable.h"
 #include "shared/util/print.h"
@@ -40,20 +41,23 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
     uint8_t* writer = table_buffer;
 
     //Writing header
-    *((message::standard::Header*) writer) = message::standard::from(msg_size-sizeof(message::standard::Header), message::standard::OK);
+    *((message::standard::Header*) writer) = message::standard::from_r(msg_size, message::standard::OK);
     writer += sizeof(message::standard::Header);
 
     //Writing peeraddress
-    std::cerr << "dest port: " << client_conn->getSourcePort() << std::endl;
-    Address a(client_conn->get_type(), client_conn->getAddress(), client_conn->getSourcePort());
+    Address a(client_conn->get_type(), client_conn->getAddress(), client_conn->getDestinationPort());
     writer = a.write_buffer(writer);
 
     //Writing table
     for (auto it = table.cbegin(); it != table.cend(); ++it)
         writer = it->second.write_buffer(writer);
 
+    if (!client_conn->sendmsg(table_buffer, msg_size)) {
+        std::cerr << "Had problems sending table back to peer "; client_conn->print(std::cerr); std::cerr << '\n';
+        free(table_buffer);
+        return;
+    }
 
-    client_conn->sendmsg(table_buffer, msg_size);
     std::cerr << "Sent table containing " << table.size() << " entries:\n";
     for (auto it = table.cbegin(); it != table.cend(); ++it) {
         std::cerr << it->second.ip << ':' << it->second.port << '\n';
@@ -78,7 +82,7 @@ static void handle_register(Session& session, std::unique_ptr<ClientConnection>&
             std::cout << "Table with hash " << hash << " has "<< table.size() << " entries (added 0 new entries)\n";
         }
         message::standard::send(client_conn, message::standard::OK);
-    }        
+    }
 }
 
 static bool run(uint16_t port) {

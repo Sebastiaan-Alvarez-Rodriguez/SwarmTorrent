@@ -1,6 +1,6 @@
 #include <vector>
 
-#include "peer/connection/tracker/connections.h"
+#include "peer/connection/protocol/tracker/connections.h"
 #include "shared/connection/impl/TCP/TCPConnection.h"
 #include "shared/connection/message/message.h"
 #include "shared/util/print.h"

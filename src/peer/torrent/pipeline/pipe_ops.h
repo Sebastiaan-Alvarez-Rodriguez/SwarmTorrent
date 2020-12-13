@@ -5,6 +5,7 @@
 
 #include "peer/torrent/session/session.h"
 #include "shared/connection/connection.h"
+#include "shared/connection/protocol/connections.h"
 
 namespace peer::pipeline {
     // Handles JOIN requests
@@ -18,5 +19,10 @@ namespace peer::pipeline {
 
     // Handles DATA_REPLYs. Closes incoming connection, reads fragment from data, writes it to disk, and finally updates request registry.
     void data_reply(torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size);
+
+    // Handles LOCAL_DISCOVERYs. Sends back currently owned peertable to incoming connection.
+    inline void local_discovery(const torrent::Session& session, const std::unique_ptr<ClientConnection>& connection) {
+        connections::shared::send::peertable(connection, session.get_peertable(), session.get_metadata().content_hash, message::standard::OK);
+    }
 }
 #endif

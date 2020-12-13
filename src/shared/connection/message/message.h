@@ -6,15 +6,18 @@
 #include "shared/connection/connection.h"
 
 namespace message::standard {
+    static const inline uint8_t id = 0;
     enum Tag : uint8_t {
         OK = 0,
         REJECT = 1,
-        ERROR = 2
+        ERROR = 2,
+        LOCAL_DISCOVERY = 4
     };
 
     struct Header {
         size_t size;
-        uint8_t formatType;
+        uint8_t formatType = id;
+        Tag tag;
     };
 
     inline Header from(size_t datasize, Tag t) {
@@ -36,7 +39,7 @@ namespace message::standard {
     }
 
     inline bool send(const std::unique_ptr<ClientConnection>& conn, Tag t) {
-        Header h = {sizeof(Header), (uint8_t) t};
+        Header h = {sizeof(Header), id, t};
         return conn->sendmsg((uint8_t*) &h, sizeof(Header));
     }
 }
