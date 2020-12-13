@@ -2,10 +2,10 @@
 
 #include "randomGenerator.h"
 
-namespace random {
+namespace rnd {
     // Returns a random index of vector with value bool
     // Returns vector.size() if it does not exist
-    size_t randomIndex(RandomGenerator& rg, const std::vector<bool>& vec, bool value) {
+    size_t random_from(RandomGenerator<size_t>& rg, const std::vector<bool>& vec, bool value) {
         if (std::find(vec.begin(), vec.end(), value) == vec.end())
             return vec.size();
 
@@ -15,5 +15,4 @@ namespace random {
                 return index;
         }
     }
-
 }

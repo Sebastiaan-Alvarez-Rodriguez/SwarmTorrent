@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <iostream>
+#include <random>
 #include <stdexcept>
 #include <vector>
 
@@ -12,8 +13,10 @@
 #include "shared/connection/message/message.h"
 #include "shared/connection/meta/type.h"
 #include "shared/torrent/file/torrentFile.h"
-#include "shared/util/print.h"
 #include "shared/util/fs/fs.h"
+#include "shared/util/print.h"
+#include "shared/util/random/random.h"
+#include "shared/util/random/randomGenerator.h"
 #include "torrent.h"
 
 //TODO: Temporary function to send register requests.
@@ -163,27 +166,42 @@ static void requests_send(torrent::Session& session) {
     // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
     // For now we make 1. Adaption to 2 is simple enough to not be a waste of time.
 
+    // 1. while small peertable -> LOCAL_DISCOVERY_REQ
+    // 2. while small jointable -> JOIN
+    // 3. while large jointable -> LEAVE
+    // 4. while #requests < max -> DATA_REQ
+    // 5. while suspected dead in jointable -> INQUIRE
+    
     while (session.get_registry().size() < peer::defaults::torrent::max_outstanding_requests) { // Let's send a request
         // 1. Pick a fragment to request <- balance probabilities: Pick one for which the amount of sent requests is low/minimal
         // 2. Pick a peer to request from  <- balance load: Pick a peer that we did not request much for yet. Somehow pick one that has the data...
         // 3. Request picked fragment at picked peer
 
-        //TODO: Instead of picking first non-completed fragment, pick a random one?
-        // const auto& completed = session.get_fragments_completed();
-        // const auto& it = std::find(completed.begin(), completed.end(), false);    
-        // if (it == completed.end()) //should never happen, because we call this function only when we actually need some fragments
-        //     return;
-        // size_t fragment_nr = std::distance(completed.begin(), it); //O(1) because vector-like iterator distance results in subtraction
-        size_t fragment_nr = 0;
-        const auto fragment_max = session.get_num_fragments();
-        const auto& registry = session.get_registry();
-        for (; fragment_nr < fragment_max; ++fragment_nr)
-            if (!session.fragment_completed(fragment_nr) && !registry.contains(fragment_nr)) // Fragment needed and no outgoing requests for fragment yet
-                break;
-        if (fragment_nr == fragment_max) // All fragments have been retrieved or have outgoing requests
-            return;
+        
+        //TODO @Mariska making a random device for every new sending is expensive. Move into session
+        std::random_device random_gen;
+        auto gen = rnd::RandomGenerator<size_t>(random_gen);
+
+        const auto fragment_nr = rnd::random_from(gen, session.get_fragments_completed(), false);
+        if (fragment_nr >= session.get_num_fragments()) // We get here if all fragments are completed
+            return; // No need to ask for fragment data if we already have all
+
         //TODO Reminder: need to call gc of registry once in a while
-        //TODO: Pick a peer to request from, and balance load
+
+        const auto peer_idx = gen.generate(0, session.get_peertable().size());
+        auto it = session.get_peertable().cbegin();
+        std::advance(it, peer_idx);
+        const auto address = it->second;
+        auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
+        if (!connection->doConnect()) {
+            std::cerr << "Could not connect to fellow peer ";connection->print(std::cerr); std::cerr << '\n';
+            continue;
+        }
+        if (!connections::peer::send::data_req(connection, fragment_nr)) {
+            std::cerr << "Could not send data request to fellow peer ";connection->print(std::cerr); std::cerr << '\n';
+            continue;
+        }
+        session.register_request(fragment_nr, address);
     }
 }
 

@@ -50,6 +50,9 @@ namespace torrent {
             }
         }
 
+
+        // Base session information //
+
         inline bool fragment_completed(size_t fragment_nr) {
             return fragments_completed[fragment_nr];
         }
@@ -65,6 +68,9 @@ namespace torrent {
         inline bool download_completed() const {
             return num_fragments == num_fragments_completed;
         }
+
+
+        // const member access methods //
 
         inline const auto& get_hashtable() const { return htable; }
 
@@ -83,7 +89,9 @@ namespace torrent {
 
         inline const auto& get_peertable() const { return ptable; }
 
-        // inline auto& peertable() { return ptable; }
+
+        // Peertable-related forwarding functions //
+
         inline bool add_peer(const Address& a) { return ptable.add_ip(a); }
         inline bool add_peer(ConnectionType type, const std::string& ip, uint16_t port) { return ptable.add_ip(type, ip, port); }  
 
@@ -102,6 +110,12 @@ namespace torrent {
         }
 
         inline size_t peers_amount() { return ptable.size(); }
+
+        // Registry-related forwarding functions //
+
+        inline void register_request(size_t fragment_nr, const Address& address) {
+            registry.add(fragment_nr, address);
+        }
     };
 }
 #endif
