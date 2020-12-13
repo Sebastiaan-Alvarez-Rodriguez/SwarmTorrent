@@ -129,3 +129,13 @@ void peer::pipeline::data_reply(torrent::Session& session, std::unique_ptr<Clien
     }
     session.mark(fragment_nr);
 }
+
+void peer::pipeline::local_discovery(const torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+    std::string recv_hash;
+    if (!connections::shared::recv::discovery_req(data, size, recv_hash))
+        return;
+    if (recv_hash != session.get_metadata().content_hash) // Hash mismatch
+        return;
+
+    connections::shared::send::discovery_reply(connection, session.get_peertable(), recv_hash, session.get_address());
+}

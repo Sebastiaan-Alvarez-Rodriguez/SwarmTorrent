@@ -30,5 +30,5 @@ It sends `ERROR` if no such torrentfile hash is found.
 ## Local Discovery
 Trackers can ask peers to share their peertables. The tracker uses this to update its list of known peers for a given torrent.
 It goes like this:
- 1. Tracker sends a [Message](/src/shared/connection/message/message.h) containing tag `LOCAL_DISCOVERY`, with in the body the hash for the torrentfile we are currently processing for.
- 2. Receiving peers send a message `OK`, with in the body of the message the requested peertable for torrentfile for given hash. If the peer no longer participates in the network, it does not send back anything.
+ 1. Tracker sends a [Message](/src/shared/connection/message/message.h) containing tag `LOCAL_DISCOVERY_REQ`, with in the body the hash for the torrentfile we are currently processing for.
+ 2. Receiving peers send a message `LOCAL_DISCOVERY_REPLY`, with in the body of the message first the hash, and then the peertable. If the peer no longer participates in the network, it does not send back anything.

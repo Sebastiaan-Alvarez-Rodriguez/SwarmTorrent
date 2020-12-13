@@ -234,8 +234,10 @@ static bool requests_receive(torrent::Session& session) {
                 }
                 free(data);
             } else if (message_type_standard) {
+                uint8_t* const data = (uint8_t*) malloc(standard.size);
+                connection->recvmsg(data, standard.size);
                 switch (standard.tag) {
-                    case message::standard::LOCAL_DISCOVERY: peer::pipeline::local_discovery(session, connection); break;
+                    case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(session, connection, data, standard.size); break;
                     default: // We get here when we receive some other or corrupt tag
                         break;
                 }

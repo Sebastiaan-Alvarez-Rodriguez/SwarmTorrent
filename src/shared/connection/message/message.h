@@ -11,7 +11,8 @@ namespace message::standard {
         OK = 0,
         REJECT = 1,
         ERROR = 2,
-        LOCAL_DISCOVERY = 4
+        LOCAL_DISCOVERY_REQ = 3,
+        LOCAL_DISCOVERY_REPLY = 4
     };
 
     struct Header {
