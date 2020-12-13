@@ -21,6 +21,7 @@ namespace torrent {
         FragmentHandler fragmentHandler;
 
         std::shared_ptr<HostConnection> recv_conn;
+        Address own_address;
 
         Registry registry;
         IPTable ptable;
@@ -68,6 +69,10 @@ namespace torrent {
             return fragmentHandler;
         }
         inline const auto& get_conn() const { return recv_conn; }
+
+        inline void set_address(Address& address) { own_address = address; }
+
+        inline const auto& get_address() const { return own_address; }
 
         inline const auto& get_registry() const { return registry; }
 

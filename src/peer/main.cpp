@@ -48,13 +48,14 @@ void do_test(int argc, char const ** argv) {
             std::string in = "test/data/a.out"; 
             std::string out = "test/tfs/a.tf"; 
             std::vector<std::string> trackers = {"TCP:4:2323:127.0.0.1"};
+            Address own_address;
             if (!torrent::make(in, out, trackers))
                 return; 
             if (!message::standard::recv(tracker_conn, h) && h.formatType == message::standard::OK) {
                 std::cerr << print::RED << "[ERROR] Make Torrent failed" << print::CLEAR << '\n';
                 return;
             }
-            if (!connections::tracker::recv::receive(tracker_conn, torrent_hash, peertable))
+            if (!connections::tracker::recv::receive(tracker_conn, torrent_hash, peertable, own_address, port))
                 return;
 
             break;

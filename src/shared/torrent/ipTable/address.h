@@ -22,6 +22,8 @@ struct Address : public Streamable {
     // Constructs an Address from a string with format: TransportType:NetType:PORT:IP
     static Address from_string(std::string ip);
 
+    inline bool operator==(const Address& other) { return this->type == other.type && this->ip == other.ip && this->port == other.port; }
+
     // Returns the maximum size of Address, 
     // We assume ip has a maximum size of 16 bytes (IPv6)
     // Allocate 2 more bytes for NULL terminator and size of ip
@@ -37,5 +39,7 @@ struct Address : public Streamable {
     uint8_t* write_buffer(uint8_t* const buf) const;
     const uint8_t* read_buffer(const uint8_t* const buf);
 };
+
+
 
 #endif

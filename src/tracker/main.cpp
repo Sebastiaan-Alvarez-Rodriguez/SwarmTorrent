@@ -34,13 +34,26 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
     }
 
     size_t table_size = table.size() * Address::size();
-    uint8_t* const table_buffer = (uint8_t*) malloc(sizeof(message::standard::Header)+table_size);
+    //Message contains: header, peeraddress (Address), table 
+    size_t msg_size = sizeof(message::standard::Header)+Address::size()+table_size;
+    uint8_t* const table_buffer = (uint8_t*) malloc(msg_size);
     uint8_t* writer = table_buffer;
-    *((message::standard::Header*) writer) = message::standard::from(table_size, message::standard::OK);
+
+    //Writing header
+    *((message::standard::Header*) writer) = message::standard::from(msg_size-sizeof(message::standard::Header), message::standard::OK);
     writer += sizeof(message::standard::Header);
+
+    //Writing peeraddress
+    std::cerr << "dest port: " << client_conn->getSourcePort() << std::endl;
+    Address a(client_conn->get_type(), client_conn->getAddress(), client_conn->getSourcePort());
+    writer = a.write_buffer(writer);
+
+    //Writing table
     for (auto it = table.cbegin(); it != table.cend(); ++it)
         writer = it->second.write_buffer(writer);
-    client_conn->sendmsg(table_buffer, sizeof(message::standard::Header)+table_size);
+
+
+    client_conn->sendmsg(table_buffer, msg_size);
     std::cerr << "Sent table containing " << table.size() << " entries:\n";
     for (auto it = table.cbegin(); it != table.cend(); ++it) {
         std::cerr << it->second.ip << ':' << it->second.port << '\n';
