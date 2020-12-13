@@ -56,9 +56,14 @@ void do_test(int argc, char const ** argv) {
             }
             if (!connections::tracker::send::receive(tracker_conn, torrent_hash))
                 return;
-            if (!connections::tracker::recv::receive(tracker_conn, torrent_hash, peertable))
+            std::string recv_hash;
+            if (!connections::tracker::recv::receive(tracker_conn, peertable, recv_hash))
                 return;
 
+            if (recv_hash != torrent_hash) {
+                std::cerr << print::RED << "[ERROR] Received peertable had hash mismatch. (Ours=" << torrent_hash << ", recvd=" << recv_hash << ')' << print::CLEAR << '\n';
+                return;
+            }
             break;
         }
         default:

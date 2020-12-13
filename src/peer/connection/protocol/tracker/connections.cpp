@@ -4,6 +4,7 @@
 
 #include "shared/connection/message/tracker/message.h"
 #include "shared/connection/connection.h"
+#include "shared/connection/protocol/connections.h"
 #include "connections.h"
 
 
@@ -51,23 +52,12 @@ bool connections::tracker::send::register_self(std::unique_ptr<ClientConnection>
 }
 
 
-bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable) {
+bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& connection, IPTable& peertable, std::string& torrent_hash) {
     message::standard::Header header;
     connection->peekmsg((uint8_t*)&header, sizeof(header));
 
-    uint8_t* const table_buffer = (uint8_t*)malloc(header.size);
-    connection->recvmsg(table_buffer, header.size);
+    uint8_t* const data = (uint8_t*)malloc(header.size);
+    connection->recvmsg(data, header.size);
 
-    // Body of the message only contains a number of addresses.
-    // Each address is const-size, so we can get amount of addresses simply by doing below.
-    const size_t amount = (header.size - sizeof(header)) / Address::size();
-    const uint8_t* reader = table_buffer + sizeof(header);
-    for (size_t x = 0; x < amount; ++x) {
-        Address a;
-        reader = a.read_buffer(reader);
-        if (!peertable.add_ip(a))
-            return false;
-    }
-    free(table_buffer);
-    return true;
+    return connections::shared::recv::peertable(data, header.size, peertable, torrent_hash);
 }

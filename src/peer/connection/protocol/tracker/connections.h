@@ -27,8 +27,9 @@ namespace connections::tracker {
     }
 
     namespace recv {
-        // Receive peertable from tracker
-        bool receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable);
+        // Receive peertable from tracker. Also obtains the torrent hash sent with this table.
+        // Callers are required to check whether the obtained hash is equal to the hash of the torrentfile they are processing
+        bool receive(std::unique_ptr<ClientConnection>& connection, IPTable& peertable, std::string& torrent_hash);
     }
 }
 #endif

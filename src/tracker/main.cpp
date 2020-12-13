@@ -6,6 +6,7 @@
 #include "shared/connection/impl/TCP/TCPConnection.h"
 
 #include "shared/connection/message/message.h"
+#include "shared/connection/protocol/connections.h"
 #include "shared/connection/message/tracker/message.h"
 #include "shared/torrent/ipTable/ipTable.h"
 #include "shared/util/print.h"
@@ -33,7 +34,7 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
         return;
     }
 
-    connections::shared::send::peertable(client_conn, table, message::standard::OK);
+    connections::shared::send::peertable(client_conn, table, hash, message::standard::OK);
     // size_t table_size = table.size() * Address::size();
     // uint8_t* const table_buffer = (uint8_t*) malloc(sizeof(message::standard::Header)+table_size);
     // uint8_t* writer = table_buffer;

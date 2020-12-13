@@ -5,6 +5,7 @@
 
 #include "shared/connection/connection.h"
 #include "shared/connection/message/message.h"
+#include "shared/torrent/ipTable/ipTable.h"
 
 namespace connections::shared {
     namespace send {
@@ -14,7 +15,7 @@ namespace connections::shared {
 
     namespace recv {
         // Receives a peertable from other end.
-        bool peertable(const uint8_t* const data, size_t size, const std::string& hash, IPTable& peertable);
+        bool peertable(const uint8_t* const data, size_t size, IPTable& peertable, std::string& hash);
     }
 }
 

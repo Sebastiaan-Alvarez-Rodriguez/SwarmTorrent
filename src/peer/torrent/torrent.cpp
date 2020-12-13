@@ -71,15 +71,24 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             std::cerr<<"Could not connect to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
             continue;
         }
-        IPTable table;
-        if (!connections::tracker::recv::receive(tracker_conn, hash, table)) {
+        if (!connections::tracker::send::receive(tracker_conn, hash)) {
             std::cerr<<"Could not send RECEIVE request to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
             continue;
-        } else {
-            std::cerr<<"Received a peertable from tracker ";tracker_conn->print(std::cerr);std::cerr<<". It has "<< table.size() << " peers\n";
-            for (auto it = table.cbegin(); it != table.cend(); ++it)
-                std::cerr << it->second.ip << ':' << it->second.port << '\n';
         }
+        IPTable table;
+        std::string recv_hash;
+        if (!connections::tracker::recv::receive(tracker_conn, table, recv_hash)) {
+            std::cerr<<"Could not receive RECEIVE response from tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
+            continue;
+        }
+        if (recv_hash != hash) {
+            std::cerr << print::RED << "[ERROR] Received peertable had hash mismatch. (Ours=" << hash << ", recvd=" << recv_hash << ')' << print::CLEAR << '\n';
+            continue;
+        }
+        std::cerr<<"Received a peertable from tracker ";tracker_conn->print(std::cerr);std::cerr<<". It has "<< table.size() << " peers\n";
+        for (auto it = table.cbegin(); it != table.cend(); ++it)
+            std::cerr << it->second.ip << ':' << it->second.port << '\n';
+    
         peertables.push_back(table);
     }
     IPTable maintable;
@@ -228,7 +237,7 @@ static bool requests_receive(torrent::Session& session) {
                 free(data);
             } else if (message_type_standard) {
                 switch (standard.tag) {
-                    case LOCAL_DISCOVERY: peer::pipeline::local_discovery(session, connection); break;
+                    case message::standard::LOCAL_DISCOVERY: peer::pipeline::local_discovery(session, connection); break;
                     default: // We get here when we receive some other or corrupt tag
                         break;
                 }
