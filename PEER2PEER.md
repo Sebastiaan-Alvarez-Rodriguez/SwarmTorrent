@@ -16,7 +16,7 @@ Peer2Peer communication consists of several mechanisms.
 Pattern is simple:
  1. Peer `A` sends a [PeerMessage](/src/peer/connection/message/peer/message.h) containing tag `JOIN`.
  In the message body is first a port `x` to connect to. Then follows the length of and hash for the torrentfile. Finally, we write a bit array (as bytes, prevents unpacking), which represents available fragments on `A`.
- 2. Peer `B` receives, and replies with a [standard message](/src/shared/connection/message/message.h) containing `OK` to accept, `REJECT` otherwise. If `B` accepts, the message body contains the same lenth of and hash as `A` sent, followed by `B`s bitarray of fragments available.
+ 2. Peer `B` receives, and replies with a [standard message](/src/shared/connection/message/message.h) containing `OK` to accept, `REJECT` otherwise. If `B` accepts, the message body contains the same lenth of and hash as `A` sent, followed by `B`'s bitarray of fragments available.
  If `B` accepts, it will send all future requests to `A` by using port `x`.
  
 > Note: In the future, `B` will probably not reply anything instead of `REJECT`. It is up to the sender to set a reasonable timeout and move on then.
@@ -29,12 +29,13 @@ Pattern is simple:
  3. Peer receives status. Done.
 
 Suppose the above goes wrong somehow:
-If communication fails, and the `LEAVE` from `A` does not reach `B` somehow, then `A` still removes `B` from its peerlist. When `B` attempts to make data requests, `A` will send a `REJECT`. `B` then knows it should leave.
+If communication fails, and the `LEAVE` from `A` does not reach `B`, then `A` still removes `B` from its peerlist. When `B` attempts to make data requests, `A` will send a `REJECT`. `B` then knows it should leave.
 
 
 ### Requests for data
  1. Peer `A` sends a [PeerMessage](/src/peer/connection/message/peer/message.h) containing tag `DATA_REQ`, with the fragment number `x` in the body.
- 2. Peer `B` receives, reads fragment `x` from disk, finally returns [standard message](/src/shared/connection/message/message.h) containing `OK` on success, `REJECT` when this fragment is unavailable.
- When `OK`, the body contains (the number) `x`, followed by the data of `x`.
- When `REJECT`, the body contains a boolean vector, where `true` values represent fragments that are present in `B`, and `false` represents fragment not (yet) present in `B`.
+ 2. Peer `B` receives, reads fragment `x` from disk, finally returns a [standard message](/src/shared/connection/message/message.h) containing `OK` on success, `REJECT` when this fragment is unavailable, and `ERROR` if `A` is not in the group of `B` (e.g. did not follow join-procedures).
 
+ When `OK`, the body is empty. `B` will read the requested fragment, and send **another** `OK` message to `A`'s registered port, containing (the number) `x`, followed by the data of `x`.
+ When `REJECT`, the body contains a boolean vector (byte-wise, unpacked), where `true` values represent fragments that are present in `B`, and `false` represents fragment not (yet) present in `B`.
+ When `ERROR`, we the body is empty.

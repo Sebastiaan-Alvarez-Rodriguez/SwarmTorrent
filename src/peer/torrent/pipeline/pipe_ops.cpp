@@ -51,24 +51,30 @@ void peer::pipeline::leave(torrent::Session& session, const std::unique_ptr<Clie
     std::cerr << "Got a lEAVE (hash=" << hash << ", req_port=" << req_port << ")\n";
     if (session.get_metadata().content_hash != hash) // Torrent mismatch, ignore
         return;
-    session.remove_peer(connection->getAddress(), req_port);
+    session.remove_peer(connection->getAddress(), req_port); // Can call this safely: No effect if caller is not in our group
 }
 
 // Handles DATA_REQs. Closes incoming connection, reads fragment from storage, sends data to registered port for given ip.
 void peer::pipeline::data_req(torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     auto connected_ip = connection->getAddress();
     
-    if (!session.has_registered_peer(connected_ip)) { //Reject data requests from unknown entities
-        message::standard::send(connection, message::standard::REJECT);
+    if (!session.has_registered_peer(connected_ip)) { //Data requests from unknown entities produce only ERROR
+        message::standard::send(connection, message::standard::ERROR);
         return;
     }
     size_t fragment_nr;
     connections::peer::recv::data_req(data, size, fragment_nr);
     if (fragment_nr > session.get_num_fragments()) {
         std::cerr << "Cannot get fragment number " << fragment_nr << ", only " << session.get_num_fragments() << " fragments exist!\n";
-        message::standard::send(connection, message::standard::REJECT); //TODO: Maybe pick another flag? This flag suggests other end should disconnect
+        connections::peer::send::data_rej(connection, session.get_fragments_completed());
         return;
     }
+    if (!session.get_fragments_completed()[fragment_nr]) {
+        std::cerr << "Cannot get fragment number " << fragment_nr << ", because we do not have it.\n";
+        connections::peer::send::data_rej(connection, session.get_fragments_completed());
+        return;
+    }
+    message::standard::send(connection, message::standard::OK);
     connection.reset(); // Closes the connection
 
     auto& handler = session.get_handler();
@@ -102,7 +108,6 @@ void peer::pipeline::data_req(torrent::Session& session, std::unique_ptr<ClientC
 }
 
 void peer::pipeline::data_reply(torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
-    //For incoming connections:
     // 1. Check if in session
     // 2. Maybe (send on other side and) check if content hash equals our content hash?
     // 3. Check if we already own the data

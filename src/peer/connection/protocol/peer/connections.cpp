@@ -113,6 +113,24 @@ bool connections::peer::send::data_req(std::unique_ptr<ClientConnection>& connec
     return val;
 }
 
+bool connections::peer::send::data_rej(std::unique_ptr<ClientConnection> &connection, const std::vector<bool>& fragments_completed) {
+    const auto frag_size = fragments_completed.size();
+
+    uint8_t* const data = (uint8_t*) malloc(sizeof(message::standard::Header)+frag_size);
+    *((message::standard::Header*) data) = message::standard::from(frag_size, message::standard::REJECT);
+    uint8_t* writer = data + sizeof(message::standard::Header);
+    // vector of bools is internally packed. However, getting the data like that is impossible in a clean way.
+    // Have to use byte-wise sending instead of packed
+    for (bool b : fragments_completed) {
+        *(bool*) writer = b;
+        writer += sizeof(bool);
+    }
+
+    bool val = connection->sendmsg(data, sizeof(message::standard::Header)+frag_size);
+    free(data);
+    return val;
+}
+
 bool connections::peer::send::data_reply_fast(const std::unique_ptr<ClientConnection>& connection, size_t fragment_nr, uint8_t* data, unsigned size) {
     *((message::peer::Header*) data) = message::peer::from_r(size, message::peer::DATA_REPLY);
     *((size_t*) (data+sizeof(message::peer::Header))) = fragment_nr;
@@ -155,7 +173,7 @@ bool connections::peer::recv::join_reply(const uint8_t* const data, size_t size,
     hash.resize(hash_size);
     memcpy((char*) hash.data(), (char*) reader, hash_size);
 
-    size_t remaining_size = size - sizeof(uint16_t) - sizeof(size_t) - hash_size;
+    size_t remaining_size = size - sizeof(message::peer::Header) - sizeof(uint16_t) - sizeof(size_t) - hash_size;
     fragments_completed.resize(remaining_size);
     for (size_t x = 0; x < remaining_size; ++x) {
         fragments_completed[x] = *(bool*) reader;

@@ -56,7 +56,15 @@ namespace torrent::peer {
         inline void remove(const std::string& ip) { peers.erase(ip); }
         inline void remove(const Address& address) { remove(address.ip); }
 
+        inline void update_peer_fragments(const std::string& ip, std::vector<bool>&& updated) {
+            if (!contains(ip))
+                return;
+            peers[ip].data_owned = std::move(updated);
+        }
         void mark(const std::string& ip);
+
+        inline auto cbegin() const { return peers.cbegin(); }
+        inline auto cend() const { return peers.cend(); }
 
         // Returns amount of peers in our group
         inline size_t size() const {

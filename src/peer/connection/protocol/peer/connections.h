@@ -19,7 +19,7 @@ namespace connections::peer {
          * We deliver our list of completed fragments.
          * '''Note:''' other end will first send an accept/reject using current established connection.
          */
-        bool join(std::unique_ptr<ClientConnection> &connection, uint16_t port, const std::string &torrent_hash, const std::vector<bool>& fragments_completed);
+        bool join(std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& torrent_hash, const std::vector<bool>& fragments_completed);
 
         // Sends positive answer to join request
         bool join_reply(const std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, const std::vector<bool>& fragments_completed);
@@ -28,10 +28,13 @@ namespace connections::peer {
         bool leave(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port);
 
         // Request peer to send us fragment with given fragment number
-        bool data_req(std::unique_ptr<ClientConnection> &connection, size_t fragment_nr);
+        bool data_req(std::unique_ptr<ClientConnection>& connection, size_t fragment_nr);
+
+        // Reply to peer with a REJECT, and a bool vector of currently owned fragments
+        bool data_rej(std::unique_ptr<ClientConnection>& connection, const std::vector<bool>& fragments_completed);
 
         /** 
-         * Reply to peer with a data fragment
+         * Reply to peer with a data fragment. Call this function only for positive replies to a DATA_REQ
          *
          * '''Warning:''' assumes that the data buffer contains sizeof(message::peer::Header)+sizeof(size_t)
          *                leading bytes of free space
