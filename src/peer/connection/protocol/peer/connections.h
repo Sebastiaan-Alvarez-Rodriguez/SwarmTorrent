@@ -14,14 +14,18 @@ namespace connections::peer {
 
     namespace send {
         /**
-         * Request to join peer for given torrent hash.
-         * Peer will send all future communication to given port.
+         * Request to join remote peer for given torrent hash.
+         * Remote peer will send all future communication to given port.
+         * We deliver our list of completed fragments.
          * '''Note:''' other end will first send an accept/reject using current established connection.
          */
-        bool join(std::unique_ptr<ClientConnection> &connection, uint16_t port, const std::string &torrent_hash);
+        bool join(std::unique_ptr<ClientConnection> &connection, uint16_t port, const std::string &torrent_hash, const std::vector<bool>& fragments_completed);
 
+        // Sends positive answer to join request
+        bool join_reply(const std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, const std::vector<bool>& fragments_completed);
+        
         // Tell peer that we no longer cooperate with them
-        bool leave(std::unique_ptr<ClientConnection> &connection, const std::string &torrent_hash);
+        bool leave(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port);
 
         // Request peer to send us fragment with given fragment number
         bool data_req(std::unique_ptr<ClientConnection> &connection, size_t fragment_nr);
@@ -37,13 +41,14 @@ namespace connections::peer {
     }
 
     namespace recv {
-        // Get arguments for EXCHANGE_REQ messages from raw buffer
-        bool join(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port);
+        // Get arguments for JOIN messages from raw buffer
+        bool join(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port, std::vector<bool>& fragments_completed);
 
-        // Get arguments for EXCHANGE_CLOSE messages from raw buffer 
-        inline bool leave(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port) {
-            return join(data, size, hash, port); // We just call join implementation, as it has same data scheme
-        }
+        // Get arguments for JOIN replies from raw buffer. Only call this for positive JOIN replies
+        bool join_reply(const uint8_t* const data, size_t size, std::string& hash, std::vector<bool>& fragments_completed);
+
+        // Get arguments for LEAVE messages from raw buffer 
+        bool leave(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port);
 
         // Get arguments for DATA_REQ messages from raw buffer
         bool data_req(const uint8_t* const data, size_t size, size_t& fragment_nr);

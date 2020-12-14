@@ -25,7 +25,7 @@ class TCPClientConnection : public ClientConnection {
 public:
     class Factory;
 
-    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t  sourcePort, uint16_t destinationPort, bool blockmode) : ClientConnection::ClientConnection(type, address, sourcePort, destinationPort, blockmode) {
+    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t  sourcePort, uint16_t destinationPort, bool blockmode, bool reusemode) : ClientConnection::ClientConnection(type, address, sourcePort, destinationPort, blockmode, reusemode) {
         this->state = ClientConnection::ERROR;
         if ((this->sockfd = sock::make(type)) < 0) {
             std::cerr << "Could not build socket!" << std::endl;
@@ -34,6 +34,11 @@ public:
 
         if (!blockmode && !sock::set_blocking(this->sockfd, false)) {
             std::cerr << "Could not set blockmode to false\n";
+            return;
+        }
+
+        if (reusemode && !sock::set_reuse(this->sockfd)) {
+            std::cerr << "Could not set reusemode to true\n";
             return;
         }
 
@@ -59,7 +64,7 @@ public:
         this->state = READY;
     }
 
-    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode, int sockfd, struct sockaddr sock_addr): ClientConnection::ClientConnection(type, address, sourcePort, destinationPort, blockmode), sockfd(sockfd), sock_addr(sock_addr) {
+    explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode, bool reusemode, int sockfd, struct sockaddr sock_addr): ClientConnection::ClientConnection(type, address, sourcePort, destinationPort, blockmode, reusemode), sockfd(sockfd), sock_addr(sock_addr) {
         this->state = CONNECTED;
     }
 
@@ -108,7 +113,7 @@ class TCPHostConnection: public HostConnection {
 public:
     class Factory;
 
-    explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort, bool blockmode) : HostConnection(type, sourcePort, blockmode) {
+    explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode) : HostConnection(type, sourcePort, blockmode, reusemode) {
         this->state = ClientConnection::ERROR;
         if ((this->sockfd = sock::make(type)) < 0) {
             std::cerr << "Could not build socket!" << std::endl;
@@ -117,6 +122,11 @@ public:
 
         if (!blockmode && !sock::set_blocking(this->sockfd, false)) {
             std::cerr << "Could not set blockmode to false\n";
+            return;
+        }
+
+        if (reusemode && !sock::set_reuse(this->sockfd)) {
+            std::cerr << "Could not set reusemode to true\n";
             return;
         }
 
@@ -162,7 +172,7 @@ public:
             return nullptr;
         }
         std::string addr(inet_ntoa(address.sin_addr));
-        auto ptr = std::make_unique<TCPClientConnection>(type, addr, sourcePort, ntohs(address.sin_port), true, new_socket, *(struct sockaddr*) &address);
+        auto ptr = std::make_unique<TCPClientConnection>(type, addr, sourcePort, ntohs(address.sin_port), true, true, new_socket, *(struct sockaddr*) &address);
         this->state = CONNECTED;
         return ptr;
     }
@@ -192,7 +202,7 @@ public:
     }
 
     inline std::unique_ptr<ClientConnection> create() const override {
-        return std::make_unique<TCPClientConnection>(type, address, sourcePort, destinationPort, blockmode);
+        return std::make_unique<TCPClientConnection>(type, address, sourcePort, destinationPort, blockmode, reusemode);
     }
 };
 
@@ -208,7 +218,7 @@ public:
     }
 
     inline std::unique_ptr<HostConnection> create() const override {
-        return std::make_unique<TCPHostConnection>(type, sourcePort, blockmode);
+        return std::make_unique<TCPHostConnection>(type, sourcePort, blockmode, reusemode);
     }
 };
 #endif

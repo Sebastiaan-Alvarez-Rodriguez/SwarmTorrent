@@ -72,10 +72,15 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
             continue;
         }
 
+        if (!connections::tracker::send::receive(tracker_conn, hash)) {
+            std::cerr<<"Could not send RECEIVE request to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
+            continue;
+        }
+
         IPTable table;
         Address own_address;
         if (!connections::tracker::recv::receive(tracker_conn, hash, table, own_address, sourcePort)) {
-            std::cerr<<"Could not send RECEIVE request to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
+            std::cerr<<"Could not recv RECEIVE reply from tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
             continue;
         }
         std::cerr << "own address: " << own_address.ip << ':' << own_address.port << '\n';
@@ -135,7 +140,7 @@ static bool join_peers(torrent::Session& session, unsigned needed_peers) {
             continue;
         }
         uint16_t sourcePort = session.get_conn()->getSourcePort();
-        if (!connections::peer::send::join(conn, sourcePort, torrent_hash)) {
+        if (!connections::peer::send::join(conn, sourcePort, torrent_hash, session.get_fragments_completed())) {
             std::cerr << print::YELLOW << "[WARN] Could not send send_exchange request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
@@ -145,7 +150,14 @@ static bool join_peers(torrent::Session& session, unsigned needed_peers) {
             continue;
         }
         if (header.formatType == message::standard::OK) {
-            session.register_peer(conn->get_type(), ip, port);
+            std::cerr << print::CYAN << "[TEST] We got an OK for our send_exchange request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            std::string recv_hash;
+            std::vector<bool> remote_available;
+
+            uint8_t* const data = (uint8_t*) malloc(header.size);
+            connections::peer::recv::join_reply(data, header.size, recv_hash, remote_available);
+            free(data);
+            session.register_peer(conn->get_type(), ip, port, remote_available);
         } else if (header.formatType == message::standard::REJECT) {
             std::cerr << print::CYAN << "[TEST] We got a REJECT for our send_exchange request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         } else {
@@ -168,9 +180,14 @@ static void requests_send(torrent::Session& session) {
     // 4. while #requests < max -> DATA_REQ
     // 5. while suspected dead in jointable -> INQUIRE
 
+    while (session.get_peer_registry().size() < peer::defaults::torrent::prefered_group_size) { // Let's get a peer to join our network
+        // 1. Pick a peer to add to the network. Preferably one with content we do not have in other peers?
+        // 2. Send the standard JOIN request. Receive the reply... TODO: timeout, or even beter, get result to pipeline
+        // 3. Add to registry
+    }
     while (session.get_request_registry().size() < peer::defaults::torrent::max_outstanding_requests) { // Let's send a request
-        // 1. Pick a fragment to request <- balance probabilities: Pick one for which the amount of sent requests is low/minimal
-        // 2. Pick a peer to request from  <- balance load: Pick a peer that we did not request much for yet. Somehow pick one that has the data...
+        // 1. Pick a fragment to request
+        // 2. Pick a peer to request from
         // 3. Request picked fragment at picked peer
 
         
@@ -206,13 +223,6 @@ static void requests_send(torrent::Session& session) {
 static bool requests_receive(torrent::Session& session) {
     // TODO: Should make this a separate thread
 
-    // All requests are sent to one specific port.
-    // In order to maintain which requests we sent, need a registry mapping fragment to Address.
-    // Because we request fragments only once, we should have unique keys.
-    // The registry needs a notion of timing: "When was request sent?"
-    // This is the only way to check for dead requests, and clean them up.
-    // Efficiently finding dead requests is pretty much impossible, unless we find some very smart data structure.
-
     for (uint8_t x = 0; x < 16; ++x) {
         const auto req_conn = session.get_conn();
         auto connection = req_conn->acceptConnection();
@@ -226,9 +236,11 @@ static bool requests_receive(torrent::Session& session) {
             }
             continue;
         } else { // We are dealing with an actual connection
+            session.mark_peer(connection->getAddress()); // Marks peer as seen. TODO: remove timestamp to hold timestamp for availability request updates?
+
             message::standard::Header standard;
             if (!message::standard::recv(connection, standard)) {
-                std::cout << "Unable to peek. System hangup?" << std::endl;
+                std::cerr << "Unable to peek. System hangup?" << std::endl;
                 continue;
             }
             const bool message_type_peer = standard.formatType == message::peer::id;
@@ -244,6 +256,7 @@ static bool requests_receive(torrent::Session& session) {
                     case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, data, standard.size); break;
                     case message::peer::DATA_REPLY: peer::pipeline::data_reply(session, connection, data, standard.size); break;
                     default: // We get here when testing or corrupt tag
+                        std::cerr << "Received an unimplemented peer tag: " << header->tag << '\n';
                         break;
                 }
                 free(data);
@@ -253,10 +266,11 @@ static bool requests_receive(torrent::Session& session) {
                 switch (standard.tag) {
                     case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(session, connection, data, standard.size); break;
                     default: // We get here when we receive some other or corrupt tag
+                        std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
                         break;
                 }
             } else {
-                std::cerr << "Received invalid message! Not a Peer-message nor standard-message. Skipping..." << std::endl;
+                std::cerr << "Received invalid message! Not a Peer-message, nor a standard-message. Skipping..." << std::endl;
                 continue;
             }
         }
@@ -280,7 +294,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     const IPTable& tracker_table = tf.getTrackerTable();
 
 
-    auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create(), workpath);
+    auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).create(), workpath);
     session.set_peers(compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort, force_register));
     bool stop = false;
 

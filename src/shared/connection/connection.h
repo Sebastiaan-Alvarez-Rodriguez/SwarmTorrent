@@ -9,22 +9,25 @@
 
 
 // Simple tutorial to get started
-// https://www.geeksforgeeks.org/socket-programming-cc/
-// https://www.tutorialspoint.com/cplusplus/cpp_interfaces.htm
+//  https://www.geeksforgeeks.org/socket-programming-cc/
+//  https://www.tutorialspoint.com/cplusplus/cpp_interfaces.htm
 
 // Next step: Make connections/sends/recvs with a timeout, or maybe even non-blocking?
-// https://stackoverflow.com/questions/4181784/
+//  https://stackoverflow.com/questions/4181784/
 // Quick post about using non-blocking connections sensibly:
-// https://jameshfisher.com/2017/04/05/set_socket_nonblocking/
+//  https://jameshfisher.com/2017/04/05/set_socket_nonblocking/
 // Next next step: polling system for accepting connections?
-// https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_71/rzab6/poll.htm
+//  https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_71/rzab6/poll.htm
+// Doing stuff in a very hard way with select:
+//  https://www.geeksforgeeks.org/socket-programming-in-cc-handling-multiple-clients-on-server-without-multi-threading/
+// Both polling and selecting are very hardcore things to implement, and neither is pretty.
 #include "shared/connection/meta/type.h"
 
 
 
 class Connection {
 public:
-    Connection(ConnectionType type, uint16_t sourcePort, bool blockmode) : type(type), sourcePort(sourcePort), blockmode(blockmode) {};
+    Connection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode) : type(type), sourcePort(sourcePort), blockmode(blockmode), reusemode(reusemode) {}
     ~Connection() = default;
 
     /** Returns type of connection we use */
@@ -39,6 +42,10 @@ public:
 
     inline virtual bool isBlocking() const {
         return blockmode;
+    }
+
+    inline virtual bool isReuse() const {
+        return reusemode;
     }
 
     enum State {
@@ -59,11 +66,13 @@ protected:
 
     // True means blocking, false means non-blocking
     bool blockmode;
+    // True means reuse flag set, false means reuse flag not set
+    bool reusemode;
 };
 
 class ClientConnection : public Connection {
 public:
-    explicit ClientConnection(ConnectionType type, std::string address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode) : Connection(type, sourcePort, blockmode), address(std::move(address)), destinationPort(destinationPort) {};
+    explicit ClientConnection(ConnectionType type, std::string address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode, bool reusemode) : Connection(type, sourcePort, blockmode, reusemode), address(std::move(address)), destinationPort(destinationPort) {}
     ~ClientConnection() = default;
 
     class Factory;
@@ -95,7 +104,7 @@ protected:
 
 class HostConnection : public Connection {
 public:
-    explicit HostConnection(ConnectionType type, uint16_t hostPort, bool blockmode) : Connection(type, hostPort, blockmode) {};
+    explicit HostConnection(ConnectionType type, uint16_t hostPort, bool blockmode, bool reusemode) : Connection(type, hostPort, blockmode, reusemode) {};
     ~HostConnection() = default;
 
     class Factory;
@@ -144,6 +153,15 @@ public:
         return *this;
     }
 
+    /**
+     * Sets reusemode. If `true` (default), sockets are allowed to bind to previously used addresses.
+     * If `false`, OS-dependent behaviour. Some OS's provide new addresses until reuse is the only option.
+     */
+    Factory& withReuse(bool reusemode) {
+        this->reusemode = reusemode;
+        return *this;
+    }
+
     virtual std::unique_ptr<ClientConnection> create() const = 0;
 
 protected:
@@ -151,6 +169,7 @@ protected:
     std::string address;
     uint16_t sourcePort = 0, destinationPort = 0;
     bool blockmode = true;
+    bool reusemode = true;
 };
 
 class HostConnection::Factory {
@@ -172,11 +191,23 @@ public:
      * Sets blockmode. If `true` (default), socket calls like `send, recv, listen` etc block.
      * If `false`, these calls do not block. 
      * If there is nothing to do, the socket calls commonly return `-1` and set errno to `EWOULDBLOCK`.
+     *
+     * '''WARNING:''' If non-blocking, all client communication will inherit the non-blocking property
      */
     Factory& withBlocking(bool blockmode) {
         this->blockmode = blockmode;
         return *this;
     }
+
+    /**
+     * Sets reusmode. If `true` (default), sockets are allowed to bind to previously used addresses.
+     * If `false`, OS-dependent behaviour. Some OS's provide new addresses until reuse is the only option.
+     */
+    Factory& withReuse(bool reusemode) {
+        this->reusemode = reusemode;
+        return *this;
+    }
+
 
     virtual std::unique_ptr<HostConnection> create() const = 0;
 
@@ -184,5 +215,6 @@ protected:
     ConnectionType type;
     uint16_t sourcePort = 0;
     bool blockmode = true;
+    bool reusemode = true;
 };
 #endif

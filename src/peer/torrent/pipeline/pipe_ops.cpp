@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <iostream>
 
@@ -20,15 +21,27 @@ void peer::pipeline::join(torrent::Session& session, const std::unique_ptr<Clien
     //TODO: For now always accept join requests. In the future, add reasonable limit on joined peers
     uint16_t req_port;
     std::string hash;
-    connections::peer::recv::join(data, size, hash, req_port);
-    std::cerr << "Got an JOIN (hash=" << hash << ", req_port=" << req_port << ")\n";
+    std::vector<bool> fragments_completed;
+    connections::peer::recv::join(data, size, hash, req_port, fragments_completed);
+
+    // Register peer as an existing peer
+    session.add_peer(connection->get_type(), connection->getAddress(), req_port);
+
+    std::cerr << "Got a JOIN (hash=" << hash << ", req_port=" << req_port << ")\n";
     if (session.get_metadata().content_hash != hash) { // Torrent mismatch, Reject
         std::cerr << "Above hash mismatched with our own (" << session.get_metadata().content_hash <<"), rejected.\n";
         message::standard::send(connection, message::standard::REJECT);
         return;
     }
-    session.add_peer(connection->get_type(), connection->getAddress(), req_port);
-    message::standard::send(connection, message::standard::OK);
+
+    // If we get here, we accept the JOIN request
+
+    if (!connections::peer::send::join_reply(connection, hash, session.get_fragments_completed())) {
+        std::cerr << "Could not send positive join reply to peer: "; connection->print(std::cerr); std::cerr << '\n';
+        return;
+    }
+    // Register peer to our group!
+    session.register_peer(connection->get_type(), connection->getAddress(), req_port, fragments_completed);
 }
 
 void peer::pipeline::leave(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
@@ -127,7 +140,7 @@ void peer::pipeline::data_reply(torrent::Session& session, std::unique_ptr<Clien
         std::cerr << "There was a problem writing fragment " << fragment_nr << " to disk\n";
         return;
     }
-    session.mark(fragment_nr);
+    session.mark_fragment(fragment_nr);
 }
 
 void peer::pipeline::local_discovery(const torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {

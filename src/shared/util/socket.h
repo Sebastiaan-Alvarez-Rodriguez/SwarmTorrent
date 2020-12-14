@@ -19,7 +19,7 @@ namespace sock {
      * When non-blocking, operations like `send(), recv(), connect(), accept()` immediately return.
      *
      * For e.g. a `recv`, if there is no data available, `recv` will return -1 and set `errno` to `EWOULDBLOCK`. 
-     * Returns true on success, false otherwise
+     * @return `true` on success, `false` otherwise
      */
     inline bool set_blocking(int fd, bool blocking) {
         if (fd < 0)
@@ -30,6 +30,16 @@ namespace sock {
             return false;
         flags = blocking ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
         return (fcntl(fd, F_SETFL, flags) == 0);
+    }
+
+    /**
+     * Allows this socket to bind to sockets in internal TIME_WAIT state.
+     * 
+     * '''Note:''' Call this function before calling bind() on socket, because this setting is used then
+     */
+    inline bool set_reuse(int fd) {
+        int opt = 1;
+        return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*) &opt, sizeof(opt)) < 0;
     }
 
     /**

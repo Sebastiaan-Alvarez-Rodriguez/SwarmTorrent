@@ -44,7 +44,7 @@ namespace torrent {
          */
         explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false) {}
 
-        inline void mark(size_t fragment_nr) {
+        inline void mark_fragment(size_t fragment_nr) {
             if (!fragments_completed[fragment_nr]) {
                 fragments_completed[fragment_nr] = true;
                 ++num_fragments_completed;
@@ -87,6 +87,7 @@ namespace torrent {
 
         inline const auto& get_address() const { return own_address; }
 
+        inline const auto& get_peer_registry() const { return peer_registry; }
         inline const auto& get_request_registry() const { return request_registry; }
 
         inline const auto& get_peertable() const { return ptable; }
@@ -114,14 +115,21 @@ namespace torrent {
 
         inline size_t peers_amount() { return ptable.size(); }
 
-
-        // Registry-related forwarding functions //
-
-        inline void register_peer(const Address& address) {
-            peer_registry.add(address, num_fragments);
+        // Peer Registry-related forwarding functions //
+        inline void mark_peer(const std::string ip) {
+            peer_registry.mark(ip);
         }
-        inline void register_peer(ConnectionType type, const std::string ip, uint16_t port) {
-            register_peer(Address(type, ip, port));
+        inline void mark_peer(const Address& address) {
+            peer_registry.mark(address.ip);
+        }
+
+        // Request Registry-related forwarding functions //
+
+        inline void register_peer(const Address& address, const std::vector<bool>& fragments_completed) {
+            peer_registry.add(address, fragments_completed);
+        }
+        inline void register_peer(ConnectionType type, const std::string ip, uint16_t port, const std::vector<bool>& fragments_completed) {
+            register_peer(Address(type, ip, port), fragments_completed);
         }
         inline void register_request(size_t fragment_nr, const Address& address) {
             request_registry.add(fragment_nr, address);

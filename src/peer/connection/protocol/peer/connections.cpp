@@ -10,7 +10,7 @@
 
 
 // Prepares a request, by allocating a buffer for given datasize, starting with a message::peer::Header of given type.
-// '''Note:''' size of a message::peer::Header is automatically appended to the datasize!
+// '''Note:''' size of a message::peer::Header is automatically appended to the datasize. Also: caller has to free returned buffer.
 // Returns pointer to start of buffer.
 static inline uint8_t* prepare_peer_message(size_t datasize, message::peer::Tag tag) {
     uint8_t* const data = (uint8_t*) malloc(sizeof(message::peer::Header)+datasize);
@@ -30,22 +30,74 @@ bool connections::peer::test(__attribute__ ((unused)) std::unique_ptr<ClientConn
     return false;
 }
 
-bool connections::peer::send::join(std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& torrent_hash) {
-    auto datasize = sizeof(uint16_t)+torrent_hash.size();
+bool connections::peer::send::join(std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& torrent_hash, const std::vector<bool>& fragments_completed) {
+    const size_t bufsize = fragments_completed.size();
+
+    auto datasize = sizeof(uint16_t)+torrent_hash.size()+bufsize;
     uint8_t* const data = prepare_peer_message(datasize, message::peer::JOIN);
-    uint8_t* const ptr = data + sizeof(message::peer::Header);
-    *(uint16_t*) ptr = port;
-    memcpy(ptr+sizeof(uint16_t), torrent_hash.c_str(), torrent_hash.size());
+    uint8_t* writer = data + sizeof(message::peer::Header);
+
+    *(uint16_t*) writer = port;
+    writer += sizeof(uint16_t);
+
+    *(size_t*) writer = torrent_hash.size();
+    writer += sizeof(size_t);
+
+    memcpy(writer, torrent_hash.c_str(), torrent_hash.size());
+    writer += torrent_hash.size();
+
+    // vector of bools is internally packed. However, getting the data like that is impossible in a clean way.
+    // Have to use byte-wise sending instead of packed
+    for (bool b : fragments_completed) {
+        *(bool*) writer = b;
+        writer += sizeof(bool);
+    }
+
     bool val = connection->sendmsg(data, sizeof(message::peer::Header)+datasize);
     free(data);
     return val;
 }
 
-bool connections::peer::send::leave(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash) {
-    auto datasize = torrent_hash.size();
+bool connections::peer::send::join_reply(const std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, const std::vector<bool>& fragments_completed) {
+    // vector of bools is internally packed. However, getting the data like that is impossible in a clean way.
+    // Have to use byte-wise sending instead of packed
+    const size_t bufsize = sizeof(size_t) + torrent_hash.size() + fragments_completed.size();
+    uint8_t* const buf = (uint8_t*) malloc(sizeof(message::standard::Header)+bufsize);
+    uint8_t* writer = buf;
+
+    *(message::standard::Header*) writer = message::standard::from(bufsize, message::standard::OK);
+    writer += sizeof(message::standard::Header);
+
+    *(size_t*) writer = torrent_hash.size();
+    writer += sizeof(size_t);
+
+    memcpy(writer, torrent_hash.c_str(), torrent_hash.size());
+    writer += torrent_hash.size();
+
+    for (bool b : fragments_completed) {
+        *(bool*) writer = b;
+        writer += sizeof(bool);
+    }
+
+    if (!connection->sendmsg(buf, sizeof(message::standard::Header)+bufsize)) {
+        std::cerr << "Could not reply to peer "; connection->print(std::cerr); std::cerr << '\n';
+        free(buf);
+        return false;
+    }
+    free(buf);
+    return true;
+}
+
+bool connections::peer::send::leave(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port) {
+    auto datasize = sizeof(uint16_t)+torrent_hash.size();
     uint8_t* const data = prepare_peer_message(datasize, message::peer::LEAVE);
-    uint8_t* const ptr = data + sizeof(message::peer::Header);
-    memcpy(ptr, torrent_hash.c_str(), datasize);
+    uint8_t* writer = data + sizeof(message::peer::Header);
+
+    *(uint16_t*) writer = port;
+    writer += sizeof(uint16_t);
+
+    memcpy(writer, torrent_hash.c_str(), datasize);
+
     bool val = connection->sendmsg(data, sizeof(message::peer::Header)+datasize);
     free(data);
     return val;
@@ -70,12 +122,59 @@ bool connections::peer::send::data_reply_fast(const std::unique_ptr<ClientConnec
 }
 
 
-bool connections::peer::recv::join(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port) {
-    port = *(uint16_t*) (data+sizeof(message::peer::Header));
-    const size_t hash_size = size-sizeof(uint16_t)-sizeof(message::peer::Header);
+bool connections::peer::recv::join(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port, std::vector<bool>& fragments_completed) {
+    const uint8_t* reader = data;
+    reader += sizeof(message::peer::Header);
+
+    port = *(uint16_t*) reader;
+    reader += sizeof(uint16_t);
+
+    size_t hash_size = *(size_t*) reader;
+    reader += sizeof(size_t);
 
     hash.resize(hash_size);
-    memcpy((char*) hash.data(), (char*)(data+sizeof(message::peer::Header)), hash_size);
+    memcpy((char*) hash.data(), (char*) reader, hash_size);
+
+    size_t remaining_size = size - sizeof(uint16_t) - sizeof(size_t) - hash_size;
+    fragments_completed.resize(remaining_size);
+    for (size_t x = 0; x < remaining_size; ++x) {
+        fragments_completed[x] = *(bool*) reader;
+        reader += sizeof(bool);
+    }
+
+    return true;
+}
+
+bool connections::peer::recv::join_reply(const uint8_t* const data, size_t size, std::string& hash, std::vector<bool>& fragments_completed) {
+    const uint8_t* reader = data;
+    reader += sizeof(message::peer::Header);
+
+    size_t hash_size = *(size_t*) reader;
+    reader += sizeof(size_t);
+
+    hash.resize(hash_size);
+    memcpy((char*) hash.data(), (char*) reader, hash_size);
+
+    size_t remaining_size = size - sizeof(uint16_t) - sizeof(size_t) - hash_size;
+    fragments_completed.resize(remaining_size);
+    for (size_t x = 0; x < remaining_size; ++x) {
+        fragments_completed[x] = *(bool*) reader;
+        reader += sizeof(bool);
+    }
+    return true;
+}
+
+bool connections::peer::recv::leave(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port) {
+    const uint8_t* reader = data;
+
+    port = *(uint16_t*) reader;
+    reader += sizeof(uint16_t);
+
+    size_t hash_size = size - sizeof(message::peer::Header) - sizeof(uint16_t);
+
+    hash.resize(hash_size);
+    memcpy((char*) hash.data(), (char*) reader, hash_size);
+
     return true;
 }
 

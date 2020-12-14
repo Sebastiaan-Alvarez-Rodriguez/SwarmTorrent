@@ -21,17 +21,16 @@ namespace torrent::peer {
     class Registry {
     protected:
         // One element representing a connection in progress
-        class Element {
-        public:
+        struct Element {
             Address address;
             std::chrono::steady_clock::time_point timestamp; // The last time we have 'seen' the peer (last time they contacted us, or we contacted them successfully)
             std::vector<bool> data_owned; // Every fragment the peer owns. Updated only once in a while. Data we provide is automatically updated.
 
-            Element(const Address& address, size_t num_fragments, std::chrono::steady_clock::time_point timestamp) : address(address), timestamp(timestamp) {
-                data_owned = std::vector<bool>(num_fragments, false);
-            }
-
-            Element(const Address& address, size_t num_fragments) : Element(address, num_fragments, std::chrono::steady_clock::now()) {}
+            Element(const Address& address, std::chrono::steady_clock::time_point timestamp, const std::vector<bool>& data_owned) : address(address), timestamp(timestamp), data_owned(data_owned) {}
+            Element(const Address& address, const std::vector<bool>& data_owned) : Element(address,std::chrono::steady_clock::now(), data_owned) {}
+            
+            Element(const Address& address, std::chrono::steady_clock::time_point timestamp, size_t num_fragments) : address(address), timestamp(timestamp), data_owned(num_fragments, false) {}
+            Element(const Address& address, size_t num_fragments) : Element(address, std::chrono::steady_clock::now(), num_fragments) {}
 
             Element() = default;
 
@@ -46,17 +45,18 @@ namespace torrent::peer {
         ~Registry() = default;
 
         // Adds request for given fragment number to given address
-        void add(const Address& address, size_t num_fragments);
+        void add(const Address& address, const std::vector<bool> fragments_completed);
 
         // Returns `true` if given key was found, `false` otherwise
-        inline bool contains(std::string ip) const {
+        inline bool contains(const std::string& ip) const {
             return peers.find(ip) != peers.end();
         }
 
         // Removes all known requests for given fragment number
-        inline void remove(std::string ip) { peers.erase(ip); }
+        inline void remove(const std::string& ip) { peers.erase(ip); }
         inline void remove(const Address& address) { remove(address.ip); }
 
+        void mark(const std::string& ip);
 
         // Returns amount of peers in our group
         inline size_t size() const {
