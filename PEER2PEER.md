@@ -39,3 +39,9 @@ If communication fails, and the `LEAVE` from `A` does not reach `B`, then `A` st
  When `OK`, the body is empty. `B` will read the requested fragment, and send **another** `OK` message to `A`'s registered port, containing (the number) `x`, followed by the data of `x`.
  When `REJECT`, the body contains a boolean vector (byte-wise, unpacked), where `true` values represent fragments that are present in `B`, and `false` represents fragment not (yet) present in `B`.
  When `ERROR`, we the body is empty.
+
+### Inquire
+ 1. Peer `A` sends a [PeerMessage](/src/peer/connection/message/peer/message.h) containing tag `INQUIRE`
+ 2. If `B` is alive, it returns a [standard message](/src/shared/connection/message/message.h), containing `OK`, with an empty body.
+
+ If `A` receives no message from `B`, `A` will consider `B` dead.

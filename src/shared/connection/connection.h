@@ -27,7 +27,7 @@
 
 class Connection {
 public:
-    Connection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode) : type(type), sourcePort(sourcePort), blockmode(blockmode), reusemode(reusemode) {}
+    Connection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode, unsigned sendTimeout) : type(type), sourcePort(sourcePort), blockmode(blockmode), reusemode(reusemode), sendTimeout(sendTimeout) {}
     ~Connection() = default;
 
     /** Returns type of connection we use */
@@ -46,6 +46,10 @@ public:
 
     inline virtual bool isReuse() const {
         return reusemode;
+    }
+
+    inline virtual bool getSendTimeout() const {
+        return sendTimeout;
     }
 
     enum State {
@@ -68,11 +72,13 @@ protected:
     bool blockmode;
     // True means reuse flag set, false means reuse flag not set
     bool reusemode;
+    // Number of microseconds before a timeout, 0 means no timeout 
+    unsigned sendTimeout;
 };
 
 class ClientConnection : public Connection {
 public:
-    explicit ClientConnection(ConnectionType type, std::string address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode, bool reusemode) : Connection(type, sourcePort, blockmode, reusemode), address(std::move(address)), destinationPort(destinationPort) {}
+    explicit ClientConnection(ConnectionType type, std::string address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode, bool reusemode, unsigned sendTimeout) : Connection(type, sourcePort, blockmode, reusemode, sendTimeout), address(std::move(address)), destinationPort(destinationPort) {}
     ~ClientConnection() = default;
 
     class Factory;
@@ -104,7 +110,7 @@ protected:
 
 class HostConnection : public Connection {
 public:
-    explicit HostConnection(ConnectionType type, uint16_t hostPort, bool blockmode, bool reusemode) : Connection(type, hostPort, blockmode, reusemode) {};
+    explicit HostConnection(ConnectionType type, uint16_t hostPort, bool blockmode, bool reusemode, unsigned sendTimeout) : Connection(type, hostPort, blockmode, reusemode, sendTimeout) {};
     ~HostConnection() = default;
 
     class Factory;
@@ -162,6 +168,17 @@ public:
         return *this;
     }
 
+    /**
+     * Sets timeout. If 0 (default), there is no timeout.
+     * If > 0, a timeout is set
+     * If a timeout is reached and no data has been transferred, 
+     * then socket calls commonly return `-1` and set errno to `EAGAIN` or `EWOULDBLOCK`
+     */
+    Factory& withSendTimeout(unsigned sendTimeout) {
+        this->sendTimeout = sendTimeout;
+        return *this;
+    }
+
     virtual std::unique_ptr<ClientConnection> create() const = 0;
 
 protected:
@@ -170,6 +187,7 @@ protected:
     uint16_t sourcePort = 0, destinationPort = 0;
     bool blockmode = true;
     bool reusemode = true;
+    unsigned sendTimeout = 0;
 };
 
 class HostConnection::Factory {
@@ -208,6 +226,17 @@ public:
         return *this;
     }
 
+    /**
+     * Sets timeout. If 0 (default), there is no timeout.
+     * If > 0, a timeout is set
+     * If a timeout is reached and no data has been transferred, 
+     * then socket calls commonly return `-1` and set errno to `EAGAIN` or `EWOULDBLOCK`
+     */
+    Factory& withSendTimeout(unsigned sendTimeout) {
+        this->sendTimeout = sendTimeout;
+        return *this;
+    }
+
 
     virtual std::unique_ptr<HostConnection> create() const = 0;
 
@@ -216,5 +245,6 @@ protected:
     uint16_t sourcePort = 0;
     bool blockmode = true;
     bool reusemode = true;
+    unsigned sendTimeout = 0;
 };
 #endif

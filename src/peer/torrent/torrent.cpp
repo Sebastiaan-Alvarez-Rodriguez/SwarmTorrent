@@ -370,6 +370,7 @@ static bool requests_receive(torrent::Session& session) {
                     case message::peer::LEAVE: peer::pipeline::leave(session, connection, data, standard.size); break;
                     case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, data, standard.size); break;
                     case message::peer::DATA_REPLY: peer::pipeline::data_reply(session, connection, data, standard.size); break;
+                    case message::peer::INQUIRE: message::standard::send(connection, message::standard::OK); break;
                     default: // We get here when testing or corrupt tag
                         std::cerr << "Received an unimplemented peer tag: " << header->tag << '\n';
                         break;

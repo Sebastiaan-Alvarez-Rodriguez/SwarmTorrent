@@ -139,6 +139,10 @@ bool connections::peer::send::data_reply_fast(const std::unique_ptr<ClientConnec
     return val;
 }
 
+bool connections::peer::send::inquire(const std::unique_ptr<ClientConnection>& connection) {
+    message::peer::Header header = message::peer::from(message::peer::INQUIRE);
+    return connection->sendmsg((uint8_t*) &header, sizeof(header));
+}
 
 bool connections::peer::recv::join(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port, std::vector<bool>& fragments_completed) {
     const uint8_t* reader = data;

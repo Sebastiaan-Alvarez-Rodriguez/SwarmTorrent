@@ -41,6 +41,14 @@ namespace connections::peer {
          * '''Note:''' This function frees the data after transmission.
          */
         bool data_reply_fast(const std::unique_ptr<ClientConnection>& connection, size_t fragment_nr, uint8_t* data, unsigned size);
+
+        /**
+         * Returns whether peer is dead or not
+         *
+         * '''Warning:''' assumes that the connection has a timeout set, or is nonblocking,
+         *                otherwise it may not return in a finite time
+         */
+        bool inquire(const std::unique_ptr<ClientConnection>& connection);
     }
 
     namespace recv {
