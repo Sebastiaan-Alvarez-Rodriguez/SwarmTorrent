@@ -416,7 +416,8 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
 
     // Continually send and recv data. TODO:
     // Best approach might be to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
-    //TODO Reminder: need to call gc of registry once in a while
+    //TODO Reminder: need to call gc of registry (peer) once in a while
+    //TODO Reminder: need to call gc of registry (request) once in a while
 
     while (!stop) {
         requests_send(session);
