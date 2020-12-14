@@ -139,6 +139,13 @@ namespace torrent {
             peer_registry.mark(address.ip);
         }
 
+        inline void report_registered_peer(const std::string& ip) {
+            peer_registry.report(ip);
+        }
+        inline void report_registered_peer(const Address& address) {
+            peer_registry.report(address.ip);
+        }
+
         inline void register_peer(const Address& address, const std::vector<bool>& fragments_completed) {
             peer_registry.add(address, fragments_completed);
         }
