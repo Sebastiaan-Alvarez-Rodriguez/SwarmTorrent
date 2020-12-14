@@ -3,6 +3,7 @@
 #include <random>
 #include <stdexcept>
 #include <vector>
+#include <future>
 
 #include "peer/connection/message/peer/message.h"
 #include "peer/connection/protocol/peer/connections.h"
@@ -335,11 +336,11 @@ static void requests_send(torrent::Session& session) {
 
 
 // Handle requests we receive
-static bool requests_receive(torrent::Session& session) {
+static bool requests_receive(torrent::Session* session) {
     // TODO: Should make this a separate thread
 
     for (uint8_t x = 0; x < 16; ++x) {
-        const auto req_conn = session.get_conn();
+        const auto req_conn = session->get_conn();
         auto connection = req_conn->acceptConnection();
         if (connection == nullptr) {
             if (req_conn->get_state() == Connection::ERROR) {
@@ -351,7 +352,7 @@ static bool requests_receive(torrent::Session& session) {
             }
             continue;
         } else { // We are dealing with an actual connection
-            // session.mark_peer(connection->getAddress()); // Marks peer as seen. TODO: remove timestamp to hold timestamp for availability request updates?
+            // session->mark_peer(connection->getAddress()); // Marks peer as seen. TODO: remove timestamp to hold timestamp for availability request updates?
 
             message::standard::Header standard;
             if (!message::standard::recv(connection, standard)) {
@@ -366,10 +367,10 @@ static bool requests_receive(torrent::Session& session) {
                 connection->recvmsg(data, standard.size);
                 message::peer::Header* header = (message::peer::Header*) data;
                 switch (header->tag) {
-                    case message::peer::JOIN: peer::pipeline::join(session, connection, data, standard.size); break;
-                    case message::peer::LEAVE: peer::pipeline::leave(session, connection, data, standard.size); break;
-                    case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, data, standard.size); break;
-                    case message::peer::DATA_REPLY: peer::pipeline::data_reply(session, connection, data, standard.size); break;
+                    case message::peer::JOIN: peer::pipeline::join(*session, connection, data, standard.size); break;
+                    case message::peer::LEAVE: peer::pipeline::leave(*session, connection, data, standard.size); break;
+                    case message::peer::DATA_REQ: peer::pipeline::data_req(*session, connection, data, standard.size); break;
+                    case message::peer::DATA_REPLY: peer::pipeline::data_reply(*session, connection, data, standard.size); break;
                     case message::peer::INQUIRE: message::standard::send(connection, message::standard::OK); break;
                     default: // We get here when testing or corrupt tag
                         std::cerr << "Received an unimplemented peer tag: " << header->tag << '\n';
@@ -380,7 +381,7 @@ static bool requests_receive(torrent::Session& session) {
                 uint8_t* const data = (uint8_t*) malloc(standard.size);
                 connection->recvmsg(data, standard.size);
                 switch (standard.tag) {
-                    case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(session, connection, data, standard.size); break;
+                    case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(*session, connection, data, standard.size); break;
                     default: // We get here when we receive some other or corrupt tag
                         std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
                         break;
@@ -416,12 +417,15 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
 
     // Continually send and recv data. TODO:
     // Best approach might be to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
+    // tutorial: https://solarianprogrammer.com/2012/10/17/cpp-11-async-tutorial/
     //TODO Reminder: need to call gc of registry (peer) once in a while
     //TODO Reminder: need to call gc of registry (request) once in a while
 
-    while (!stop) {
+    //std::future<int> result( std::async([](Session m, int n) { return n;} , session, 4));
+    std::future<bool> result(std::async(requests_receive, &session));
+    while (!stop) 
         requests_send(session);
-        requests_receive(session);
-    }
+        
+    
     return true;
 }
