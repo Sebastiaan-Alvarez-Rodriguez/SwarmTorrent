@@ -1,53 +1,60 @@
 #ifndef TRACKER_SESSION_H
 #define TRACKER_SESSION_H
 
+#include <chrono>
 #include <vector>
 #include <unordered_map>
 
 #include "shared/torrent/ipTable/ipTable.h"
+#include "tracker/session/registry/registry.h"
 
 class Session {
 public:
     Session() = default;
 
-    // Add a table with hash as identifier. Returns true on insertion, false when it already exists.
-    bool add_table(const std::string& hash, IPTable& peertable);
-
     // Get the table with hash as identifier
-    bool get_table(const std::string& hash, IPTable& peertable) const;
+    inline const auto get_registry() const {
+        return registry;
+    }
+
+
+
+    // registry-related forwarding functions //
+
+    // Create a table for given hash
+    inline void create_table(const std::string& hash) {
+        registry.create_table(hash);
+    }
+
+    // Add a table with hash as identifier. Returns true on insertion, false when it already exists.
+    inline bool add_table(const std::string& hash, IPTable&& peertable) {
+        return registry.add_table(hash, std::move(peertable));
+    }
+
 
     // Removes table with hash as identifier
-    // Note: to keep idmap valid, this does not remove the
-    // table from the peertables vector
-    // perform garbage collect once in a while to clean 
-    // up.
-    bool remove_table(const std::string& hash);
+    inline bool remove_table(const std::string& hash) {
+        return registry.remove_table(hash);
+    }
 
     // Add a peer to the table with hash as identifier. 
     // Returns true on insertion, false when IPTable not found or peer already added.
-    bool add_peer(const std::string& hash, const Address& peer, bool exist_ok=true);
-
-    // // Add a peer to the table with hash as identifier. 
-    // // Returns true on insertion, false when IPTable not found.    
-    // bool add_peer_fast(const std::string& hash, const Address& peer);
-    
-    // Update the table with hash as identifier
-    // TODO: diffTable?
-    //bool update_table(std::string hash, );
-    // Remove peer from table with hash as identifier
-    bool remove_peer(const std::string& hash, const Address& peer);
+    inline bool add_peer(const std::string& hash, const Address& peer, bool exist_ok=true) {
+        return registry.add_peer(hash, peer, exist_ok);
+    }
 
     // Remove peer from table with hash as identifier
-    bool remove_peer(const std::string& hash, const std::string& peer);
+    inline bool remove_peer(const std::string& hash, const Address& peer) {
+        return registry.remove_peer(hash, peer);
+    }
 
-    inline size_t size() const { return peertables.size(); }
-
-    // Garbage collect the peertables vector
-    void garbage_collect();
+    // Remove peer from table with hash as identifier
+    inline bool remove_peer(const std::string& hash, const std::string& peer) {
+        return registry.remove_peer(hash, peer);
+    }
 
 protected:
-    // Maps the hashes of the torrentfile to its peertable registry
-    std::unordered_map<std::string, IPTable> peertables;
+    torrent::tracker::Registry registry;
 };
 
 #endif

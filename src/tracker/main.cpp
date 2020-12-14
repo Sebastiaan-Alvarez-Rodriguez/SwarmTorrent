@@ -12,14 +12,18 @@
 #include "shared/util/print.h"
 #include "tracker/session/session.h"
 
+static void handle_discovery() {
+    //TODO: Send LOCAL_DISCOVERY requests to peers in the current peertable
+}
+
 static void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
     std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
     std::cout << "Got a Make Torrent request (hash=" << hash << ")" << std::endl;
 
     IPTable table;
-    if (!session.get_table(hash, table)) { // Table does not exist yet, insert new table.
-        session.add_table(hash, table);
-        std::cout << "We have " << session.size() << " tables (added 1 table)\n";
+    if (!session.get_registry().get_table(hash, table)) { // Table does not exist yet, insert new table.
+        session.create_table(hash);
+        std::cout << "We have " << session.get_registry().size() << " tables (added 1 table)\n";
     }
     message::standard::send(client_conn, message::standard::OK);
 }
@@ -29,7 +33,7 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
     std::cout << "Got a Receive request (hash=" << hash << ")" << std::endl;
 
     IPTable table;
-    if (!session.get_table(hash, table)) { //No table for hash found, return error
+    if (!session.get_registry().get_table(hash, table)) { //No table for hash found, return error
         message::standard::send(client_conn, message::standard::ERROR);
         return;
     }
@@ -71,7 +75,7 @@ static void handle_register(Session& session, std::unique_ptr<ClientConnection>&
     std::cout << "Got a Register request (hash=" << hash << ", port="<< port_to_register<<")" << std::endl;
     
     IPTable table;
-    if (!session.get_table(hash, table)) { // Table does not exist yet, insert new table.
+    if (!session.get_registry().get_table(hash, table)) { // Table does not exist yet, insert new table.
         std::cerr << "Could not find table for hash " << hash << "\n";
         message::standard::send(client_conn, message::standard::ERROR);
     } else { // Table already exists. Add this peer to the list.
@@ -119,11 +123,6 @@ static bool run(uint16_t port) {
                 break;
             case message::tracker::MAKE_TORRENT: handle_make_torrent(session, client_conn, ptr, standard.size); break;
             case message::tracker::RECEIVE: handle_receive(session, client_conn, ptr, standard.size); break;
-            case message::tracker::UPDATE:
-                std::cout << "Got an update" << std::endl;
-                //TODO: Implement update?
-                message::standard::send(client_conn, message::standard::OK);
-                break;
             case message::tracker::REGISTER: handle_register(session, client_conn, ptr, standard.size); break;
             default: std::cout << "Got unknown header tag: " << (uint16_t) header->tag << std::endl;break;
         }
