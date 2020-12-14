@@ -28,6 +28,10 @@ namespace torrent::tracker {
         // Removes table with hash as identifier
         bool remove_table(const std::string& hash);
 
+        // Sets a table for a hash
+        inline void set_table(const std::string& hash, IPTable&& peertable) {
+            peertables[hash] = {std::move(peertable)};
+        }
         // Add a peer to the table with hash as identifier. 
         // Returns true on insertion, false when IPTable not found or peer already added.
         bool add_peer(const std::string& hash, const Address& peer, bool exist_ok=true);
@@ -40,9 +44,12 @@ namespace torrent::tracker {
 
         inline size_t size() const { return peertables.size(); }
 
+        inline auto cbegin() const { return peertables.cbegin(); }
+        inline auto cend() const { return peertables.cend(); }
     protected:
         class Element {
         public:
+            Element() = default;
             Element(IPTable&& table) : timestamp(std::chrono::steady_clock::now()), table(std::move(table)) {}
             Element(const IPTable& table) : timestamp(std::chrono::steady_clock::now()), table(table) {}
 

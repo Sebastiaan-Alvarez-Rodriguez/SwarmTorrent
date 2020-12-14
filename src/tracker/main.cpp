@@ -1,7 +1,9 @@
+#include <cstring>
+#include <algorithm>
 #include <iostream>
 #include <tclap/CmdLine.h>
+#include <set>
 #include <stdexcept>
-#include <cstring>
 
 #include "shared/connection/impl/TCP/TCPConnection.h"
 
@@ -11,9 +13,70 @@
 #include "shared/torrent/ipTable/ipTable.h"
 #include "shared/util/print.h"
 #include "tracker/session/session.h"
+#include "tracker/defaults.h"
 
-static void handle_discovery() {
-    //TODO: Send LOCAL_DISCOVERY requests to peers in the current peertable
+static void handle_discovery(Session& session) {
+    // TODO: Make a separate thread for discovery
+    const auto& registry = session.get_registry();
+    IPTable peertable;
+    for (auto it = registry.cbegin(); it != registry.cend(); ++it) {
+        const auto& hash = it->first;
+        const auto time_diff = std::chrono::steady_clock::now() - it->second.timestamp;
+        const auto& table = it->second.table;
+        const bool do_discover = 
+            (table.size() < tracker::defaults::torrent::fast_update_size && time_diff > tracker::defaults::torrent::fast_update_time)
+            || (table.size() < tracker::defaults::torrent::medium_update_size && time_diff > tracker::defaults::torrent::medium_update_time)
+            || (table.size() > tracker::defaults::torrent::medium_update_size && time_diff > tracker::defaults::torrent::slow_update_time);
+        if (do_discover) {
+            // 1. Pick a number of peers to discover from
+            // 2. Send discovery requests
+            // 3. Receive discovery requests, set new table
+
+            const auto num_peers = std::min(table.size() < tracker::defaults::torrent::fast_update_size ? tracker::defaults::torrent::fast_update_pool_size :
+                (table.size() < tracker::defaults::torrent::medium_update_size ? tracker::defaults::torrent::medium_update_pool_size : tracker::defaults::torrent::slow_update_pool_size), table.size());
+
+            std::set<size_t> used_peers;
+            if (num_peers == table.size())
+                for (size_t x = 0; x < table.size(); ++x)
+                    used_peers.insert(x);
+            else
+                while (used_peers.size() < num_peers)
+                    used_peers.insert(session.rand.generate(0, table.size()));
+
+            for (const auto x : used_peers) {
+                auto table_it = it->second.table.cbegin();
+                std::advance(table_it, x);
+                const auto address = table_it->second;
+                auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
+                connections::shared::send::discovery_req(connection, address.ip);
+
+                message::standard::Header standard;
+                if (!message::standard::recv(connection, standard)) {
+                    std::cout << "Unable to peek. System hangup?" << std::endl;
+                    continue;
+                }
+
+                if (standard.formatType != message::tracker::id) {
+                    std::cerr << "Received invalid message! Not a Tracker-message. Skipping..." << std::endl;
+                    continue;
+                }
+                uint8_t* data = (uint8_t*) malloc(standard.size);
+                connection->recvmsg(data, standard.size);
+                IPTable tmptable;
+                std::string recv_hash;
+                connections::shared::recv::discovery_reply(data, standard.size, tmptable, recv_hash);
+                if (recv_hash != hash) {
+                    std::cerr << "LOCAL_DISCOVERY hash mismatch (ours=" << hash << ", theirs=" << recv_hash << ")\n";
+                    continue;
+                }
+                peertable.merge(tmptable);
+                free(data);
+            }
+            session.set_table(hash, std::move(peertable));
+        } else {
+            // TODO: Sleep for a bit
+        }
+    }
 }
 
 static void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
@@ -124,7 +187,7 @@ static bool run(uint16_t port) {
             case message::tracker::MAKE_TORRENT: handle_make_torrent(session, client_conn, ptr, standard.size); break;
             case message::tracker::RECEIVE: handle_receive(session, client_conn, ptr, standard.size); break;
             case message::tracker::REGISTER: handle_register(session, client_conn, ptr, standard.size); break;
-            default: std::cout << "Got unknown header tag: " << (uint16_t) header->tag << std::endl;break;
+            default: std::cout << "Got unknown header tag: " << (uint16_t) header->tag << std::endl; break;
         }
     }
     return 0;
