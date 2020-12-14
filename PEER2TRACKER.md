@@ -5,11 +5,6 @@ Peer2Tracker communication consists of several mechanisms.
  2. Peer requests current peertable for a given file on tracker
  3. Peer registers itself for a peertable on tracker
 
-## Subscribe/Unsubscribe
-Pattern is simple:
- 1. Peer sends a [TrackerMessage](/src/shared/connection/message/tracker/message.h) containing tag `SUBSCRIBE` or `UNSUBSCRIBE`, with the hash for the torrentfile in the message body to (un)subscribe.
- 2. Tracker receives, performs action. Tracker returns [standard message](/src/shared/connection/message/message.h) containing `OK` on success, `ERROR` otherwise.
- 3. Peer receives status. Done.
 
 ## Requests for peertable
 The idea is that the peer ends up receiving the peertable of the tracker.
@@ -21,11 +16,14 @@ The idea is that the peer ends up receiving the peertable of the tracker.
 
 
 ## Register for a peertable
-When peers want, they can register themselves on a list of trackers.
-Once registered, fellow peers will send requests to send_join_req a local network.
-Peers register using a [TrackerMessage](/src/shared/connection/message/tracker/message.h) containing tag `REGISTER`, with in the body a hash for a torrentfile and a port `x` to register.
-The system sends `OK` on successfully registering.
-It sends `ERROR` if no such torrentfile hash is found.
+If peers want, they can register themselves on a tracker.
+This makes them directly visible to peers requesting the peer table of that tracker.
+
+Note: You should only issue registrations if you are the 'initial' peer, the only one having the data.
+
+ 1. Peers sends a [TrackerMessage](/src/shared/connection/message/tracker/message.h) containing tag `REGISTER`, with in the body a hash for a torrentfile and a port `x` to register.
+ 2. Tracker replies with `OK` on successful registration. It sends `ERROR` if no such torrentfile hash is found.
+
 
 ## Local Discovery
 Trackers can ask peers to share their peertables. The tracker uses this to update its list of known peers for a given torrent.

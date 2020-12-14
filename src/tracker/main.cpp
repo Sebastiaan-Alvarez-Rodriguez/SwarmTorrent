@@ -72,7 +72,6 @@ static void handle_register(Session& session, std::unique_ptr<ClientConnection>&
     
     IPTable table;
     if (!session.get_table(hash, table)) { // Table does not exist yet, insert new table.
-        // table.add_ip(client_conn->get_type(), client_conn->getAddress(), port_to_register);
         std::cerr << "Could not find table for hash " << hash << "\n";
         message::standard::send(client_conn, message::standard::ERROR);
     } else { // Table already exists. Add this peer to the list.
