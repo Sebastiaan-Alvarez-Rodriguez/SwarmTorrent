@@ -122,6 +122,10 @@ public:
     class Factory;
 
     virtual std::unique_ptr<ClientConnection> acceptConnection() = 0;
+protected:
+    // Amount of connections to keep in the 'backlog' if we are contacted while busy with another connection.
+    // Connections made with a full backlog are refused.
+    unsigned backlogSize;
 };
 
 
@@ -266,6 +270,14 @@ public:
         return *this;
     }
 
+    /**
+     * Sets backlog size. The backlog contains queued connections, which wait while we are busy.
+     * If the backlog is full, new connections will be refused.
+     */
+    Factory& withBacklogSize(unsigned backlogSize) {
+        this->backlogSize = backlogSize;
+        return *this;
+    }
 
     virtual std::unique_ptr<HostConnection> create() const = 0;
 
@@ -276,5 +288,6 @@ protected:
     bool reusemode = true;
     unsigned sendTimeout = 0;
     unsigned recvTimeout = 0;
+    unsigned backlogSize = 16;
 };
 #endif

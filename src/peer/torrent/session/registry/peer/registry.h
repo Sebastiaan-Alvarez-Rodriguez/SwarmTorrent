@@ -30,6 +30,7 @@ namespace torrent::peer {
             Element(const Address& address, size_t num_fragments) : address(address), data_owned(num_fragments, false) {}
             Element() = default;
         };
+        // Mapping from ip to Element
         std::unordered_map<std::string, Element> peers;
 
     public:
@@ -47,6 +48,9 @@ namespace torrent::peer {
         // Removes all known requests for given fragment number
         inline void remove(const std::string& ip) { peers.erase(ip); }
         inline void remove(const Address& address) { remove(address.ip); }
+
+        // Returns vector of addresses which own given fragment (and belong to our group of course)
+        std::vector<Address> get_peers_for(size_t fragment_nr) const;
 
         inline void update_peer_fragments(const std::string& ip, std::vector<bool>&& updated) {
             if (!contains(ip))

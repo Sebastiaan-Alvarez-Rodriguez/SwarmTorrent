@@ -10,5 +10,6 @@ namespace peer::defaults::torrent {
     const uint16_t prefered_group_size = 16; //amount of peers we would like to have in our group
     const uint16_t prefered_known_peers_size = 64; // amount of peers we want to know about
     const uint16_t inactive_threshold = 10; // allowed number of unresponsiveness to requests from a peer, before it is set inactive
+    const auto availability_update_time = std::chrono::milliseconds(10000); // amount of ms before a request is considered stale
 }
 #endif

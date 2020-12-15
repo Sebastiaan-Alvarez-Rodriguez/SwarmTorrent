@@ -160,3 +160,24 @@ void peer::pipeline::local_discovery(const torrent::Session& session, const std:
 
     connections::shared::send::discovery_reply(connection, session.get_peertable(), recv_hash, session.get_address());
 }
+
+void peer::pipeline::availability(torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+    std::cerr << "Got an AVAILABILITY request\n";
+    std::string recv_hash;
+    std::vector<bool> state;
+    if (!session.get_peer_registry().contains(connection->getAddress())) { // If not in group, reject
+        std::cerr << "Peer not in registry, rejected.\n";
+        message::standard::send(connection, message::standard::REJECT);
+        return;
+    }
+    if (!connections::peer::recv::availability(data, size, recv_hash, state)) { // If message interpreting failed, just return
+        std::cerr << "Could not interpret data\n";
+        return;
+    }
+    if (recv_hash != session.get_metadata().content_hash) { // They asked for a hash that we don't use. Just return.
+        std::cerr << "Hash mismatched with our own (ours=" << session.get_metadata().content_hash <<", theirs="<<recv_hash<<"), rejected.\n";
+        return;
+    }
+    if (!connections::peer::send::availability_reply(connection, session.get_fragments_completed()))
+        std::cerr << "Could not send reply!\n";
+}

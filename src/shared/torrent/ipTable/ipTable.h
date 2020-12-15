@@ -30,11 +30,9 @@ public:
     bool add_ip(ConnectionType type, const std::string& ip, uint16_t port) { return ips.insert({ip, Address(type, ip, port)}).second; };
 
     // Removes Address a from the table
-    //TODO @Mariska: Erasure on hashmaps is expensive if it triggers recomputation of the hash. Maybe just use 'dirty' flag?
     void remove_ip(const Address& a) { ips.erase(a.ip); };
 
     // Removes Address via its ip
-    //TODO @Mariska: Erasure on hashmaps is expensive if it triggers recomputation of the hash. Maybe just use 'dirty' flag?
     void remove_ip(const std::string& ip) { ips.erase(ip); };
 
     // If IPTable contains ip string, sets Address struct corresponding to ip string.

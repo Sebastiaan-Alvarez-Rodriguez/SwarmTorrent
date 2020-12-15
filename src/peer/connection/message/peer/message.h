@@ -11,11 +11,12 @@ namespace message::peer {
 
     enum Tag : uint8_t {
         TEST = 0,
-        JOIN = 1,   // Request to start sharing data (other side responds with either OK or REJ)
-        LEAVE = 2, // Close a request. The receiving side does not respond with anything.
-        DATA_REQ = 3,       // Request a piece of data (other side responds with OK and a piece of data)
-        DATA_REPLY = 4,      // Reply containing a batch of data. first 8 bytes of body are fragment id, the rest is the data.
-        INQUIRE = 5 // Check if peer is dead
+        JOIN = 1,        // Request to start sharing data (other side responds with either OK or REJ).
+        LEAVE = 2,       // Close a request. The receiving side does not respond with anything.
+        DATA_REQ = 3,    // Request a piece of data (other side responds with OK and a piece of data).
+        DATA_REPLY = 4,  // Reply containing a batch of data. first 8 bytes of body are fragment id, the rest is the data.
+        INQUIRE = 5,     // Check if peer is dead.
+        AVAILABILITY = 6 // Request the availability arrays
     };
     struct Header {
         size_t size;

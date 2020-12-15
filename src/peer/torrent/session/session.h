@@ -153,6 +153,10 @@ namespace torrent {
             register_peer(Address(type, ip, port), fragments_completed);
         }
 
+        inline void deregister_peer(const std::string& ip) {
+            peer_registry.remove(ip);
+        }
+
         inline bool has_registered_peer(const std::string& ip) {
             return peer_registry.contains(ip);
         }
@@ -165,9 +169,10 @@ namespace torrent {
             peer_registry.gc();
         }
 
-        inline void deregister_peer(const std::string& ip) {
-            peer_registry.remove(ip);
+        inline auto get_peers_for(size_t fragment_nr) const {
+            return peer_registry.get_peers_for(fragment_nr);
         }
+
 
         // Request Registry-related forwarding functions //
 

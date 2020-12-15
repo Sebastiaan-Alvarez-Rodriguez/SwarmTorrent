@@ -14,7 +14,6 @@ inline bool FragmentHandler::read(unsigned index, uint8_t* data, unsigned& data_
     return read_with_leading(index, data, data_size, 0);
 }
 
-//TODO: check if read failed?
 bool FragmentHandler::read_with_leading(unsigned index, uint8_t* data, unsigned& data_size, unsigned leading_size) {
     if (!read_head.is_open())
         return false;
@@ -38,7 +37,6 @@ bool FragmentHandler::read_with_leading(unsigned index, uint8_t* data, unsigned&
 }
 
 
-//TODO: check if write failed?
 bool FragmentHandler::write(unsigned index, const uint8_t* data, unsigned data_size) {
     if (!write_head.is_open())
         return false;

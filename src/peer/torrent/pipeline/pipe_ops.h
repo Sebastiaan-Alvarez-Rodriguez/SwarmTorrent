@@ -22,5 +22,8 @@ namespace peer::pipeline {
 
     // Handles LOCAL_DISCOVERYs. Sends back currently owned peertable to incoming connection.
     void local_discovery(const torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size);
+
+    // Handles AVAILABILITYs. Sends back bool array (in byte-form) of owned fragments.
+    void availability(torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size);
 }
 #endif

@@ -13,7 +13,6 @@ namespace fs {
     // Returns the basename of a path (extension inclusive)
     std::string basename(const std::string& path);
 
-    // TODO: https://en.cppreference.com/w/cpp/filesystem/is_directory has more!
     inline bool is_file(const std::string& path) {
         return std::filesystem::is_regular_file(path);
     }

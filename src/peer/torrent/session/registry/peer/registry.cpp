@@ -23,6 +23,14 @@ void torrent::peer::Registry::report(const std::string& ip) {
         ++(it->second.inactiveCounter);
 }
 
+std::vector<Address> torrent::peer::Registry::get_peers_for(size_t fragment_nr) const {
+    std::vector<Address> v;
+    for (auto it = peers.cbegin(); it != peers.cend(); ++it)
+        if (it->second.data_owned[fragment_nr])
+            v.push_back(it->second.address);
+    return v;
+}
+
 void torrent::peer::Registry::gc() {
     std::vector<std::string> to_remove; 
     for (auto it = peers.begin(); it != peers.end(); ++it) {

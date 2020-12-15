@@ -19,8 +19,8 @@
 #include "shared/util/socket.h"
 #include "generic/generic.h"
 
-//TODO: https://www.geeksforgeeks.org/explicitly-assigning-port-number-client-socket/
-// Need to explicitly bind to sourcePort for client connections?
+// If we want to explicitly bind to sourcePort for client connections:
+// https://www.geeksforgeeks.org/explicitly-assigning-port-number-client-socket/
 class TCPClientConnection : public ClientConnection {
 public:
     class Factory;
@@ -162,13 +162,7 @@ public:
             return;
         }
 
-        if (listen(sockfd, 10) < 0) { //TODO: Change hardcoded 10 for connection backlog to a global constant somewhere
-            //TODO: Check if this listen to socket could return < 0 on non-blocking sockets, while being alright.
-            //      If so, we should fix it.
-            // if (this->blockmode/* || (!this->blockmode && errno != EWOULDBLOCK)*/) {
-            //     this->state = ERROR;
-            //     std::cerr << "Could not listen to socket!" << std::endl;
-            // }
+        if (listen(sockfd, backlogSize) < 0) {
             std::cerr << "Could not listen to socket!" << std::endl;
             return;
         }

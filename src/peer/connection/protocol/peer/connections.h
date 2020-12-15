@@ -49,6 +49,12 @@ namespace connections::peer {
          *                otherwise it may not return in a finite time
          */
         bool inquire(const std::unique_ptr<ClientConnection>& connection);
+
+        // Send an AVAILABILITY request to a fellow peer
+        bool availability(const std::unique_ptr<ClientConnection>& connection, const std::string& hash, const std::vector<bool>& fragments_completed);
+    
+        // Reply to an AVAILABILITY request from a fellow peer
+        bool availability_reply(const std::unique_ptr<ClientConnection>& connection, const std::vector<bool>& fragments_completed);
     }
 
     namespace recv {
@@ -64,8 +70,14 @@ namespace connections::peer {
         // Get arguments for DATA_REQ messages from raw buffer
         bool data_req(const uint8_t* const data, size_t size, size_t& fragment_nr);
 
-
+        // Get arguments for DATA_REPLY messages from raw buffer
         bool data_reply(const uint8_t* const data, size_t size, size_t& fragment_nr, uint8_t*& fragment_data);
+
+        // Get arguments for AVAILABILITY messages from raw buffer
+        bool availability(const uint8_t* const data, size_t size, std::string& hash, std::vector<bool>& fragments_completed);
+
+        // Get arguments for AVAILABILITY messages from raw buffer
+        bool availability_reply(const uint8_t* const data, size_t size, std::vector<bool>& fragments_completed);
     }
 }
 #endif

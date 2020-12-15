@@ -108,7 +108,7 @@ static IPTable compose_peertable(const std::string& hash, const IPTable& tracker
     return maintable;
 }
 
-
+// Request any peer in our peertable to tell us of which peers they know
 static void requests_send_local_discovery(torrent::Session& session) {
     while (session.get_peertable().size() < peer::defaults::torrent::prefered_known_peers_size) {
         // 1. Pick a peer to ask more info from
@@ -127,7 +127,7 @@ static void requests_send_local_discovery(torrent::Session& session) {
         if (!connections::shared::send::discovery_req(connection, session.get_metadata().content_hash)) {
             std::cerr << "Could not send local_discovery request to fellow peer ";connection->print(std::cerr); std::cerr << '\n';
             continue;
-        }   
+        }
 
         message::standard::Header standard;
         if (!message::standard::recv(connection, standard)) {
@@ -218,7 +218,7 @@ static void requests_send_join(torrent::Session& session) {
 // We stop when enough leaves have been sent.
 static void requests_send_leave(torrent::Session& session) {
     auto torrent_hash = session.get_metadata().content_hash;
-    
+
     auto registry = session.get_peer_registry();
     for (auto it = registry.cbegin(); it != registry.cend() && session.peers_amount() > 4 * peer::defaults::torrent::prefered_group_size; ++it) {
         // 1. Pick a peer of our group
@@ -252,22 +252,41 @@ static void requests_send_leave(torrent::Session& session) {
     }
 }
 
+/**
+ * Send requests for data. We wait until the remote gives us a primary request status indication. We can get:
+ * - OK for success.
+ * - REJECT to let us know remote does not possess requested fragment. It sends back a byte vector indicating owned fragments.
+ * - ERROR to let us know we are no longer in their group.
+ *
+ * In case of OK, the remote peer will send us the fragment to our registered port on the receive thread.
+ * That message will have tag DATA_REPLY.
+ */
 static void requests_send_data_req(torrent::Session& session) {
     if (session.download_completed()) // We are not asking for data if we already have all data
         return;
+
     while (session.get_request_registry().size() < peer::defaults::torrent::outgoing_requests) { // Let's send a request
         // 1. Pick a fragment to request
         // 2. Pick a peer to request from
         // 3. Request picked fragment at picked peer
 
         const auto fragment_nr = rnd::random_from(session.rand, session.get_fragments_completed(), false);
-        if (fragment_nr >= session.get_num_fragments()) // We get here if all fragments are completed
+        if (fragment_nr >= session.get_num_fragments()) // We get here only if all fragments are completed
             return; // No need to ask for fragment data if we already have all
 
-        const auto peer_idx = session.rand.generate(0, session.get_peertable().size());
-        auto it = session.get_peertable().cbegin();
-        std::advance(it, peer_idx);
-        const auto address = it->second;
+        const auto containmentvector = session.get_peer_registry().get_peers_for(fragment_nr);
+
+        Address address;
+        if (containmentvector.size() == 0) { // If nobody owns the fragment we seek, pick a random peer
+            const auto peer_idx = session.rand.generate(0, session.get_peertable().size());
+            auto it = session.get_peertable().cbegin();
+            std::advance(it, peer_idx);
+            address = it->second;
+        } else { // Randomly pick a peer that owns the fragment we want 
+            const auto peer_idx = session.rand.generate(0, containmentvector.size());
+            address = containmentvector[peer_idx];
+        }
+
         auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
         if (!connection->doConnect()) {
             std::cerr << "Could not connect to fellow peer ";connection->print(std::cerr); std::cerr << '\n';
@@ -285,10 +304,7 @@ static void requests_send_data_req(torrent::Session& session) {
         }
 
         switch(standard.tag) {
-            case message::standard::OK: break; // All is good, message in progress.
-            case message::standard::ERROR: // Somehow, we are no longer part of the group of remote peer
-                session.deregister_peer(address.ip);
-                break;
+            case message::standard::OK: session.register_request(fragment_nr, address); break; // All is good, message in progress.
             case message::standard::REJECT: { // Remote does not have that data available
                 uint8_t* const data = (uint8_t*) malloc(standard.size);
                 connection->recvmsg(data, standard.size);
@@ -303,12 +319,75 @@ static void requests_send_data_req(torrent::Session& session) {
                 session.update_registered_peer_fragments(address.ip, std::move(completed_update));
                 break;
             }
+            case message::standard::ERROR: // Somehow, we are no longer part of the group of remote peer
+                session.deregister_peer(address.ip);
+                break;
             default:
                 std::cerr << "Received non-standard-conforming message from remote peer: "; connection->print(std::cerr); std::cerr << '\n';
         }
-
-        session.register_request(fragment_nr, address);
     }
+}
+
+/**
+ * Sends availability requests for data. With each request, we also send our own availability.
+ * We wait for a response, which can be either:
+ * - OK for success.
+ * - ERROR to let us know we are no longer in their group.
+ *
+ * In case of OK, the message body contains the byte array telling us which fragments it owns.
+ * '''Note:''' Due to amount of communication, it is recommended to call this function from a separate thread.
+ */
+// TODO: To increase efficiency but reduce accuracy, could cache request message and send the cached version multiple times.
+static void requests_send_availability(torrent::Session& session) {
+    // 1. For every peer in our group, send an availability request
+    // 2. get reply back, store new availability
+    auto torrent_hash = session.get_metadata().content_hash;
+    auto peers = session.get_peer_registry();
+    for (auto it = peers.cbegin(); it != peers.cend(); ++it) {
+        const auto& ip = it->first;
+        uint16_t port = it->second.address.port;
+        const auto& type = it->second.address.type;
+
+        if (type.t_type != TransportType::TCP) {
+            std::cerr << print::YELLOW << "[WARN] Only implemented support for TCP connections, skipping: " << type << ": " << ip << ':' << port << '\n';
+            continue;
+        }
+
+        auto conn = TCPClientConnection::Factory::from(type.n_type).withAddress(ip).withDestinationPort(port).create();
+        if (conn->get_state() != ClientConnection::READY) {
+            std::cerr << print::YELLOW << "[WARN] Could not initialize connection to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            continue;
+        }
+        if (!conn->doConnect()) {
+            std::cerr << "Could not connect to peer ";conn->print(std::cerr);std::cerr << '\n';
+            continue;
+        }
+        if (!connections::peer::send::availability(conn, torrent_hash, session.get_fragments_completed())) {
+            std::cerr << print::YELLOW << "[WARN] Could not send AVAILABILITY request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            continue;
+        }
+        message::standard::Header header;
+        if (!message::standard::recv(conn, header)) {
+            std::cerr <<print::YELLOW << "[WARN] Could not receive AVAILABILITY response from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            continue;
+        }
+        if (header.formatType == message::standard::OK) {
+            std::cerr << print::CYAN << "[TEST] We got an OK for our AVAILABILITY request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            uint8_t* const data = (uint8_t*) malloc(header.size);
+            conn->recvmsg(data, header.size);
+
+            std::vector<bool> remote_available;
+            connections::peer::recv::availability_reply(data, header.size, remote_available);
+            free(data);
+            session.update_registered_peer_fragments(ip, std::move(remote_available));
+        } else if (header.formatType == message::standard::ERROR) {
+            std::cerr << print::CYAN << "[TEST] We got a ERROR for our AVAILABILITY request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            session.deregister_peer(ip);
+        } else {
+            std::cerr <<print::YELLOW << "[WARN] Received non-standard-conforming response ("<<header.formatType<<") (for AVAILABILITY request) from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+        }
+    }
+
 }
 
 // Send request to peers in our local network
@@ -358,6 +437,7 @@ static bool requests_receive(torrent::Session* session, bool* stop) {
                 case message::peer::DATA_REQ: peer::pipeline::data_req(*session, connection, data, standard.size); break;
                 case message::peer::DATA_REPLY: peer::pipeline::data_reply(*session, connection, data, standard.size); break;
                 case message::peer::INQUIRE: message::standard::send(connection, message::standard::OK); break;
+                case message::peer::AVAILABILITY: peer::pipeline::availability(*session, connection, data, standard.size); break;
                 default: // We get here when testing or corrupt tag
                     std::cerr << "Received an unimplemented peer tag: " << header->tag << '\n';
                     break;
@@ -408,15 +488,23 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).create(), workpath);
     session.set_peers(compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort, force_register));
     bool stop = false;
+    bool availability_stop = false;
     bool receive_stop = false;
     bool gc_stop = false;
 
 
+    std::future<void> availability(std::async([&session, &availability_stop]() {
+        while (!availability_stop) {
+            requests_send_availability(session);
+            std::this_thread::sleep_for(::peer::defaults::torrent::availability_update_time);
+        }
+    }));
     std::future<bool> result(std::async(requests_receive, &session, &receive_stop));
     std::future<void> gc(std::async(call_gc, &session, &gc_stop));
     while (!stop) 
         stop = !requests_send(session);
-        
-    
+
+    receive_stop = true;
+    gc_stop = true;
     return true;
 }
