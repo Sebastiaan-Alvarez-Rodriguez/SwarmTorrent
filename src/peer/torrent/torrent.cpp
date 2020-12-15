@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <vector>
 #include <future>
+#include <chrono>
 
 #include "peer/connection/message/peer/message.h"
 #include "peer/connection/protocol/peer/connections.h"
@@ -22,23 +23,23 @@
 
 static bool send_register(ConnectionType type, std::string address, uint16_t port, std::string hash, uint16_t sourcePort) {
     auto tracker_conn = TCPClientConnection::Factory::from(type.n_type).withAddress(address).withDestinationPort(port).create();
-        if (tracker_conn->get_state() != ClientConnection::READY) {
-            std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
-            return false;
-        }
+    if (tracker_conn->get_state() != ClientConnection::READY) {
+        std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
+        return false;
+    }
 
-        if (!tracker_conn->doConnect()) {
-            std::cerr<<"Could not connect to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
-            return false;
-        }
-        std::cerr << "torrent.cpp: registering source port " << sourcePort << '\n';
-        connections::tracker::send::register_self(tracker_conn, hash, sourcePort);
-        message::standard::Header header;
-        if (!message::standard::recv(tracker_conn, header)) {
-            std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from tracker: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
-            return false;
-        }
-        return header.formatType == message::standard::OK;
+    if (!tracker_conn->doConnect()) {
+        std::cerr<<"Could not connect to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
+        return false;
+    }
+    std::cerr << "torrent.cpp: registering source port " << sourcePort << '\n';
+    connections::tracker::send::register_self(tracker_conn, hash, sourcePort);
+    message::standard::Header header;
+    if (!message::standard::recv(tracker_conn, header)) {
+        std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from tracker: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
+        return false;
+    }
+    return header.formatType == message::standard::OK;
 }
 
 // Given a number of tracker servers, constructs a table with all peers these trackers know about
@@ -311,7 +312,7 @@ static void requests_send_data_req(torrent::Session& session) {
 }
 
 // Send request to peers in our local network
-static void requests_send(torrent::Session& session) {
+static bool requests_send(torrent::Session& session) {
     //TODO: 2 options for sending
     // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
     // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
@@ -330,10 +331,12 @@ static void requests_send(torrent::Session& session) {
         requests_send_leave(session);
 
     requests_send_data_req(session);
+    return true;
 }
 
 
 // Handle requests we receive
+<<<<<<< HEAD
 static bool requests_receive(torrent::Session* session) {
     const auto req_conn = session->get_conn();
     auto connection = req_conn->acceptConnection();
@@ -368,6 +371,60 @@ static bool requests_receive(torrent::Session* session) {
             default: // We get here when we receive some other or corrupt tag
                 std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
                 break;
+=======
+static bool requests_receive(torrent::Session* session, bool* stop) {
+    while (!*stop) {
+        const auto req_conn = session->get_conn();
+        auto connection = req_conn->acceptConnection();
+        if (connection == nullptr) {
+            if (req_conn->get_state() == Connection::ERROR) {
+                std::cerr << "Experienced error when checking for inbound communication: ";req_conn->print(std::cerr); std::cerr << '\n';
+            } else {
+                // Connection is not used at this time
+                // TODO: Sleep for a little bit here,
+                // or make connection wait for some timeout instead of non-blocking
+            }
+            continue;
+        } else { // We are dealing with an actual connection
+            // session->mark_peer(connection->getAddress()); // Marks peer as seen. TODO: remove timestamp to hold timestamp for availability request updates?
+
+            message::standard::Header standard;
+            if (!message::standard::recv(connection, standard)) {
+                std::cerr << "Unable to peek. System hangup?" << std::endl;
+                continue;
+            }
+            const bool message_type_peer = standard.formatType == message::peer::id;
+            const bool message_type_standard = standard.formatType == message::standard::id;
+            
+            if (message_type_peer) {
+                uint8_t* const data = (uint8_t*) malloc(standard.size);
+                connection->recvmsg(data, standard.size);
+                message::peer::Header* header = (message::peer::Header*) data;
+                switch (header->tag) {
+                    case message::peer::JOIN: peer::pipeline::join(*session, connection, data, standard.size); break;
+                    case message::peer::LEAVE: peer::pipeline::leave(*session, connection, data, standard.size); break;
+                    case message::peer::DATA_REQ: peer::pipeline::data_req(*session, connection, data, standard.size); break;
+                    case message::peer::DATA_REPLY: peer::pipeline::data_reply(*session, connection, data, standard.size); break;
+                    case message::peer::INQUIRE: message::standard::send(connection, message::standard::OK); break;
+                    default: // We get here when testing or corrupt tag
+                        std::cerr << "Received an unimplemented peer tag: " << header->tag << '\n';
+                        break;
+                }
+                free(data);
+            } else if (message_type_standard) {
+                uint8_t* const data = (uint8_t*) malloc(standard.size);
+                connection->recvmsg(data, standard.size);
+                switch (standard.tag) {
+                    case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(*session, connection, data, standard.size); break;
+                    default: // We get here when we receive some other or corrupt tag
+                        std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
+                        break;
+                }
+            } else {
+                std::cerr << "Received invalid message! Not a Peer-message, nor a standard-message. Skipping..." << std::endl;
+                continue;
+            }
+>>>>>>> origin/peer_dev
         }
     } else {
         std::cerr << "Received invalid message! Not a Peer-message, nor a standard-message. Skipping..." << std::endl;
@@ -405,11 +462,17 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).create(), workpath);
     session.set_peers(compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort, force_register));
     bool stop = false;
+    bool receive_stop = false;
+    bool gc_stop = false;
 
+<<<<<<< HEAD
     // Continually send and recv data. TODO:
     // Best approach might be to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
     // tutorial: https://solarianprogrammer.com/2012/10/17/cpp-11-async-tutorial/
     std::future<bool> result(std::async(requests_receive, &session));
+=======
+    std::future<bool> result(std::async(requests_receive, &session, &receive_stop));
+>>>>>>> origin/peer_dev
     std::future<void> gc(std::async(call_gc, &session, &gc_stop));
     while (!stop) 
         stop = !requests_send(session);

@@ -161,14 +161,21 @@ namespace torrent {
             peer_registry.update_peer_fragments(ip, std::move(fragments_completed));
         }
 
-
-        // Request Registry-related forwarding functions //
+        inline void peer_registry_gc() {
+            peer_registry.gc();
+        }
 
         inline void deregister_peer(const std::string& ip) {
             peer_registry.remove(ip);
         }
+
+        // Request Registry-related forwarding functions //
+
         inline void register_request(size_t fragment_nr, const Address& address) {
             request_registry.add(fragment_nr, address);
+        }
+        inline void request_registry_gc() {
+            request_registry.gc();
         }
     };
 }

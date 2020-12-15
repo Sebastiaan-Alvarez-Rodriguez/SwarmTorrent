@@ -42,7 +42,7 @@ bool torrent::request::Registry::gc(size_t fragment_nr) {
     return gc_internal(requests[fragment_nr], now-peer::defaults::torrent::request_stale_after_time);
 }
 
-inline std::vector<size_t> torrent::request::Registry::gc() {
+std::vector<size_t> torrent::request::Registry::gc() {
     auto vec = std::vector<size_t>();
     const auto now = std::chrono::steady_clock::now();
     for (auto& [key, val] : requests)
