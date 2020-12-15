@@ -23,23 +23,23 @@
 
 static bool send_register(ConnectionType type, std::string address, uint16_t port, std::string hash, uint16_t sourcePort) {
     auto tracker_conn = TCPClientConnection::Factory::from(type.n_type).withAddress(address).withDestinationPort(port).create();
-        if (tracker_conn->get_state() != ClientConnection::READY) {
-            std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
-            return false;
-        }
+    if (tracker_conn->get_state() != ClientConnection::READY) {
+        std::cerr << print::YELLOW << "[WARN] Could not initialize connection: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
+        return false;
+    }
 
-        if (!tracker_conn->doConnect()) {
-            std::cerr<<"Could not connect to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
-            return false;
-        }
-        std::cerr << "torrent.cpp: registering source port " << sourcePort << '\n';
-        connections::tracker::send::register_self(tracker_conn, hash, sourcePort);
-        message::standard::Header header;
-        if (!message::standard::recv(tracker_conn, header)) {
-            std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from tracker: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
-            return false;
-        }
-        return header.formatType == message::standard::OK;
+    if (!tracker_conn->doConnect()) {
+        std::cerr<<"Could not connect to tracker ";tracker_conn->print(std::cerr);std::cerr<<'\n';
+        return false;
+    }
+    std::cerr << "torrent.cpp: registering source port " << sourcePort << '\n';
+    connections::tracker::send::register_self(tracker_conn, hash, sourcePort);
+    message::standard::Header header;
+    if (!message::standard::recv(tracker_conn, header)) {
+        std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from tracker: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
+        return false;
+    }
+    return header.formatType == message::standard::OK;
 }
 
 // Given a number of tracker servers, constructs a table with all peers these trackers know about
@@ -312,7 +312,7 @@ static void requests_send_data_req(torrent::Session& session) {
 }
 
 // Send request to peers in our local network
-static void requests_send(torrent::Session& session) {
+static bool requests_send(torrent::Session& session) {
     //TODO: 2 options for sending
     // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
     // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
@@ -333,14 +333,15 @@ static void requests_send(torrent::Session& session) {
         requests_send_leave(session);
 
     requests_send_data_req(session);
+    return true;
 }
 
 
 // Handle requests we receive
-static bool requests_receive(torrent::Session* session) {
+static bool requests_receive(torrent::Session* session, bool* stop) {
     // TODO: Should make this a separate thread
 
-    for (uint8_t x = 0; x < 16; ++x) {
+    while (!*stop) {
         const auto req_conn = session->get_conn();
         auto connection = req_conn->acceptConnection();
         if (connection == nullptr) {
@@ -396,8 +397,8 @@ static bool requests_receive(torrent::Session* session) {
     return true;
 }
 
-static void call_gc(torrent::Session* session) {
-    while (true) {
+static void call_gc(torrent::Session* session, bool* stop) {
+    while (!*stop) {
         session->peer_registry_gc();
         session->request_registry_gc();
 
@@ -424,11 +425,13 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).create(), workpath);
     session.set_peers(compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort, force_register));
     bool stop = false;
+    bool receive_stop = false;
+    bool gc_stop = false;
 
-    std::future<bool> result(std::async(requests_receive, &session));
-    std::future<void> gc(std::async(call_gc, &session));
+    std::future<bool> result(std::async(requests_receive, &session, &receive_stop));
+    std::future<void> gc(std::async(call_gc, &session, &gc_stop));
     while (!stop) 
-        requests_send(session);
+        stop = !requests_send(session);
         
     
     return true;
