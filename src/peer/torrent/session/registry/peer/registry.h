@@ -1,7 +1,6 @@
 #ifndef PEER_SESSION_PEERS_REGISTRY_H
 #define PEER_SESSION_PEERS_REGISTRY_H
 
-#include <chrono>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -9,7 +8,7 @@
 #include "peer/torrent/defaults.h"
 #include "shared/torrent/ipTable/address.h"
 
-namespace torrent::peer {
+namespace peer::torrent {
     // Registry to keep track of peers in our group
     // it has several interesting properties:
     // 1. Can have multiple outstanding requests for the same fragments, but only to different hosts
@@ -18,7 +17,7 @@ namespace torrent::peer {
     // 4. Requests are timestamped. 'Old' requests (see peer/torrent/defaults.h request_stale_after_time)
     //    are deleted when calling [[gc()]], and is pretty slow: registered_fragments*O(log(registered_requests)+num_deleted)
 
-    class Registry {
+    class PeerRegistry {
     protected:
         // One element representing a connection in progress
         struct Element {
@@ -34,8 +33,6 @@ namespace torrent::peer {
         std::unordered_map<std::string, Element> peers;
 
     public:
-        Registry() = default;
-        ~Registry() = default;
 
         // Adds request for given fragment number to given address
         void add(const Address& address, const std::vector<bool> fragments_completed);

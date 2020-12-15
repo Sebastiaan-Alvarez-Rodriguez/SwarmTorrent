@@ -111,7 +111,7 @@ public:
     }
 
     inline void print(std::ostream& stream) const override {
-        stream << "Client target:" << type << ": " << address << ':' << sourcePort;
+        stream << "Client ("<<type<<" type) src 127.0.0.1:"<<sourcePort<<", dst " << address << ':' << destinationPort;
     }
 
 protected:
@@ -196,7 +196,7 @@ public:
     }
 
     inline void print(std::ostream& stream) const override {
-        stream << "Server " << type << ": INADDR_ANY" << ':' << sourcePort;
+        stream << "Server ("<<type<<" type) src 127.0.0.1:"<<sourcePort;
     }
 
 protected:

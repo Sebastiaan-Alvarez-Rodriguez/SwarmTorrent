@@ -16,21 +16,20 @@
 #include "registry/peer/registry.h"
 #include "registry/request/registry.h"
 
-namespace torrent {
+namespace peer::torrent {
     class Session {
     protected:
         const HashTable htable;
         const TorrentMetadata metadata;
-
         FragmentHandler fragmentHandler;
 
         std::shared_ptr<HostConnection> recv_conn;
         Address own_address;
 
-        peer::Registry peer_registry;
-        request::Registry request_registry;
+        peer::torrent::PeerRegistry peer_registry;
+        peer::torrent::RequestRegistry request_registry;
         IPTable ptable; // table containing peers we might join. For joined peers, see [[peer_registry]]
-
+        const IPTable ttable; // table containing trackers, as specified by the TorrentFile
         const size_t num_fragments;
         size_t num_fragments_completed = 0;
         std::vector<bool> fragments_completed;
@@ -49,7 +48,7 @@ namespace torrent {
          * '''Note:''' Ownership of `recv_conn` is passed to this session upon construction.
          *             Connection is closed when the session is deconstructed.
          */
-        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false), rand(std::move(std::random_device())) {}
+        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), ttable(tf.getTrackerTable()), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false), rand(std::move(std::random_device())) {}
 
         inline void mark_fragment(size_t fragment_nr) {
             if (!fragments_completed[fragment_nr]) {
@@ -101,6 +100,7 @@ namespace torrent {
 
         inline const auto& get_peertable() const { return ptable; }
 
+        inline const auto& get_trackertable() const { return ttable; }
 
 
         // Peertable-related forwarding functions //

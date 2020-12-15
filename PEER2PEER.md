@@ -9,8 +9,11 @@ Could this clog the network?
 ## Current communication protocol
 Peer2Peer communication consists of several mechanisms.
 
- 1. Peer joins/leaves other peer
- 2. Peer requests data fragment X
+ 1. Peer joins other peer
+ 2. Peer leaves other peer
+ 3. Peer gets availability info from other peer
+ 4. Peer requests data fragment X
+ 4. Peer inquires whether other peer is alive 
 
 ### Join
 Pattern is simple:

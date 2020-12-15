@@ -9,7 +9,7 @@
 #include "peer/torrent/defaults.h"
 #include "shared/torrent/ipTable/address.h"
 
-namespace torrent::request {
+namespace peer::torrent {
     // Registry to keep track of data requests
     // it has several interesting properties:
     // 1. Can have multiple outstanding requests for the same fragments, but only to different hosts
@@ -17,16 +17,14 @@ namespace torrent::request {
     // 3. Deletion is constant-time for removing all requests for a given fragment number
     // 4. Requests are timestamped. 'Old' requests (see peer/torrent/defaults.h request_stale_after_time)
     //    are deleted when calling [[gc()]], and is pretty slow: registered_fragments*O(log(registered_requests)+num_deleted)
-    class Registry {
+    class RequestRegistry {
     protected:
         class Element;
         std::unordered_map<size_t, std::deque<Element>> requests;
         size_t total_requests = 0;
 
-        bool gc_internal(std::deque<torrent::request::Registry::Element>& elems, const std::chrono::steady_clock::time_point& bound);
+        bool gc_internal(std::deque<Element>& elems, const std::chrono::steady_clock::time_point& bound);
     public:
-        Registry() = default;
-        ~Registry() = default;
 
         // Adds request for given fragment number to given address
         void add(size_t fragment_nr, const Address& address);
@@ -62,7 +60,7 @@ namespace torrent::request {
     };
 
     // One element representing a connection in progress
-    class Registry::Element {
+    class RequestRegistry::Element {
     public:
         size_t fragment_nr;
         Address address;

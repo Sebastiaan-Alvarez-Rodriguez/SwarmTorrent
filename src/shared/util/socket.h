@@ -39,7 +39,7 @@ namespace sock {
      */
     inline bool set_reuse(int fd) {
         int opt = 1;
-        return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*) &opt, sizeof(opt)) >= 0;
+        return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, (char*) &opt, sizeof(opt)) >= 0;
     }
 
     /**

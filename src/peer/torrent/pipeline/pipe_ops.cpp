@@ -17,7 +17,7 @@
 
 #include "pipe_ops.h"
 
-void peer::pipeline::join(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::join(peer::torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     uint16_t req_port;
     std::string hash;
     std::vector<bool> fragments_completed;
@@ -33,7 +33,7 @@ void peer::pipeline::join(torrent::Session& session, const std::unique_ptr<Clien
         return;
     }
 
-    if (session.get_peer_registry().size() > 4 * peer::defaults::torrent::prefered_group_size) {// too many peers
+    if (session.get_peer_registry().size() > 4 * peer::torrent::defaults::prefered_group_size) {// too many peers
         std::cerr << "JOIN request rejected, too many group members already.\n";
         message::standard::send(connection, message::standard::REJECT);
         return;
@@ -49,7 +49,7 @@ void peer::pipeline::join(torrent::Session& session, const std::unique_ptr<Clien
     session.register_peer(connection->get_type(), connection->getAddress(), req_port, fragments_completed);
 }
 
-void peer::pipeline::leave(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::leave(peer::torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     uint16_t req_port;
     std::string hash;
     connections::peer::recv::leave(data, size, hash, req_port);
@@ -60,7 +60,7 @@ void peer::pipeline::leave(torrent::Session& session, const std::unique_ptr<Clie
 }
 
 // Handles DATA_REQs. Closes incoming connection, reads fragment from storage, sends data to registered port for given ip.
-void peer::pipeline::data_req(torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     auto connected_ip = connection->getAddress();
     
     if (!session.has_registered_peer(connected_ip)) { //Data requests from unknown entities produce only ERROR
@@ -112,7 +112,7 @@ void peer::pipeline::data_req(torrent::Session& session, std::unique_ptr<ClientC
     free(diskdata);
 }
 
-void peer::pipeline::data_reply(torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     // 1. Check if in session
     // 2. Maybe (send on other side and) check if content hash equals our content hash?
     // 3. Check if we already own the data
@@ -151,7 +151,7 @@ void peer::pipeline::data_reply(torrent::Session& session, std::unique_ptr<Clien
     session.mark_fragment(fragment_nr);
 }
 
-void peer::pipeline::local_discovery(const torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::local_discovery(const peer::torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     std::string recv_hash;
     if (!connections::shared::recv::discovery_req(data, size, recv_hash))
         return;
@@ -161,7 +161,7 @@ void peer::pipeline::local_discovery(const torrent::Session& session, const std:
     connections::shared::send::discovery_reply(connection, session.get_peertable(), recv_hash, session.get_address());
 }
 
-void peer::pipeline::availability(torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::availability(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     std::cerr << "Got an AVAILABILITY request\n";
     std::string recv_hash;
     std::vector<bool> state;
