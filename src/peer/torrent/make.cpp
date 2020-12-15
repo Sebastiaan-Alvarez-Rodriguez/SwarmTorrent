@@ -34,10 +34,10 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
             continue;
         }
         if (!conn->doConnect()) {
-            std::cerr << "Could not connect to tracker ";conn->print(std::cerr);std::cerr << '\n';
+            std::cerr << print::YELLOW << "[WARN] Could not connect to tracker " << print::CLEAR;conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
-        if (!connections::tracker::send::make_torrent(conn, torrent_hash)) { // TODO: Need timeout here probably
+        if (!connections::tracker::send::make_torrent(conn, torrent_hash)) {
             std::cerr << print::YELLOW << "[WARN] Could not send torrent request for tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
@@ -54,7 +54,6 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
         return false;
     } else if (connected.size() < t_size) {
         std::cerr << print::YELLOW << "[WARN] Could only register at "<< connected.size() << '/' << t_size << " trackers" << print::CLEAR << '\n';
-        //TODO: Maybe should mention which trackers were the failed ones
     } else {
         std::cerr << print::GREEN << "[SUCCESS] Registered torrentfile-in-progress at " << connected.size() << '/' << t_size << " trackers" << print::CLEAR << '\n';
     }

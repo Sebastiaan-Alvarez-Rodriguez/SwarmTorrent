@@ -18,7 +18,7 @@ namespace connections::tracker {
         /**
          * Register this peer at tracker.
          *
-         * '''Note:''' TODO: Soon, only initial peers need to do this.
+         * '''Note:''' Only initial peers need to do this.
          */
         bool register_self(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port);
 

@@ -13,12 +13,11 @@
 #include "shared/torrent/file/io/fragmentHandler.h"
 #include "shared/util/hash/hasher.h"
 #include "shared/util/print.h"
-
+#include "peer/torrent/defaults.h"
 
 #include "pipe_ops.h"
 
 void peer::pipeline::join(torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
-    //TODO: For now always accept join requests. In the future, add reasonable limit on joined peers
     uint16_t req_port;
     std::string hash;
     std::vector<bool> fragments_completed;
@@ -30,6 +29,12 @@ void peer::pipeline::join(torrent::Session& session, const std::unique_ptr<Clien
     std::cerr << "Got a JOIN (hash=" << hash << ", req_port=" << req_port << ")\n";
     if (session.get_metadata().content_hash != hash) { // Torrent mismatch, Reject
         std::cerr << "Above hash mismatched with our own (" << session.get_metadata().content_hash <<"), rejected.\n";
+        message::standard::send(connection, message::standard::REJECT);
+        return;
+    }
+
+    if (session.get_peer_registry().size() > 4 * peer::defaults::torrent::prefered_group_size) {// too many peers
+        std::cerr << "JOIN request rejected, too many group members already.\n";
         message::standard::send(connection, message::standard::REJECT);
         return;
     }
@@ -117,11 +122,9 @@ void peer::pipeline::data_reply(torrent::Session& session, std::unique_ptr<Clien
     // 7. Mark object as completed when finished
     auto connected_ip = connection->getAddress();
 
-    if (!session.has_registered_peer(connected_ip)) { //Reject data replies from unknown entities
-        // TODO: Think a bit about this. Perhaps it is okay to accept data replies from unknowns, as long as their data matches the hash?
-        message::standard::send(connection, message::standard::REJECT);
-        return;
-    }
+    // Note: Even if the address is not from our group, we still process the data.
+    // After all: If the data matches the checksum, why would we not use it?
+
     connection.reset(); // Closes the connection
 
     size_t fragment_nr;

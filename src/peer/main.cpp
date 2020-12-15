@@ -8,12 +8,6 @@
 #include "shared/util/print.h"
 #include "torrent/torrent.h"
 
-// TODO: Maybe construct daemon to simplify testing?
-//       https://www.thegeekstuff.com/2012/02/c-daemon-process/
-// Some daemon library:
-//       https://chaoticlab.io/c/c++/unix/2018/10/01/daemonize.html
-// Problem with daemons: No terminal to print info to... Would need some logging system.
-
 void do_test(int argc, char const ** argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Peer Test", ' ', "0.1");
     TCLAP::ValueArg<std::string> addrArg("a","address","Address of host",false,"127.0.0.1","ADDR", cmd);
