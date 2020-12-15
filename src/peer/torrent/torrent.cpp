@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <vector>
 #include <future>
+#include <chrono>
 
 #include "peer/connection/message/peer/message.h"
 #include "peer/connection/protocol/peer/connections.h"
@@ -395,6 +396,15 @@ static bool requests_receive(torrent::Session* session) {
     return true;
 }
 
+static void call_gc(torrent::Session* session) {
+    while (true) {
+        session->peer_registry_gc();
+        session->request_registry_gc();
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+    } 
+}
+
 bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort, bool force_register) {
     // 0. Prepare and check output location
     // 1. Load trackerlist from tf
@@ -415,14 +425,8 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     session.set_peers(compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort, force_register));
     bool stop = false;
 
-    // Continually send and recv data. TODO:
-    // Best approach might be to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
-    // tutorial: https://solarianprogrammer.com/2012/10/17/cpp-11-async-tutorial/
-    //TODO Reminder: need to call gc of registry (peer) once in a while
-    //TODO Reminder: need to call gc of registry (request) once in a while
-
-    //std::future<int> result( std::async([](Session m, int n) { return n;} , session, 4));
     std::future<bool> result(std::async(requests_receive, &session));
+    std::future<void> gc(std::async(call_gc, &session));
     while (!stop) 
         requests_send(session);
         
