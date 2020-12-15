@@ -336,99 +336,46 @@ static bool requests_send(torrent::Session& session) {
 
 
 // Handle requests we receive
-<<<<<<< HEAD
-static bool requests_receive(torrent::Session* session) {
-    const auto req_conn = session->get_conn();
-    auto connection = req_conn->acceptConnection();
-    message::standard::Header standard;
-    if (!message::standard::recv(connection, standard)) {
-        std::cerr << "Unable to peek. System hangup?" << std::endl;
-        return false;
-    }
-    const bool message_type_peer = standard.formatType == message::peer::id;
-    const bool message_type_standard = standard.formatType == message::standard::id;
-    
-    if (message_type_peer) {
-        uint8_t* const data = (uint8_t*) malloc(standard.size);
-        connection->recvmsg(data, standard.size);
-        message::peer::Header* header = (message::peer::Header*) data;
-        switch (header->tag) {
-            case message::peer::JOIN: peer::pipeline::join(*session, connection, data, standard.size); break;
-            case message::peer::LEAVE: peer::pipeline::leave(*session, connection, data, standard.size); break;
-            case message::peer::DATA_REQ: peer::pipeline::data_req(*session, connection, data, standard.size); break;
-            case message::peer::DATA_REPLY: peer::pipeline::data_reply(*session, connection, data, standard.size); break;
-            case message::peer::INQUIRE: message::standard::send(connection, message::standard::OK); break;
-            default: // We get here when testing or corrupt tag
-                std::cerr << "Received an unimplemented peer tag: " << header->tag << '\n';
-                break;
-        }
-        free(data);
-    } else if (message_type_standard) {
-        uint8_t* const data = (uint8_t*) malloc(standard.size);
-        connection->recvmsg(data, standard.size);
-        switch (standard.tag) {
-            case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(*session, connection, data, standard.size); break;
-            default: // We get here when we receive some other or corrupt tag
-                std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
-                break;
-=======
 static bool requests_receive(torrent::Session* session, bool* stop) {
     while (!*stop) {
         const auto req_conn = session->get_conn();
         auto connection = req_conn->acceptConnection();
-        if (connection == nullptr) {
-            if (req_conn->get_state() == Connection::ERROR) {
-                std::cerr << "Experienced error when checking for inbound communication: ";req_conn->print(std::cerr); std::cerr << '\n';
-            } else {
-                // Connection is not used at this time
-                // TODO: Sleep for a little bit here,
-                // or make connection wait for some timeout instead of non-blocking
-            }
+        message::standard::Header standard;
+        if (!message::standard::recv(connection, standard)) {
+            std::cerr << "Unable to peek. System hangup?" << std::endl;
             continue;
-        } else { // We are dealing with an actual connection
-            // session->mark_peer(connection->getAddress()); // Marks peer as seen. TODO: remove timestamp to hold timestamp for availability request updates?
-
-            message::standard::Header standard;
-            if (!message::standard::recv(connection, standard)) {
-                std::cerr << "Unable to peek. System hangup?" << std::endl;
-                continue;
-            }
-            const bool message_type_peer = standard.formatType == message::peer::id;
-            const bool message_type_standard = standard.formatType == message::standard::id;
-            
-            if (message_type_peer) {
-                uint8_t* const data = (uint8_t*) malloc(standard.size);
-                connection->recvmsg(data, standard.size);
-                message::peer::Header* header = (message::peer::Header*) data;
-                switch (header->tag) {
-                    case message::peer::JOIN: peer::pipeline::join(*session, connection, data, standard.size); break;
-                    case message::peer::LEAVE: peer::pipeline::leave(*session, connection, data, standard.size); break;
-                    case message::peer::DATA_REQ: peer::pipeline::data_req(*session, connection, data, standard.size); break;
-                    case message::peer::DATA_REPLY: peer::pipeline::data_reply(*session, connection, data, standard.size); break;
-                    case message::peer::INQUIRE: message::standard::send(connection, message::standard::OK); break;
-                    default: // We get here when testing or corrupt tag
-                        std::cerr << "Received an unimplemented peer tag: " << header->tag << '\n';
-                        break;
-                }
-                free(data);
-            } else if (message_type_standard) {
-                uint8_t* const data = (uint8_t*) malloc(standard.size);
-                connection->recvmsg(data, standard.size);
-                switch (standard.tag) {
-                    case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(*session, connection, data, standard.size); break;
-                    default: // We get here when we receive some other or corrupt tag
-                        std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
-                        break;
-                }
-            } else {
-                std::cerr << "Received invalid message! Not a Peer-message, nor a standard-message. Skipping..." << std::endl;
-                continue;
-            }
->>>>>>> origin/peer_dev
         }
-    } else {
-        std::cerr << "Received invalid message! Not a Peer-message, nor a standard-message. Skipping..." << std::endl;
-        return false;
+        const bool message_type_peer = standard.formatType == message::peer::id;
+        const bool message_type_standard = standard.formatType == message::standard::id;
+        
+        if (message_type_peer) {
+            uint8_t* const data = (uint8_t*) malloc(standard.size);
+            connection->recvmsg(data, standard.size);
+            message::peer::Header* header = (message::peer::Header*) data;
+            switch (header->tag) {
+                case message::peer::JOIN: peer::pipeline::join(*session, connection, data, standard.size); break;
+                case message::peer::LEAVE: peer::pipeline::leave(*session, connection, data, standard.size); break;
+                case message::peer::DATA_REQ: peer::pipeline::data_req(*session, connection, data, standard.size); break;
+                case message::peer::DATA_REPLY: peer::pipeline::data_reply(*session, connection, data, standard.size); break;
+                case message::peer::INQUIRE: message::standard::send(connection, message::standard::OK); break;
+                default: // We get here when testing or corrupt tag
+                    std::cerr << "Received an unimplemented peer tag: " << header->tag << '\n';
+                    break;
+            }
+            free(data);
+        } else if (message_type_standard) {
+            uint8_t* const data = (uint8_t*) malloc(standard.size);
+            connection->recvmsg(data, standard.size);
+            switch (standard.tag) {
+                case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(*session, connection, data, standard.size); break;
+                default: // We get here when we receive some other or corrupt tag
+                    std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
+                    break;
+            }
+        } else {
+            std::cerr << "Received invalid message! Not a Peer-message, nor a standard-message. Skipping..." << std::endl;
+            continue;
+        }
     }
 
     return true;
@@ -458,21 +405,14 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     TorrentFile tf = TorrentFile::from(torrentfile);
     const IPTable& tracker_table = tf.getTrackerTable();
 
-
     auto session = torrent::Session(tf, TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).create(), workpath);
     session.set_peers(compose_peertable(tf.getMetadata().content_hash, tracker_table, sourcePort, force_register));
     bool stop = false;
     bool receive_stop = false;
     bool gc_stop = false;
 
-<<<<<<< HEAD
-    // Continually send and recv data. TODO:
-    // Best approach might be to use 2 threads (1 for send, 1 for recv). For now, sequential is good enough.
-    // tutorial: https://solarianprogrammer.com/2012/10/17/cpp-11-async-tutorial/
-    std::future<bool> result(std::async(requests_receive, &session));
-=======
+
     std::future<bool> result(std::async(requests_receive, &session, &receive_stop));
->>>>>>> origin/peer_dev
     std::future<void> gc(std::async(call_gc, &session, &gc_stop));
     while (!stop) 
         stop = !requests_send(session);
