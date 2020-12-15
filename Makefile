@@ -57,7 +57,7 @@ tracker: $(TRACKEROBJECTS)
 
 peer: $(PEEROBJECTS)
 	@$(call xoutofy,$(GREEN)Linking $(if $(FAST),fast,debug) $(PEEREXEC))
-	$(CXX) $(if $(FAST),$(CXXFASTFLAGS),$(CXXFLAGS)) $(PEEROBJECTS) -o $(PEEREXEC) $(LIBS) $(LDIRS)
+	$(CXX) $(if $(FAST),$(CXXFASTFLAGS),$(CXXFLAGS)) $(PEEROBJECTS) -o $(PEEREXEC) $(LIBS) $(LDIRS) -pthread
 
 # Compiles regular cpp files
 $(OBJS)/%.o: %.cpp

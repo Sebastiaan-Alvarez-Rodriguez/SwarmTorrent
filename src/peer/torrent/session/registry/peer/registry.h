@@ -23,20 +23,12 @@ namespace torrent::peer {
         // One element representing a connection in progress
         struct Element {
             Address address;
-            std::chrono::steady_clock::time_point timestamp; // The last time we have 'seen' the peer (last time they contacted us, or we contacted them successfully)
             std::vector<bool> data_owned; // Every fragment the peer owns. Updated only once in a while. Data we provide is automatically updated.
+            unsigned inactiveCounter = 0; // Counter to keep track of the unresponsiveness of a peer
 
-            Element(const Address& address, std::chrono::steady_clock::time_point timestamp, const std::vector<bool>& data_owned) : address(address), timestamp(timestamp), data_owned(data_owned) {}
-            Element(const Address& address, const std::vector<bool>& data_owned) : Element(address,std::chrono::steady_clock::now(), data_owned) {}
-            
-            Element(const Address& address, std::chrono::steady_clock::time_point timestamp, size_t num_fragments) : address(address), timestamp(timestamp), data_owned(num_fragments, false) {}
-            Element(const Address& address, size_t num_fragments) : Element(address, std::chrono::steady_clock::now(), num_fragments) {}
-
+            Element(const Address& address, const std::vector<bool>& data_owned) : address(address), data_owned(data_owned) {}
+            Element(const Address& address, size_t num_fragments) : address(address), data_owned(num_fragments, false) {}
             Element() = default;
-
-            bool operator<(const Element& other) const {
-                return this->timestamp < other.timestamp;
-            }
         };
         std::unordered_map<std::string, Element> peers;
 
@@ -61,7 +53,13 @@ namespace torrent::peer {
                 return;
             peers[ip].data_owned = std::move(updated);
         }
+        // Resets the inactiveCounter of the peer
         void mark(const std::string& ip);
+        // Reports the peer as being unresponsive
+        void report(const std::string& ip);
+
+        // Performs a garbage collect to remove unresponsive peers
+        void gc();
 
         inline auto cbegin() const { return peers.cbegin(); }
         inline auto cend() const { return peers.cend(); }

@@ -49,7 +49,7 @@ namespace torrent {
          * '''Note:''' Ownership of `recv_conn` is passed to this session upon construction.
          *             Connection is closed when the session is deconstructed.
          */
-        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false), rand(std::random_device()) {}
+        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false), rand(std::move(std::random_device())) {}
 
         inline void mark_fragment(size_t fragment_nr) {
             if (!fragments_completed[fragment_nr]) {
@@ -137,6 +137,13 @@ namespace torrent {
         }
         inline void mark_registered_peer(const Address& address) {
             peer_registry.mark(address.ip);
+        }
+
+        inline void report_registered_peer(const std::string& ip) {
+            peer_registry.report(ip);
+        }
+        inline void report_registered_peer(const Address& address) {
+            peer_registry.report(address.ip);
         }
 
         inline void register_peer(const Address& address, const std::vector<bool>& fragments_completed) {
