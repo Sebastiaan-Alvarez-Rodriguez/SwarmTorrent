@@ -49,7 +49,7 @@ namespace torrent {
          * '''Note:''' Ownership of `recv_conn` is passed to this session upon construction.
          *             Connection is closed when the session is deconstructed.
          */
-        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false), rand(std::random_device()) {}
+        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false), rand(std::move(std::random_device())) {}
 
         inline void mark_fragment(size_t fragment_nr) {
             if (!fragments_completed[fragment_nr]) {
