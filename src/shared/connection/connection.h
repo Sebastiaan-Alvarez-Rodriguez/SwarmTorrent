@@ -27,7 +27,7 @@
 
 class Connection {
 public:
-    Connection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode, unsigned sendTimeout) : type(type), sourcePort(sourcePort), blockmode(blockmode), reusemode(reusemode), sendTimeout(sendTimeout) {}
+    Connection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout) : type(type), sourcePort(sourcePort), blockmode(blockmode), reusemode(reusemode), sendTimeout(sendTimeout), recvTimeout(recvTimeout) {}
     ~Connection() = default;
 
     /** Returns type of connection we use */
@@ -48,9 +48,13 @@ public:
         return reusemode;
     }
 
-    inline virtual bool getSendTimeout() const {
+    inline virtual unsigned getSendTimeout() const {
         return sendTimeout;
     }
+
+    inline virtual unsigned getRecvTimeout() const {
+        return recvTimeout;
+    } 
 
     enum State {
         DISCONNECTED,
@@ -72,13 +76,15 @@ protected:
     bool blockmode;
     // True means reuse flag set, false means reuse flag not set
     bool reusemode;
-    // Number of microseconds before a timeout, 0 means no timeout 
+    // Number of microseconds before a timeout on sends, 0 means no timeout 
     unsigned sendTimeout;
+    // Number of microseconds before a timeout on receives, 0 means no timeout
+    unsigned recvTimeout;
 };
 
 class ClientConnection : public Connection {
 public:
-    explicit ClientConnection(ConnectionType type, std::string address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode, bool reusemode, unsigned sendTimeout) : Connection(type, sourcePort, blockmode, reusemode, sendTimeout), address(std::move(address)), destinationPort(destinationPort) {}
+    explicit ClientConnection(ConnectionType type, std::string address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout) : Connection(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout), address(std::move(address)), destinationPort(destinationPort) {}
     ~ClientConnection() = default;
 
     class Factory;
@@ -110,7 +116,7 @@ protected:
 
 class HostConnection : public Connection {
 public:
-    explicit HostConnection(ConnectionType type, uint16_t hostPort, bool blockmode, bool reusemode, unsigned sendTimeout) : Connection(type, hostPort, blockmode, reusemode, sendTimeout) {};
+    explicit HostConnection(ConnectionType type, uint16_t hostPort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout) : Connection(type, hostPort, blockmode, reusemode, sendTimeout, recvTimeout) {};
     ~HostConnection() = default;
 
     class Factory;
@@ -179,6 +185,17 @@ public:
         return *this;
     }
 
+    /**
+     * Sets timeout. If 0 (default), there is no timeout.
+     * If > 0, a timeout is set
+     * If a timeout is reached and no data has been transferred, 
+     * then socket calls commonly return `-1` and set errno to `EAGAIN` or `EWOULDBLOCK`
+     */
+    Factory& withRecvTimeout(unsigned recvTimeout) {
+        this->recvTimeout = recvTimeout;
+        return *this;
+    }
+
     virtual std::unique_ptr<ClientConnection> create() const = 0;
 
 protected:
@@ -188,6 +205,7 @@ protected:
     bool blockmode = true;
     bool reusemode = true;
     unsigned sendTimeout = 0;
+    unsigned recvTimeout = 0;
 };
 
 class HostConnection::Factory {
@@ -237,6 +255,17 @@ public:
         return *this;
     }
 
+    /**
+     * Sets timeout. If 0 (default), there is no timeout.
+     * If > 0, a timeout is set
+     * If a timeout is reached and no data has been transferred, 
+     * then socket calls commonly return `-1` and set errno to `EAGAIN` or `EWOULDBLOCK`
+     */
+    Factory& withRecvTimeout(unsigned recvTimeout) {
+        this->recvTimeout = recvTimeout;
+        return *this;
+    }
+
 
     virtual std::unique_ptr<HostConnection> create() const = 0;
 
@@ -246,5 +275,6 @@ protected:
     bool blockmode = true;
     bool reusemode = true;
     unsigned sendTimeout = 0;
+    unsigned recvTimeout = 0;
 };
 #endif

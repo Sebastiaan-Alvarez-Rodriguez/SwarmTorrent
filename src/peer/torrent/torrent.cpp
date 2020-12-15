@@ -322,8 +322,6 @@ static bool requests_send(torrent::Session& session) {
     // 2. while small jointable -> JOIN
     // 3. while large jointable -> LEAVE
     // 4. while #requests < max -> DATA_REQ
-    // TODO: Make implementation for below
-    // 5. while suspected dead peer in peer registry -> INQUIRE
 
     requests_send_local_discovery(session);
 
@@ -339,8 +337,6 @@ static bool requests_send(torrent::Session& session) {
 
 // Handle requests we receive
 static bool requests_receive(torrent::Session* session, bool* stop) {
-    // TODO: Should make this a separate thread
-
     while (!*stop) {
         const auto req_conn = session->get_conn();
         auto connection = req_conn->acceptConnection();
