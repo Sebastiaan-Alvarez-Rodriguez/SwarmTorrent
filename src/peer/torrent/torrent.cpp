@@ -432,7 +432,7 @@ static bool requests_receive(peer::torrent::Session* session, bool* stop) {
         }
         const bool message_type_peer = standard.formatType == message::peer::id;
         const bool message_type_standard = standard.formatType == message::standard::id;
-        
+
         if (message_type_peer) {
             uint8_t* const data = (uint8_t*) malloc(standard.size);
             connection->recvmsg(data, standard.size);

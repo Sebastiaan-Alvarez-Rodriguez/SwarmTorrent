@@ -20,8 +20,8 @@ HashTable HashTable::make_for(const std::string& path) {
         uint64_t size = (i != nr_fragments-1) ? fragment_size : (f_size % fragment_size);
         const uint8_t* data = new uint8_t[size];
         std::ifstream f;
-        f.open(path, std::ios::binary);
-        f.read((char*)data, size);
+        f.open(path, std::ios::in | std::ios::binary);
+        f.read((char*) data, size);
         f.close();
         std::string hash;
         hash::sha256(hash, data, size);

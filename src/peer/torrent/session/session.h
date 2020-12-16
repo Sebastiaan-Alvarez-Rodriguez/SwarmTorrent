@@ -16,6 +16,9 @@
 #include "registry/peer/registry.h"
 #include "registry/request/registry.h"
 
+#include "shared/util/hash/hasher.h"
+#include "shared/util/fs/fs.h"
+
 namespace peer::torrent {
     class Session {
     protected:
@@ -48,7 +51,32 @@ namespace peer::torrent {
          * '''Note:''' Ownership of `recv_conn` is passed to this session upon construction.
          *             Connection is closed when the session is deconstructed.
          */
-        explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), ttable(tf.getTrackerTable()), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false), rand(std::move(std::random_device())) {}
+        inline explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), ttable(tf.getTrackerTable()), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false), rand(std::move(std::random_device())) {
+            // TODO: Need better system to check if 
+            if (fs::is_file(workpath+metadata.name)) {
+                std::cerr << "Found correct file in working path. Checking out fragments...\n";
+                // We check if the hash is correct for each fragment of the file.
+                // For all matches, we set the corresponding completed-bit to true
+                for (size_t x = 0; x < fragments_completed.size(); ++x) {
+                    uint8_t* data;
+                    unsigned size;
+                    if (fragmentHandler.read(x, data, size)) {
+                        if (*(char*)data != 'A') {
+                            throw std::runtime_error("Data is not correct: "+*(int*)data);
+                        }
+                        std::string fragment_hash;
+                        hash::sha256(fragment_hash, data, size);
+                        if (!htable.check_hash(x, fragment_hash)) {// Hash mismatch, wrong data
+                            std::cerr << "There was a hash mismatch for fragment " << x << " (first char=" << *(char*)data << ")\n";
+                            throw std::runtime_error("hash mismatch: ");
+                            continue;
+                        } else {
+                            fragments_completed[x] = true;       
+                        }
+                    }
+                }
+            }
+        }
 
         inline void mark_fragment(size_t fragment_nr) {
             if (!fragments_completed[fragment_nr]) {

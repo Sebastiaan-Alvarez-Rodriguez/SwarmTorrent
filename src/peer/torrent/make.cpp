@@ -8,6 +8,14 @@
 #include "torrent.h"
 
 bool torrent::make(const std::string& in, const std::string& out, std::vector<std::string>& trackers) {
+    if (!fs::is_file(in)) {
+        std::cerr << print::RED << "[ERROR] No file found at '" << in << '\'' << print::CLEAR << '\n';
+        return false;
+    }
+    if (fs::file_size(in) == 0) {
+        std::cerr << print::RED << "[ERROR] File '" << in << "' is empty!" << print::CLEAR << '\n';
+        return false;
+    }
     auto t_size = trackers.size();
     if (t_size == 0) {
         std::cerr << print::RED << "[ERROR] Cannot make torrentfile without any trackers given" << print::CLEAR << '\n';

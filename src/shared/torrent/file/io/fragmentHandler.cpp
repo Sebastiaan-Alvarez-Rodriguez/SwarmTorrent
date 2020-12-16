@@ -1,4 +1,5 @@
 #include <fstream>
+#include <iostream>
 
 #include "shared/util/hash/hasher.h"
 #include "fragmentHandler.h"
@@ -10,11 +11,7 @@ FragmentHandler::~FragmentHandler() {
         read_head.close(); 
 }
 
-inline bool FragmentHandler::read(unsigned index, uint8_t* data, unsigned& data_size) {
-    return read_with_leading(index, data, data_size, 0);
-}
-
-bool FragmentHandler::read_with_leading(unsigned index, uint8_t* data, unsigned& data_size, unsigned leading_size) {
+bool FragmentHandler::read_with_leading(unsigned index, uint8_t*& data, unsigned& data_size, unsigned leading_size) {
     if (!read_head.is_open())
         return false;
 
@@ -27,12 +24,12 @@ bool FragmentHandler::read_with_leading(unsigned index, uint8_t* data, unsigned&
     uint8_t* const ptr = data + leading_size;
 
     //displacement with respect to previous read
-    const unsigned displ = (index*frag_size) - prev_read_index; 
+    const int64_t displ = (index*frag_size) - prev_read_index; 
     prev_read_index = index*frag_size;
-
     read_head.seekg(displ, std::ios_base::cur);
-    read_head.read((char*)ptr, data_size);
+    read_head.read((char*) ptr, data_size);
 
+    std::cerr << "Read "<<data_size<<" bytes at location " << index*frag_size << " (displ="<<displ<<"). State "<<read_head.is_open()<<"\n";
     return true;
 }
 

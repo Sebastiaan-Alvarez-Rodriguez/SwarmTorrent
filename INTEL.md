@@ -1,7 +1,7 @@
 # Intel
 To quickly construct a 96MB testfile: 
 ```bash
-python3 -c 'print("A"*100000000)' > test/data/a.out
+python3 -c 'print("A"*100000000)' > test/dl_src/a.out
 ```
 
 Launch a tracker:
@@ -11,15 +11,15 @@ Launch a tracker:
 
 Make a torrentfile for the testfile:
 ```bash
-./peer make -i test/data/a.out -o test/tfs/a.tf -t TCP:4:2323:127.0.0.1
+./peer make -i test/dl_src/a.out -o test/tfs/a.tf -t TCP:4:2323:127.0.0.1
 ```
 
 Get a SRC peer to torrent for our testfile:
 ```bash
-./peer torrent -p 2322 -w test/dl/ -f test/tfs/a.tf -r
+./peer torrent -p 2322 -w test/dl_src/ -f test/tfs/a.tf -r
 ```
 
 Get a DST peer to torrent for our testfile:
 ```bash
-./peer torrent -p 2322 -w test/dl_dest/ -f test/tfs/a.tf
+./peer torrent -p 2322 -w test/dl_dst/ -f test/tfs/a.tf
 ```

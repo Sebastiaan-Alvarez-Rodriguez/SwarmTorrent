@@ -85,7 +85,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
     auto& handler = session.get_handler();
     uint8_t* diskdata;
     unsigned data_size;
-    if (!handler.read_with_leading(fragment_nr, (uint8_t*) &diskdata, data_size, sizeof(message::peer::Header)+sizeof(size_t))) {
+    if (!handler.read_with_leading(fragment_nr, diskdata, data_size, sizeof(message::peer::Header)+sizeof(size_t))) {
         std::cerr << "There was a problem reading fragment " << fragment_nr << " from disk\n";
         free(diskdata);
         return;
