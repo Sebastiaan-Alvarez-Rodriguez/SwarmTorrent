@@ -23,7 +23,7 @@ Address Address::from(std::istream& is) {
     return a;
 }
 
-Address Address::from_string(std::string ip) {
+Address Address::from_string(std::string& ip) {
     const unsigned nr_args = 4;
     std::vector<std::string> args(nr_args);
     std::stringstream addr_string(ip);

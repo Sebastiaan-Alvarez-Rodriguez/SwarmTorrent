@@ -33,7 +33,7 @@ bool connections::peer::test(__attribute__ ((unused)) std::unique_ptr<ClientConn
 bool connections::peer::send::join(std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& torrent_hash, const std::vector<bool>& fragments_completed) {
     const size_t bufsize = fragments_completed.size();
 
-    auto datasize = sizeof(uint16_t)+torrent_hash.size()+bufsize;
+    auto datasize = sizeof(uint16_t)+sizeof(size_t)+torrent_hash.size()+bufsize;
     uint8_t* const data = prepare_peer_message(datasize, message::peer::JOIN);
     uint8_t* writer = data + sizeof(message::peer::Header);
 

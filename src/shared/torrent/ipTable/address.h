@@ -28,7 +28,7 @@ struct Address : public Streamable {
     static Address from(std::istream& is);
 
     // Constructs an Address from a string with format: TransportType:NetType:PORT:IP
-    static Address from_string(std::string ip);
+    static Address from_string(std::string& ip);
 
     inline bool operator==(const Address& other) const {
         return this->ip == other.ip && this->port == other.port;

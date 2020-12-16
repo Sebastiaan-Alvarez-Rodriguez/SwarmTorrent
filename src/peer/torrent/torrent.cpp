@@ -273,12 +273,12 @@ static void requests_send_data_req(peer::torrent::Session& session) {
 
         Address address;
         if (containmentvector.size() == 0) { // If nobody owns the fragment we seek, pick a random peer
-            const auto peer_idx = session.rand.generate(0, peer_registry.size());
+            const auto peer_idx = session.rand.generate(0, peer_registry.size()-1);
             auto it = peer_registry.cbegin();
             std::advance(it, peer_idx);
             address = it->first;
         } else { // Randomly pick a peer that owns the fragment we want 
-            const auto peer_idx = session.rand.generate(0, containmentvector.size());
+            const auto peer_idx = session.rand.generate(0, containmentvector.size()-1);
             address = containmentvector[peer_idx];
         }
 

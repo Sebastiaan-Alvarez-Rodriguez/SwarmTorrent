@@ -21,6 +21,7 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
         std::cerr << print::RED << "[ERROR] Cannot make torrentfile without any trackers given" << print::CLEAR << '\n';
         return false;
     }
+
     IPTable table = IPTable::from(trackers);
     TorrentFile tf = TorrentFile::make_for(table, in);
     tf.save(out);
