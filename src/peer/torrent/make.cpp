@@ -33,6 +33,7 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
 
 
     IPTable connected;
+    std::cerr << "Notifying " << table.size() << " trackers of new torrentfile...\n";
     for (auto it = table.cbegin(); it != table.cend(); ++it) {
         const auto addr = *it;
 
@@ -50,8 +51,8 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
             continue;
         }
 
-        message::standard::Header h;
-        if (message::standard::recv(conn, h) && h.formatType == message::standard::OK) {
+        const auto& h = message::standard::recv(conn);
+        if (h.tag == message::standard::OK) {
             connected.add(addr);
         } else {
             std::cerr << print::YELLOW << "[WARN] No confirming message received from tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';

@@ -64,11 +64,10 @@ static void handle_discovery(Session* session, bool* stop) {
 
                     connections::shared::send::discovery_req(connection, address.ip);
 
-                    message::standard::Header standard;
-                    if (!message::standard::recv(connection, standard)) {
-                        std::cout << "Unable to peek. System hangup?" << std::endl;
-                        continue;
-                    }
+                    message::standard::Header standard = message::standard::recv(connection);
+                    // std::cout << "Unable to peek. System hangup?" << std::endl;
+                    // continue;
+                
 
                     if (standard.formatType != message::tracker::id) {
                         std::cerr << "Received invalid message! Not a Tracker-message. Skipping..." << std::endl;
@@ -94,7 +93,7 @@ static void handle_discovery(Session* session, bool* stop) {
 }
 
 static void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
-    std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
+    std::string hash((char*) msg+message::tracker::bytesize(), bufsize-message::tracker::bytesize());
     std::cout << "Got a Make Torrent request (hash=" << hash << ")" << std::endl;
 
     IPTable table;
@@ -106,7 +105,7 @@ static void handle_make_torrent(Session& session, std::unique_ptr<ClientConnecti
 }
 
 static void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
-    std::string hash((char*)msg+sizeof(message::tracker::Header), (bufsize-sizeof(message::tracker::Header)));
+    std::string hash((char*) msg+message::tracker::bytesize(), bufsize-message::tracker::bytesize());
     std::cout << "Got a Receive request (hash=" << hash << ")" << std::endl;
 
     IPTable table;
@@ -147,8 +146,8 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
 }
 
 static void handle_register(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
-    uint16_t port_to_register = *(uint16_t*)(msg+sizeof(message::tracker::Header));
-    std::string hash((char*)msg+sizeof(uint16_t)+sizeof(message::tracker::Header), (bufsize-sizeof(uint16_t)-sizeof(message::tracker::Header)));
+    std::string hash((char*) msg+message::tracker::bytesize(), bufsize-message::tracker::bytesize()-sizeof(uint16_t));
+    uint16_t port_to_register = *(uint16_t*)(msg+message::tracker::bytesize());
     std::cout << "Got a Register request (hash=" << hash << ", port="<< port_to_register<<")" << std::endl;
     
     IPTable table;
@@ -183,12 +182,9 @@ static bool run(uint16_t port) {
         auto client_conn = conn->acceptConnection();
         std::cout << "ClientConnection accepted with address " << client_conn->getAddress() << ':' << client_conn->getDestinationPort() << std::endl;
 
-        message::standard::Header standard;
-        
-        if (!message::standard::recv(client_conn, standard)) {
-            std::cout << "Unable to peek. System hangup?" << std::endl;
-            continue;
-        }
+        message::standard::Header standard = message::standard::recv(client_conn);
+        // std::cout << "Unable to peek. System hangup?" << std::endl;
+        // continue;
 
         if (standard.formatType != message::tracker::id) {
             std::cerr << "Received invalid message! Not a Tracker-message. Skipping..." << std::endl;
@@ -196,8 +192,8 @@ static bool run(uint16_t port) {
         }
         uint8_t* ptr = (uint8_t*) malloc(standard.size);
         client_conn->recvmsg(ptr, standard.size);
-        message::tracker::Header* header = (message::tracker::Header*) ptr;
-        switch (header->tag) {
+        const auto& header = message::tracker::Header::read(ptr);
+        switch (header.tag) {
             case message::tracker::TEST:
                 std::cout << "Got a test message" << std::endl;
                 message::standard::send(client_conn, message::standard::OK);
@@ -205,7 +201,7 @@ static bool run(uint16_t port) {
             case message::tracker::MAKE_TORRENT: handle_make_torrent(session, client_conn, ptr, standard.size); break;
             case message::tracker::RECEIVE: handle_receive(session, client_conn, ptr, standard.size); break;
             case message::tracker::REGISTER: handle_register(session, client_conn, ptr, standard.size); break;
-            default: std::cout << "Got unknown header tag: " << (uint16_t) header->tag << std::endl; break;
+            default: std::cout << "Got unknown header tag: " << (uint16_t) header.tag << std::endl; break;
         }
     }
     return 0;

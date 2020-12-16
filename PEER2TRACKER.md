@@ -21,7 +21,7 @@ This makes them directly visible to peers requesting the peer table of that trac
 
 Note: You should only issue registrations if you are the 'initial' peer, the only one having the data.
 
- 1. Peers sends a [TrackerMessage](/src/shared/connection/message/tracker/message.h) containing tag `REGISTER`, with in the body a hash for a torrentfile and a port `x` to register.
+ 1. Peers sends a [TrackerMessage](/src/shared/connection/message/tracker/message.h) containing tag `REGISTER`, with in the body a hash for a torrentfile, followed by port `x` to register.
  2. Tracker replies with `OK` on successful registration. It sends `ERROR` if no such torrentfile hash is found.
 
 

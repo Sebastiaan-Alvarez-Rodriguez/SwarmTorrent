@@ -34,12 +34,8 @@ static bool send_register(ConnectionType type, std::string address, uint16_t por
     }
     std::cerr << "torrent.cpp: registering source port " << sourcePort << '\n';
     connections::tracker::send::register_self(tracker_conn, hash, sourcePort);
-    message::standard::Header header;
-    if (!message::standard::recv(tracker_conn, header)) {
-        std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from tracker: " << print::CLEAR; tracker_conn->print(std::cerr);std::cerr << '\n';
-        return false;
-    }
-    return header.formatType == message::standard::OK;
+    const auto& header = message::standard::recv(tracker_conn);
+    return header.tag == message::standard::OK;
 }
 
 // Given a number of tracker servers, constructs a table with all peers these trackers know about
@@ -126,11 +122,10 @@ static void requests_send_local_discovery(peer::torrent::Session& session) {
             continue;
         }
 
-        message::standard::Header standard;
-        if (!message::standard::recv(connection, standard)) {
-            std::cout << "Unable to peek. System hangup?" << std::endl;
-            continue;
-        }
+        message::standard::Header standard = message::standard::recv(connection);
+        // std::cout << "Unable to peek. System hangup?" << std::endl;
+        // continue;
+
         uint8_t* const data = (uint8_t*) malloc(standard.size);
         connection->recvmsg(data, standard.size);
 
@@ -184,12 +179,10 @@ static void requests_send_join(peer::torrent::Session& session) {
             std::cerr << print::YELLOW << "[WARN] Could not send send_exchange request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
-        message::standard::Header header;
-        if (!message::standard::recv(conn, header)) {
-            std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
-            continue;
-        }
-        if (header.formatType == message::standard::OK) {
+        message::standard::Header header = message::standard::recv(conn);
+        // std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+        // continue;
+        if (header.tag == message::standard::OK) {
             std::cerr << print::CYAN << "[TEST] We got an OK for our send_exchange request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             std::string recv_hash;
             std::vector<bool> remote_available;
@@ -200,10 +193,10 @@ static void requests_send_join(peer::torrent::Session& session) {
             connections::peer::recv::join_reply(data, header.size, recv_hash, remote_available);
             free(data);
             session.register_peer({conn->get_type(), address.ip, address.port}, remote_available);
-        } else if (header.formatType == message::standard::REJECT) {
+        } else if (header.tag == message::standard::REJECT) {
             std::cerr << print::CYAN << "[TEST] We got a REJECT for our send_exchange request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         } else {
-            std::cerr <<print::YELLOW << "[WARN] Received non-standard-conforming response ("<<header.formatType<<") from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            std::cerr <<print::YELLOW << "[WARN] Received non-standard-conforming response ("<<header.tag<<") from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         }
     }
 }
@@ -292,11 +285,9 @@ static void requests_send_data_req(peer::torrent::Session& session) {
             continue;
         }
 
-        message::standard::Header standard;
-        if (!message::standard::recv(connection, standard)) {
-            std::cout << "Unable to peek. System hangup?" << std::endl;
-            continue;
-        }
+        message::standard::Header standard = message::standard::recv(connection);
+        // std::cout << "Unable to peek. System hangup?" << std::endl;
+        // continue;
 
         switch(standard.tag) {
             case message::standard::OK: session.register_request(fragment_nr, address); break; // All is good, message in progress.
@@ -359,12 +350,10 @@ static void requests_send_availability(peer::torrent::Session& session) {
             std::cerr << print::YELLOW << "[WARN] Could not send AVAILABILITY request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
-        message::standard::Header header;
-        if (!message::standard::recv(conn, header)) {
-            std::cerr <<print::YELLOW << "[WARN] Could not receive AVAILABILITY response from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
-            continue;
-        }
-        if (header.formatType == message::standard::OK) {
+        message::standard::Header header = message::standard::recv(conn);
+        // std::cerr <<print::YELLOW << "[WARN] Could not receive AVAILABILITY response from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+        // continue;
+        if (header.tag == message::standard::OK) {
             std::cerr << print::CYAN << "[TEST] We got an OK for our AVAILABILITY request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             uint8_t* const data = (uint8_t*) malloc(header.size);
             conn->recvmsg(data, header.size);
@@ -373,11 +362,11 @@ static void requests_send_availability(peer::torrent::Session& session) {
             connections::peer::recv::availability_reply(data, header.size, remote_available);
             free(data);
             session.update_registered_peer_fragments(address, std::move(remote_available));
-        } else if (header.formatType == message::standard::ERROR) {
+        } else if (header.tag == message::standard::ERROR) {
             std::cerr << print::CYAN << "[TEST] We got a ERROR for our AVAILABILITY request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             session.deregister_peer(address);
         } else {
-            std::cerr <<print::YELLOW << "[WARN] Received non-standard-conforming response ("<<header.formatType<<") (for AVAILABILITY request) from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            std::cerr <<print::YELLOW << "[WARN] Received non-standard-conforming response ("<<header.tag<<") (for AVAILABILITY request) from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         }
     }
 }
@@ -417,11 +406,9 @@ static bool requests_receive(peer::torrent::Session* session, bool* stop) {
     while (!*stop) {
         const auto req_conn = session->get_conn();
         auto connection = req_conn->acceptConnection();
-        message::standard::Header standard;
-        if (!message::standard::recv(connection, standard)) {
-            std::cerr << "Unable to peek. System hangup?" << std::endl;
-            continue;
-        }
+        message::standard::Header standard = message::standard::recv(connection);
+        // std::cerr << "Unable to peek. System hangup?" << std::endl;
+        // continue;
         const bool message_type_peer = standard.formatType == message::peer::id;
         const bool message_type_standard = standard.formatType == message::standard::id;
 

@@ -45,7 +45,7 @@ void do_test(int argc, char const ** argv) {
             Address own_address;
             if (!torrent::make(in, out, trackers))
                 return; 
-            if (!message::standard::recv(tracker_conn, h) && h.formatType == message::standard::OK) {
+            if (message::standard::recv(tracker_conn).tag == message::standard::OK) {
                 std::cerr << print::RED << "[ERROR] Make Torrent failed" << print::CLEAR << '\n';
                 return;
             }
@@ -59,7 +59,7 @@ void do_test(int argc, char const ** argv) {
         default:
             std::cout << "Did not send anything" << std::endl;    
     }
-    if (message::standard::recv(tracker_conn, h) && h.formatType == message::standard::OK) {
+    if (message::standard::recv(tracker_conn).tag == message::standard::OK) {
         std::cout << "Received OK, bye!\n";
     } else {
         std::cout << "Received Nothing, bye!\n";
