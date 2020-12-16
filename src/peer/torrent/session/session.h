@@ -67,7 +67,7 @@ namespace peer::torrent {
                         std::string fragment_hash;
                         hash::sha256(fragment_hash, data, size);
                         if (!htable.check_hash(x, fragment_hash)) {// Hash mismatch, wrong data
-                            std::cerr << "There was a hash mismatch for fragment " << x << " (first char=" << *(char*)data << ")\n";
+                            std::cerr << "There was a hash mismatch for fragment " << x << " (first char=" << *(char*) data << ", size="<<size<<")\n";
                             throw std::runtime_error("hash mismatch: ");
                             continue;
                         } else {

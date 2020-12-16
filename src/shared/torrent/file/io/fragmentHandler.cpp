@@ -1,7 +1,6 @@
+#include <cstring>
 #include <fstream>
-#include <iostream>
 
-#include "shared/util/hash/hasher.h"
 #include "fragmentHandler.h"
 
 FragmentHandler::~FragmentHandler() { 
@@ -25,11 +24,10 @@ bool FragmentHandler::read_with_leading(unsigned index, uint8_t*& data, unsigned
 
     //displacement with respect to previous read
     const int64_t displ = (index*frag_size) - prev_read_index; 
-    prev_read_index = index*frag_size;
+    prev_read_index = index*frag_size + data_size; // After reading, readhead is at end of fragment we just read
     read_head.seekg(displ, std::ios_base::cur);
     read_head.read((char*) ptr, data_size);
 
-    std::cerr << "Read "<<data_size<<" bytes at location " << index*frag_size << " (displ="<<displ<<"). State "<<read_head.is_open()<<"\n";
     return true;
 }
 
@@ -40,7 +38,7 @@ bool FragmentHandler::write(unsigned index, const uint8_t* data, unsigned data_s
 
     //displacement with respect to previous write
     const unsigned displ = (index*fragment_size) - prev_write_index;
-    prev_write_index = index*fragment_size;
+    prev_write_index = index*fragment_size + data_size; // After writing, writehead is at end of fragment we just read
 
     write_head.seekp(displ, std::ios_base::cur);
     write_head.write((char*)data, data_size);

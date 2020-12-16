@@ -15,20 +15,21 @@ HashTable HashTable::make_for(const std::string& path) {
     uint64_t nr_fragments = ((f_size -1) / fragment_size) + 1;
     HashTable hashTable;
 
-    hashTable.hashes.resize(nr_fragments);
+    hashTable.hashes.reserve(nr_fragments);
+    std::ifstream f(path, std::ios::in | std::ios::binary);
     for (uint64_t i = 0; i < nr_fragments; ++i) {
         uint64_t size = (i != nr_fragments-1) ? fragment_size : (f_size % fragment_size);
         const uint8_t* data = new uint8_t[size];
-        std::ifstream f;
-        f.open(path, std::ios::in | std::ios::binary);
         f.read((char*) data, size);
-        f.close();
         std::string hash;
         hash::sha256(hash, data, size);
         delete[] data;
-        if (!hashTable.add_hash(hash))
+        if (!hashTable.add_hash(hash)) {
+            f.close();
             throw std::runtime_error("Creating HashTable failed");
+        }
     }
+    f.close();
     return hashTable;
 }
 
@@ -45,7 +46,7 @@ void HashTable::write_stream(std::ostream& os) const {
     os.write((char*) &amount, sizeof(amount));
     const auto hash_size = hash::size_for(hash_type);
     for (auto hash : hashes)
-        os.write((char*)hash.data(), hash_size);
+        os.write((char*) hash.data(), hash_size);
 }
 
 void HashTable::read_stream(std::istream& is) {
@@ -57,7 +58,7 @@ void HashTable::read_stream(std::istream& is) {
     const auto hash_size = hash::size_for(hash_type);
     for (unsigned i = 0; i < amount; ++i) {
         hashes[i].resize(hash_size);
-        is.read((char*)hashes[i].data(), hash_size);
+        is.read((char*) hashes[i].data(), hash_size);
     }
 }
 
