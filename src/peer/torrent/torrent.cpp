@@ -459,15 +459,6 @@ static bool requests_receive(peer::torrent::Session* session, bool* stop) {
     return true;
 }
 
-static void call_gc(peer::torrent::Session* session, bool* stop) {
-    while (!*stop) {
-        session->peer_registry_gc();
-        session->request_registry_gc();
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(6000));
-    } 
-}
-
 bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort, bool force_register) {
     // 0. Prepare and check output location
     // 1. Load trackerlist from tf
@@ -490,18 +481,27 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     bool receive_stop = false;
     bool gc_stop = false;
 
-    if (!session.download_completed())
-        std::future<void> availability(std::async([&session, &availability_stop]() {
+    std::future<void> availability;
+    if (!session.download_completed()) // Periodically send our availability, and ask for availability of others
+        availability = std::async(std::launch::async, [&session, &availability_stop]() {
             while (!availability_stop && !session.download_completed()) {
                 requests_send_availability(session);
                 std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
             }
-        }));
+        });
     std::future<bool> result(std::async(requests_receive, &session, &receive_stop));
-    std::future<void> gc(std::async(call_gc, &session, &gc_stop));
+    std::future<void> gc(std::async(std::launch::async, [&session, &gc_stop]() {
+        while (!gc_stop) {
+            session.peer_registry_gc();
+            session.request_registry_gc();
+            std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+        } 
+    }));
+    std::cerr << "Start main program loop.\n";
     while (!stop) 
         stop = !requests_send(session);
 
+    availability_stop = true;
     receive_stop = true;
     gc_stop = true;
     return true;
