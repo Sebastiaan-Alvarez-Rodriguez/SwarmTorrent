@@ -21,5 +21,5 @@ Get a SRC peer to torrent for our testfile:
 
 In another separate terminal, get a DST peer to torrent for our testfile:
 ```bash
-./peer torrent -p 2321 -w test/dl_dst/ -f test/tfs/a.tf
+valgrind ./peer torrent -p 2321 -w test/dl_dst/ -f test/tfs/a.tf
 ```
