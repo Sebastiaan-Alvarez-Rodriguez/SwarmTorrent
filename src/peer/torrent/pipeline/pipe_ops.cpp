@@ -24,7 +24,7 @@ void peer::pipeline::join(peer::torrent::Session& session, const std::unique_ptr
     connections::peer::recv::join(data, size, hash, req_port, fragments_completed);
 
     // Register peer as an existing peer
-    session.add_peer(connection->get_type(), connection->getAddress(), req_port);
+    session.add_peer({connection->get_type(), connection->getAddress(), req_port});
 
     std::cerr << "Got a JOIN (hash=" << hash << ", req_port=" << req_port << ")\n";
     if (session.get_metadata().content_hash != hash) { // Torrent mismatch, Reject
@@ -46,7 +46,7 @@ void peer::pipeline::join(peer::torrent::Session& session, const std::unique_ptr
         return;
     }
     // Register peer to our group!
-    session.register_peer(connection->get_type(), connection->getAddress(), req_port, fragments_completed);
+    session.register_peer({connection->get_type(), connection->getAddress(), req_port}, fragments_completed);
 }
 
 void peer::pipeline::leave(peer::torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
@@ -63,12 +63,14 @@ void peer::pipeline::leave(peer::torrent::Session& session, const std::unique_pt
 void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     auto connected_ip = connection->getAddress();
     
-    if (!session.has_registered_peer(connected_ip)) { //Data requests from unknown entities produce only ERROR
+    uint16_t req_port;
+    size_t fragment_nr;
+    connections::peer::recv::data_req(data, size, req_port, fragment_nr);
+    if (!session.has_registered_peer({connected_ip, req_port})) { //Data requests from unknown entities produce only ERROR
         message::standard::send(connection, message::standard::ERROR);
         return;
     }
-    size_t fragment_nr;
-    connections::peer::recv::data_req(data, size, fragment_nr);
+
     if (fragment_nr > session.get_num_fragments()) {
         std::cerr << "Cannot get fragment number " << fragment_nr << ", only " << session.get_num_fragments() << " fragments exist!\n";
         connections::peer::send::data_rej(connection, session.get_fragments_completed());
@@ -92,7 +94,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
     }
 
     Address a;
-    session.get_peertable().get_addr(connected_ip, a);
+    session.get_peertable().get_addr(connected_ip, req_port, a);
     auto target_conn = TCPClientConnection::Factory::from(a.type.n_type).withAddress(a.ip).withDestinationPort(a.port).create();
     if (target_conn->get_state() != ClientConnection::READY) {
         std::cerr << print::YELLOW << "[WARN] Could not initialize connection to peer: " << print::CLEAR; target_conn->print(std::cerr);std::cerr << '\n';
@@ -163,17 +165,20 @@ void peer::pipeline::local_discovery(const peer::torrent::Session& session, cons
 
 void peer::pipeline::availability(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     std::cerr << "Got an AVAILABILITY request\n";
+    uint16_t port;
     std::string recv_hash;
     std::vector<bool> state;
-    if (!session.get_peer_registry().contains(connection->getAddress())) { // If not in group, reject
+    if (!connections::peer::recv::availability(data, size, port, recv_hash, state)) { // If message interpreting failed, just return
+        std::cerr << "Could not interpret data\n";
+        return;
+    }
+
+    if (!session.get_peer_registry().contains({connection->getAddress(), port})) { // If not in group, reject
         std::cerr << "Peer not in registry, rejected.\n";
         message::standard::send(connection, message::standard::REJECT);
         return;
     }
-    if (!connections::peer::recv::availability(data, size, recv_hash, state)) { // If message interpreting failed, just return
-        std::cerr << "Could not interpret data\n";
-        return;
-    }
+
     if (recv_hash != session.get_metadata().content_hash) { // They asked for a hash that we don't use. Just return.
         std::cerr << "Hash mismatched with our own (ours=" << session.get_metadata().content_hash <<", theirs="<<recv_hash<<"), rejected.\n";
         return;

@@ -67,8 +67,10 @@ inline std::ostream& operator<<(std::ostream& stream, const TransportType& t) {
 struct ConnectionType {
     TransportType t_type;
     NetType n_type;
+
     ConnectionType(TransportType t_type, NetType n_type) : t_type(t_type), n_type(n_type) {}
     ConnectionType(TransportType::Type t, NetType::Type n) : t_type(t), n_type(n) {}
+    ConnectionType() = default;
 
     inline bool operator==(const ConnectionType& other) { return this->t_type == other.t_type && this->n_type == other.n_type; }
 

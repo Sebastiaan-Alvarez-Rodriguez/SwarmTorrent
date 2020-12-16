@@ -33,10 +33,9 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
 
     IPTable connected;
     for (auto it = table.cbegin(); it != table.cend(); ++it) {
-        const std::string& ip = it->first;
-        const auto addr = it->second;
+        const auto addr = *it;
 
-        auto conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(ip).withDestinationPort(addr.port).create();
+        auto conn = TCPClientConnection::Factory::from(NetType::IPv4).withAddress(addr.ip).withDestinationPort(addr.port).create();
         if (conn->get_state() != ClientConnection::READY) {
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection to tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
@@ -52,7 +51,7 @@ bool torrent::make(const std::string& in, const std::string& out, std::vector<st
 
         message::standard::Header h;
         if (message::standard::recv(conn, h) && h.formatType == message::standard::OK) {
-            connected.add_ip(addr);
+            connected.add(addr);
         } else {
             std::cerr << print::YELLOW << "[WARN] No confirming message received from tracker: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         }

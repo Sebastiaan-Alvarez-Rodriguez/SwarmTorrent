@@ -20,6 +20,7 @@ namespace peer::torrent {
     class RequestRegistry {
     protected:
         class Element;
+        // a mapping from fragment nr to a deque containing the requests. In the deque, the oldest request is at the front, youngest at the back.
         std::unordered_map<size_t, std::deque<Element>> requests;
         size_t total_requests = 0;
 

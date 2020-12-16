@@ -62,7 +62,7 @@ public:
     // Simple random number generator to use during this session.
     rnd::RandomGenerator<size_t> rand;
 protected:
-    torrent::tracker::Registry registry;
+    tracker::torrent::Registry registry;
 };
 
 #endif

@@ -25,25 +25,23 @@ static void handle_discovery(Session* session, bool* stop) {
     while (!(*stop)) {
         const auto& registry = session->get_registry();
         IPTable peertable;
-        size_t processed = 0;
 
         for (auto it = registry.cbegin(); it != registry.cend(); ++it) {
             const auto& hash = it->first;
             const auto time_diff = std::chrono::steady_clock::now() - it->second.timestamp;
             const auto& table = it->second.table;
             const bool do_discover = 
-                (table.size() < tracker::defaults::torrent::fast_update_size && time_diff > tracker::defaults::torrent::fast_update_time)
-                || (table.size() < tracker::defaults::torrent::medium_update_size && time_diff > tracker::defaults::torrent::medium_update_time)
-                || (table.size() > tracker::defaults::torrent::medium_update_size && time_diff > tracker::defaults::torrent::slow_update_time);
+                (table.size() < tracker::torrent::defaults::fast_update_size && time_diff > tracker::torrent::defaults::fast_update_time)
+                || (table.size() < tracker::torrent::defaults::medium_update_size && time_diff > tracker::torrent::defaults::medium_update_time)
+                || (table.size() > tracker::torrent::defaults::medium_update_size && time_diff > tracker::torrent::defaults::slow_update_time);
             if (do_discover) {
                 // 1. Pick a number of peers to discover from
                 // 2. Send discovery requests
                 // 3. Receive discovery requests, set new table
 
-                processed += 1;
 
-                const auto num_peers = std::min(table.size() < tracker::defaults::torrent::fast_update_size ? tracker::defaults::torrent::fast_update_pool_size :
-                    (table.size() < tracker::defaults::torrent::medium_update_size ? tracker::defaults::torrent::medium_update_pool_size : tracker::defaults::torrent::slow_update_pool_size), table.size());
+                const auto num_peers = std::min(table.size() < tracker::torrent::defaults::fast_update_size ? tracker::torrent::defaults::fast_update_pool_size :
+                    (table.size() < tracker::torrent::defaults::medium_update_size ? tracker::torrent::defaults::medium_update_pool_size : tracker::torrent::defaults::slow_update_pool_size), table.size());
 
                 std::set<size_t> used_peers;
                 if (num_peers == table.size())
@@ -56,8 +54,14 @@ static void handle_discovery(Session* session, bool* stop) {
                 for (const auto x : used_peers) {
                     auto table_it = it->second.table.cbegin();
                     std::advance(table_it, x);
-                    const auto address = table_it->second;
+                    const auto address = *table_it;
                     auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
+
+                    if (!connection->doConnect()) {
+                        std::cerr << print::RED << "[ERROR] Could not connect to remote peer!" << print::CLEAR << std::endl;
+                        continue;
+                    }
+
                     connections::shared::send::discovery_req(connection, address.ip);
 
                     message::standard::Header standard;
@@ -85,8 +89,7 @@ static void handle_discovery(Session* session, bool* stop) {
                 session->set_table(hash, std::move(peertable));
             }
         }
-        if (processed < 6)
-            std::this_thread::sleep_for(std::chrono::milliseconds(6000-processed*1000));
+        std::this_thread::sleep_for(tracker::torrent::defaults::discovery_tick_time);
     }
 }
 
@@ -128,7 +131,7 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
 
     //Writing table
     for (auto it = table.cbegin(); it != table.cend(); ++it)
-        writer = it->second.write_buffer(writer);
+        writer = it->write_buffer(writer);
 
     if (!client_conn->sendmsg(table_buffer, msg_size)) {
         std::cerr << "Had problems sending table back to peer "; client_conn->print(std::cerr); std::cerr << '\n';
@@ -138,7 +141,7 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
 
     std::cerr << "Sent table containing " << table.size() << " entries:\n";
     for (auto it = table.cbegin(); it != table.cend(); ++it) {
-        std::cerr << it->second.ip << ':' << it->second.port << '\n';
+        std::cerr << it->ip << ':' << it->port << '\n';
     }
     free(table_buffer);
 }

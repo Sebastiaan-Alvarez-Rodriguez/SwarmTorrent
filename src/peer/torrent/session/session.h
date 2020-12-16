@@ -33,6 +33,7 @@ namespace peer::torrent {
         peer::torrent::RequestRegistry request_registry;
         IPTable ptable; // table containing peers we might join. For joined peers, see [[peer_registry]]
         const IPTable ttable; // table containing trackers, as specified by the TorrentFile
+
         const size_t num_fragments;
         size_t num_fragments_completed = 0;
         std::vector<bool> fragments_completed;
@@ -52,29 +53,25 @@ namespace peer::torrent {
          *             Connection is closed when the session is deconstructed.
          */
         inline explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), ttable(tf.getTrackerTable()), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false), rand(std::move(std::random_device())) {
-            // TODO: Need better system to check if 
             if (fs::is_file(workpath+metadata.name)) {
                 std::cerr << "Found correct file in working path. Checking out fragments...\n";
                 // We check if the hash is correct for each fragment of the file.
                 // For all matches, we set the corresponding completed-bit to true
-                for (size_t x = 0; x < fragments_completed.size(); ++x) {
+                for (size_t x = 0; x < num_fragments; ++x) {
                     uint8_t* data;
                     unsigned size;
                     if (fragmentHandler.read(x, data, size)) {
-                        if (*(char*)data != 'A') {
-                            throw std::runtime_error("Data is not correct: "+*(int*)data);
-                        }
                         std::string fragment_hash;
                         hash::sha256(fragment_hash, data, size);
                         if (!htable.check_hash(x, fragment_hash)) {// Hash mismatch, wrong data
-                            std::cerr << "There was a hash mismatch for fragment " << x << " (first char=" << *(char*) data << ", size="<<size<<")\n";
-                            throw std::runtime_error("hash mismatch: ");
                             continue;
                         } else {
-                            fragments_completed[x] = true;       
+                            fragments_completed[x] = true; 
+                            ++num_fragments_completed;      
                         }
                     }
                 }
+                std::cerr << "Reading complete. " << num_fragments_completed << '/' << num_fragments << " OK." << (num_fragments_completed == num_fragments ? " Download completed.\n" : "\n");
             }
         }
 
@@ -133,8 +130,7 @@ namespace peer::torrent {
 
         // Peertable-related forwarding functions //
 
-        inline bool add_peer(const Address& a) { return ptable.add_ip(a); }
-        inline bool add_peer(ConnectionType type, const std::string& ip, uint16_t port) { return ptable.add_ip(type, ip, port); }  
+        inline bool add_peer(const Address& a) { return ptable.add(a); }
         inline void add_peers(const IPTable& peertable) {ptable.merge(peertable); }
 
         inline void set_peers(IPTable&& peertable) { ptable = std::move(peertable); }
@@ -142,16 +138,13 @@ namespace peer::torrent {
         // We should only call this if we found that a certain peer is dead
         inline bool remove_peer(const std::string& ip, uint16_t port) {
             Address a;
-            if (!ptable.get_addr(ip, a))
-                return false;
-            if (a.ip == ip && a.port == port) {// Only remove peer if both ip and port match
-                ptable.remove_ip(ip);
-                return true;
-            }
-            return false;
+            if (!ptable.get_addr(ip, port, a))
+                return false;    
+            ptable.remove(a);
+            return true;
         }
-        inline bool has_peer(const std::string& ip) {
-            return ptable.contains(ip);
+        inline bool has_peer(const Address& address) {
+            return ptable.contains(address);
         }
 
         inline size_t peers_amount() { return ptable.size(); }
@@ -160,37 +153,31 @@ namespace peer::torrent {
 
         // Peer Registry-related forwarding functions //
 
-        inline void mark_registered_peer(const std::string& ip) {
-            peer_registry.mark(ip);
-        }
         inline void mark_registered_peer(const Address& address) {
-            peer_registry.mark(address.ip);
+            peer_registry.mark(address);
         }
 
-        inline void report_registered_peer(const std::string& ip) {
-            peer_registry.report(ip);
-        }
         inline void report_registered_peer(const Address& address) {
-            peer_registry.report(address.ip);
+            peer_registry.report(address);
         }
 
+        inline void register_peer(Address&& address, const std::vector<bool>& fragments_completed) {
+            peer_registry.add(address, fragments_completed);
+        }
         inline void register_peer(const Address& address, const std::vector<bool>& fragments_completed) {
             peer_registry.add(address, fragments_completed);
         }
-        inline void register_peer(ConnectionType type, const std::string ip, uint16_t port, const std::vector<bool>& fragments_completed) {
-            register_peer(Address(type, ip, port), fragments_completed);
+
+        inline void deregister_peer(const Address& address) {
+            peer_registry.remove(address);
         }
 
-        inline void deregister_peer(const std::string& ip) {
-            peer_registry.remove(ip);
+        inline bool has_registered_peer(const Address& address) {
+            return peer_registry.contains(address);
         }
 
-        inline bool has_registered_peer(const std::string& ip) {
-            return peer_registry.contains(ip);
-        }
-
-        inline void update_registered_peer_fragments(const std::string& ip, std::vector<bool>&& fragments_completed) {
-            peer_registry.update_peer_fragments(ip, std::move(fragments_completed));
+        inline void update_registered_peer_fragments(const Address& address, std::vector<bool>&& fragments_completed) {
+            peer_registry.update_peer_fragments(address, std::move(fragments_completed));
         }
 
         inline void peer_registry_gc() {

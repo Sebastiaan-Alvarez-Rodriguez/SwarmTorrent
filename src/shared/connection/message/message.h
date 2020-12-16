@@ -24,14 +24,16 @@ namespace message::standard {
     inline Header from(size_t datasize, Tag t) {
         Header h; 
         h.size = datasize + sizeof(Header);
-        h.formatType = t;
+        h.formatType = id;
+        h.tag = t;
         return h;
     }
 
     inline Header from_r(size_t size, Tag t) {
         Header h;
         h.size = size;
-        h.formatType = t;
+        h.formatType = id;
+        h.tag = t;
         return h;
     }
 

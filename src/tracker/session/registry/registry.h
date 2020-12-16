@@ -9,7 +9,7 @@
 #include "shared/torrent/ipTable/ipTable.h"
 #include "shared/torrent/ipTable/address.h"
 
-namespace torrent::tracker {
+namespace tracker::torrent {
     class Registry {
     public:
         Registry() = default;
@@ -56,6 +56,7 @@ namespace torrent::tracker {
             std::chrono::steady_clock::time_point timestamp; // The last time we have updated this table (useful for updating)
             IPTable table;
         };
+        // Mapping from torrent hash to peertable
         std::unordered_map<std::string, Element> peertables;
     };
 }

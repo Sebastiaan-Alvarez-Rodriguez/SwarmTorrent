@@ -40,7 +40,7 @@ bool connections::shared::send::discovery_reply(const std::unique_ptr<ClientConn
 
     // Write table
     for (auto it = table.cbegin(); it != table.cend(); ++it)
-        writer = it->second.write_buffer(writer);
+        writer = it->write_buffer(writer);
 
     if (!connection->sendmsg(table_buffer, sizeof(message::standard::Header)+table_size)) {
         std::cerr << "Problem sending peertable to: "; connection->print(std::cerr); std::cerr << '\n';
@@ -49,7 +49,7 @@ bool connections::shared::send::discovery_reply(const std::unique_ptr<ClientConn
     }
     std::cerr << "Sent table containing " << table.size() << " entries:\n";
     for (auto it = table.cbegin(); it != table.cend(); ++it) {
-        std::cerr << it->second.ip << ':' << it->second.port << '\n';
+        std::cerr << it->ip << ':' << it->port << '\n';
     }
     free(table_buffer);
     return true;
@@ -78,7 +78,7 @@ bool connections::shared::recv::discovery_reply(const uint8_t* const data, size_
     for (size_t x = 0; x < amount; ++x) {
         Address a;
         ptr = a.read_buffer(ptr);
-        if (!peertable.add_ip(a))
+        if (!peertable.add(a))
             return false;
     }
     return true;

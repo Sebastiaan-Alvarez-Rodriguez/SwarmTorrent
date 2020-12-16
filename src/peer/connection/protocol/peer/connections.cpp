@@ -103,11 +103,15 @@ bool connections::peer::send::leave(std::unique_ptr<ClientConnection>& connectio
     return val;
 }
 
-bool connections::peer::send::data_req(std::unique_ptr<ClientConnection>& connection, size_t fragment_nr) {
-    auto datasize = sizeof(size_t);
+bool connections::peer::send::data_req(std::unique_ptr<ClientConnection>& connection, uint16_t port, size_t fragment_nr) {
+    const auto datasize = sizeof(uint16_t) + sizeof(size_t);
     uint8_t* const data = prepare_peer_message(datasize, message::peer::DATA_REQ);
-    uint8_t* const ptr = data + sizeof(message::peer::Header);
-    *((size_t*) ptr) = fragment_nr;
+    uint8_t* writer = data + sizeof(message::peer::Header);
+
+    *((uint16_t*) writer) = port;
+    writer += sizeof(uint16_t);
+
+    *((size_t*) writer) = fragment_nr;
     bool val = connection->sendmsg(data, sizeof(message::peer::Header)+datasize);
     free(data);
     return val;
@@ -146,16 +150,21 @@ bool connections::peer::send::inquire(const std::unique_ptr<ClientConnection>& c
 
 // Message:
 // Peer message header (tag=AVAILABILITY)
+// registered port (uint16_t)
 // size of hash (size_t)
 // hash (string)
 // fragment vector (raw bool array, byte-aligned)
-bool connections::peer::send::availability(const std::unique_ptr<ClientConnection>& connection, const std::string& hash, const std::vector<bool>& fragments_completed) {
-    const size_t bufsize = sizeof(size_t) + hash.size() + fragments_completed.size();
+bool connections::peer::send::availability(const std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& hash, const std::vector<bool>& fragments_completed) {
+    const size_t bufsize = sizeof(uint16_t) + sizeof(size_t) + hash.size() + fragments_completed.size();
     uint8_t* const buf = prepare_peer_message(bufsize, message::peer::AVAILABILITY);
     uint8_t* writer = buf;
 
     // Peer message header
     writer += sizeof(message::standard::Header);
+
+    // registered port
+    *(uint16_t*) writer = port;
+    writer += sizeof(uint16_t);
 
     // Size of hash
     *(size_t*) writer = hash.size();
@@ -266,10 +275,15 @@ bool connections::peer::recv::leave(const uint8_t* const data, size_t size, std:
     return true;
 }
 
-bool connections::peer::recv::data_req(const uint8_t* const data, size_t size, size_t& fragment_nr) {
+bool connections::peer::recv::data_req(const uint8_t* const data, size_t size, uint16_t& port, size_t& fragment_nr) {
     if (size != sizeof(message::peer::Header) + sizeof(size_t))
         return false;
-    fragment_nr = *(size_t*) (data+sizeof(message::peer::Header));
+    const uint8_t* reader = data+sizeof(message::peer::Header);
+
+    port = *(uint16_t*) reader;
+    reader += sizeof(uint16_t);
+
+    fragment_nr = *(size_t*) reader;
     return true;
 }
 
@@ -283,11 +297,17 @@ bool connections::peer::recv::data_reply(const uint8_t* const data, size_t size,
 
 // Message:
 // Peer message header (tag=AVAILABILITY)
+// registered port (uint16_t)
 // size of hash (size_t)
 // hash (string)
 // fragment vector (raw bool array, byte-aligned)
-bool connections::peer::recv::availability(const uint8_t* const data, size_t size, std::string& hash, std::vector<bool>& fragments_completed) {
+bool connections::peer::recv::availability(const uint8_t* const data, size_t size, uint16_t& port, std::string& hash, std::vector<bool>& fragments_completed) {
     const uint8_t* reader = data+sizeof(message::peer::Header);
+
+    // registered port
+    port = *(uint16_t*) reader;
+    reader += sizeof(uint16_t);
+
     
     // Size of hash
     size_t hash_size = *(size_t*) reader;

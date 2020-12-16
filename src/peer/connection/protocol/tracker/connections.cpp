@@ -73,13 +73,13 @@ bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& conn
     for (size_t x = 0; x < amount; ++x) {
         Address a;
         reader = a.read_buffer(reader);
-        if (!peertable.add_ip(a)) {
+        if (!peertable.add(a)) {
             return false;
             free(data);
         }
     }
     free(data);
 
-    peertable.remove_ip(own_address);
+    peertable.remove(own_address);
     return true;
 }

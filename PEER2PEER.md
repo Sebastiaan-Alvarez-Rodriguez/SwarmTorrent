@@ -36,15 +36,15 @@ If communication fails, and the `LEAVE` from `A` does not reach `B`, then `A` st
 
 ### Availability
 The goal is to get the number of obtained fragments for a given hash from a peer.
- 1. Peer `A` sends a [PeerMessage](/src/peer/connection/message/peer/message.h) containing tag `AVAILABILITY`, with the size of the hash, and the hash for the torrentfile in the message body. After that comes a vector of booleans (as bytes, unpacked). True at index `i` means that fragment number `i` is available on `A`. False means that `i` is not available in `A`.
+ 1. Peer `A` sends a [PeerMessage](/src/peer/connection/message/peer/message.h) containing tag `AVAILABILITY`, with registered port `p`, the size of the hash, and the hash for the torrentfile in the message body. After that comes a vector of booleans (as bytes, unpacked). True at index `i` means that fragment number `i` is available on `A`. False means that `i` is not available in `A`.
  2. Peer `B` replies with either `OK` or `REJECT`, if `A` is not in the group of `B`.
  When `OK`, the body contains another boolean array, containing truth values for available fragments in `B`.
 
 ### Requests for data
- 1. Peer `A` sends a [PeerMessage](/src/peer/connection/message/peer/message.h) containing tag `DATA_REQ`, with the fragment number `x` in the body.
+ 1. Peer `A` sends a [PeerMessage](/src/peer/connection/message/peer/message.h) containing tag `DATA_REQ`, with registered port `p` and the fragment number `x` in the body.
  2. Peer `B` receives, checks validity of the request, and returns a [standard message](/src/shared/connection/message/message.h) containing `OK` on success, `REJECT` when this fragment is unavailable, and `ERROR` if `A` is not in the group of `B` (e.g. did not follow join-procedures).
 
- When `OK`, the body is empty. `B` will read the requested fragment, and send **another** message with tag `DATA_REPLY` to `A`'s registered port, containing requested fragment number `x`, followed by the data of `x`.
+ When `OK`, the body is empty. `B` will read the requested fragment, and send **another** message with tag `DATA_REPLY` to `A`'s registered port `p`, containing requested fragment number `x`, followed by the data of `x`.
  When `REJECT`, the body contains a boolean vector (byte-wise, unpacked), where `true` values represent fragments that are present in `B`, and `false` represents fragment not (yet) present in `B`.
  When `ERROR`, the body is empty.
 

@@ -21,43 +21,51 @@ namespace peer::torrent {
     protected:
         // One element representing a connection in progress
         struct Element {
-            Address address;
             std::vector<bool> data_owned; // Every fragment the peer owns. Updated only once in a while. Data we provide is automatically updated.
             unsigned inactiveCounter = 0; // Counter to keep track of the unresponsiveness of a peer
 
-            Element(const Address& address, const std::vector<bool>& data_owned) : address(address), data_owned(data_owned) {}
-            Element(const Address& address, size_t num_fragments) : address(address), data_owned(num_fragments, false) {}
+            Element(const std::vector<bool>& data_owned) : data_owned(data_owned) {}
+            Element(size_t num_fragments) : data_owned(num_fragments, false) {}
             Element() = default;
         };
-        // Mapping from ip to Element
-        std::unordered_map<std::string, Element> peers;
+        // a mapping from address to owned data, inactiveCounter
+        std::unordered_map<Address, Element> peers;
 
     public:
-
         // Adds request for given fragment number to given address
-        void add(const Address& address, const std::vector<bool> fragments_completed);
+        inline void add(Address&& address, std::vector<bool>&& fragments_completed) {
+            peers.insert({std::move(address), std::move(fragments_completed)});
+        }
+        inline void add(Address& address, std::vector<bool>&& fragments_completed) {
+            peers.insert({address, std::move(fragments_completed)});
+        }
+        inline void add(Address&& address, std::vector<bool>& fragments_completed) {
+            peers.insert({std::move(address), fragments_completed});
+        }
+        inline void add(const Address& address, const std::vector<bool>& fragments_completed) {
+            peers.insert({address, peer::torrent::PeerRegistry::Element(fragments_completed)});
+        }
 
         // Returns `true` if given key was found, `false` otherwise
-        inline bool contains(const std::string& ip) const {
-            return peers.find(ip) != peers.end();
+        inline bool contains(const Address& address) const {
+            return peers.find(address) != peers.end();
         }
 
         // Removes all known requests for given fragment number
-        inline void remove(const std::string& ip) { peers.erase(ip); }
-        inline void remove(const Address& address) { remove(address.ip); }
+        inline void remove(const Address& address) { peers.erase(address); }
 
         // Returns vector of addresses which own given fragment (and belong to our group of course)
         std::vector<Address> get_peers_for(size_t fragment_nr) const;
 
-        inline void update_peer_fragments(const std::string& ip, std::vector<bool>&& updated) {
-            if (!contains(ip))
+        inline void update_peer_fragments(const Address& address, std::vector<bool>&& updated) {
+            if (!contains(address))
                 return;
-            peers[ip].data_owned = std::move(updated);
+            peers[address].data_owned = std::move(updated);
         }
         // Resets the inactiveCounter of the peer
-        void mark(const std::string& ip);
+        void mark(const Address& address);
         // Reports the peer as being unresponsive
-        void report(const std::string& ip);
+        void report(const Address& address);
 
         // Performs a garbage collect to remove unresponsive peers
         void gc();

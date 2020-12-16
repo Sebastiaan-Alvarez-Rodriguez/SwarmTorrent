@@ -1,21 +1,21 @@
 #include "registry.h"
 
-void torrent::tracker::Registry::create_table(const std::string& hash) {
+void tracker::torrent::Registry::create_table(const std::string& hash) {
     peertables.insert({hash, {IPTable()}});
 }
 
-bool torrent::tracker::Registry::add_table(const std::string& hash, IPTable&& peertable) {
+bool tracker::torrent::Registry::add_table(const std::string& hash, IPTable&& peertable) {
     return peertables.insert({hash, {peertable}}).second;
 }
 
-bool torrent::tracker::Registry::add_peer(const std::string& hash, const Address& peer, bool exist_ok) {
+bool tracker::torrent::Registry::add_peer(const std::string& hash, const Address& address, bool exist_ok) {
     auto it = peertables.find(hash);
     if (it == peertables.end())
         return false; 
-    return it->second.table.add_ip(peer) || exist_ok;
+    return it->second.table.add(address) || exist_ok;
 }
 
-bool torrent::tracker::Registry::get_table(const std::string& hash, IPTable& peertable) const {
+bool tracker::torrent::Registry::get_table(const std::string& hash, IPTable& peertable) const {
     auto it = peertables.find(hash);
     if (it == peertables.end())
         return false; 
@@ -24,7 +24,7 @@ bool torrent::tracker::Registry::get_table(const std::string& hash, IPTable& pee
     return true;
 }
 
-const auto torrent::tracker::Registry::last_checked(const std::string& hash) const {
+const auto tracker::torrent::Registry::last_checked(const std::string& hash) const {
     auto it = peertables.find(hash);
     if (it == peertables.end())
         throw std::runtime_error("Could not get last_checked for non-existing table hash "+hash);
@@ -32,21 +32,16 @@ const auto torrent::tracker::Registry::last_checked(const std::string& hash) con
 }
 
 
-bool torrent::tracker::Registry::remove_peer(const std::string& hash, const Address& peer) {
-    return remove_peer(hash, peer.ip);
-}
-
-
-bool torrent::tracker::Registry::remove_peer(const std::string& hash, const std::string& peer) {
+bool tracker::torrent::Registry::remove_peer(const std::string& hash, const Address& address) {
     auto it = peertables.find(hash);
     if (it == peertables.end())
         return false; 
 
-    it->second.table.remove_ip(peer);
+    it->second.table.remove(address);
     return true; 
 }
 
-bool torrent::tracker::Registry::remove_table(const std::string& hash) {
+bool tracker::torrent::Registry::remove_table(const std::string& hash) {
     auto it = peertables.find(hash);
     if (it == peertables.end())
         return false; 

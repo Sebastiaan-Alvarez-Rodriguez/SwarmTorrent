@@ -28,7 +28,7 @@ namespace connections::peer {
         bool leave(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port);
 
         // Request peer to send us fragment with given fragment number
-        bool data_req(std::unique_ptr<ClientConnection>& connection, size_t fragment_nr);
+        bool data_req(std::unique_ptr<ClientConnection>& connection, uint16_t port, size_t fragment_nr);
 
         // Reply to peer with a REJECT, and a bool vector of currently owned fragments
         bool data_rej(std::unique_ptr<ClientConnection>& connection, const std::vector<bool>& fragments_completed);
@@ -51,7 +51,7 @@ namespace connections::peer {
         bool inquire(const std::unique_ptr<ClientConnection>& connection);
 
         // Send an AVAILABILITY request to a fellow peer
-        bool availability(const std::unique_ptr<ClientConnection>& connection, const std::string& hash, const std::vector<bool>& fragments_completed);
+        bool availability(const std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& hash, const std::vector<bool>& fragments_completed);
     
         // Reply to an AVAILABILITY request from a fellow peer
         bool availability_reply(const std::unique_ptr<ClientConnection>& connection, const std::vector<bool>& fragments_completed);
@@ -68,13 +68,13 @@ namespace connections::peer {
         bool leave(const uint8_t* const data, size_t size, std::string& hash, uint16_t& port);
 
         // Get arguments for DATA_REQ messages from raw buffer
-        bool data_req(const uint8_t* const data, size_t size, size_t& fragment_nr);
+        bool data_req(const uint8_t* const data, size_t size, uint16_t& port, size_t& fragment_nr);
 
         // Get arguments for DATA_REPLY messages from raw buffer
         bool data_reply(const uint8_t* const data, size_t size, size_t& fragment_nr, uint8_t*& fragment_data);
 
         // Get arguments for AVAILABILITY messages from raw buffer
-        bool availability(const uint8_t* const data, size_t size, std::string& hash, std::vector<bool>& fragments_completed);
+        bool availability(const uint8_t* const data, size_t size, uint16_t& port, std::string& hash, std::vector<bool>& fragments_completed);
 
         // Get arguments for AVAILABILITY messages from raw buffer
         bool availability_reply(const uint8_t* const data, size_t size, std::vector<bool>& fragments_completed);
