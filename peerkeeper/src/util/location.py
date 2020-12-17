@@ -19,6 +19,12 @@ def get_peerkeeper_graphs_dir():
 def get_swarmtorrent_dir():
     return fs.dirname(fs.dirname(fs.abspath()))
 
+def get_swarmtorrent_test_dir():
+    return fs.join(get_swarmtorrent_dir(), 'test')
+
+def get_swarmtorrent_torrentfile_dir():
+    return fs.join(get_swarmtorrent_test_dir(), 'tfs')
+
 
 #################### Remote directories ####################
 def get_remote_swarmtorrent_dir():
@@ -27,8 +33,6 @@ def get_remote_swarmtorrent_dir():
 def get_remote_peerkeeper_dir():
     return fs.join(get_remote_metazoo_parent_dir(), 'peerkeeper')
 
-
 #################### Node directories ####################
-# Because we  will use client logging using plan 2, this should change
-def get_node_log_dir():
+def get_file_dir():
     return '/local/{}/'.format(st.ssh_user_name)

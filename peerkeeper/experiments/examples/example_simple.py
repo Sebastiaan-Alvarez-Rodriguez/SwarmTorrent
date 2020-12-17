@@ -6,8 +6,6 @@ from experiments.interface import ExperimentInterface
 # to use below import statement. This forces in-order printing. 
 from util.printer import *
 
-
-
 def get_experiment():
     '''Pass your defined experiment class in this function so MetaZoo can find it'''
     return ExampleExperiment
@@ -15,80 +13,76 @@ def get_experiment():
 class ExampleExperiment(ExperimentInterface):
     '''
     A most useful experiment.
-    Check <root dir>/metazoo/experiments/example_simple/example.py 
+    Check <root dir>/peerkeeper/experiments/example_simple/example.py 
     for an example implementation.
-    Also, check <root dir>/metazoo/dynamic/metazoo.py
-    to find out how metazoo variables work.
+    Also, check <root dir>/peerkeeper/dynamic/peerkeeper.py
+    to find out how peerkeeper variables work.
     '''
 
-    def num_servers(self):
-        '''Get amount of server nodes to allocate'''
+    def num_trackers(self):
+        '''Get amount of tracker nodes to allocate'''
         return 2
 
-    def num_clients(self):
-        '''get amount of client nodes to allocate'''
+    def num_peers(self):
+        '''get amount of peer nodes to allocate'''
         return 2
 
-    def servers_use_infiniband(self):
-        '''True if servers must communicate with eachother over infiniband, False otherwise'''
+    def trackers_use_infiniband(self):
+        '''True if trackers must communicate with eachother over infiniband, False otherwise'''
         return False
 
-    def clients_use_infiniband(self):
-        '''True if clients must communicate with servers over infinband, False otherwise'''
+    def peers_use_infiniband(self):
+        '''True if peers must communicate with trackers over infinband, False otherwise'''
         return False
 
-    def servers_core_affinity(self):
-        '''Amount of server processes which may be mapped on the same physical node'''
+    def trackers_core_affinity(self):
+        '''Amount of tracker processes which may be mapped on the same physical node'''
         return 1
 
-    def clients_core_affinity(self):
-        '''Amount of client processes which may be mapped on the same physical node'''
+    def peers_core_affinity(self):
+        '''Amount of peer processes which may be mapped on the same physical node'''
         return 1
 
-    def server_periodic_clean(self):
-        '''Period in seconds for servers to clean their crawlspaces. 0 means no cleaning'''
-        return 0
 
-
-    def pre_experiment(self, metazoo):
+    def pre_experiment(self, peerkeeper):
         '''Execution before experiment starts. Executed on the remote once.'''
         print('Hi there! I am executed before the experiment starts!')
         print('According to my data, we will host')
 
-        metazoo.register['a_key'] = 'Hello World'
-        metazoo.register['secret'] = 42
-        if metazoo.gid == None and metazoo.lid == None:
+        peerkeeper.register['a_key'] = 'Hello World'
+        peerkeeper.register['secret'] = 42
+        if peerkeeper.gid == None and peerkeeper.lid == None:
             print('I cannot use gid and lid here yet!')
 
 
-    def get_client_run_command(self, metazoo):
-        '''Get client run command, executed in All client nodes'''
-        return 'while :; do echo "I am a running client"; sleep 20; done'
+    def get_peer_run_command(self, peerkeeper):
+        '''Get peer run command, executed in All peer nodes'''
+        return 'while :; do echo "I am a running peer"; sleep 20; done'
 
 
-    def experiment_client(self, metazoo):
-        '''Execution occuring on ALL client nodes'''
-        print('Hello from client with gid={}. I am told these hosts exist: {}'.format(metazoo.gid, metazoo.hosts))
+    def experiment_peer(self, peerkeeper):
+        '''Execution occuring on ALL peer nodes'''
+        print('Hello from peer with gid={}. I am told these hosts exist: {}'.format(peerkeeper.gid, peerkeeper.hosts))
         time.sleep(5)
-        print('I (client {}:{}) slept well. Pre-experiment says "{}" with secret code {}. Goodbye!'.format(
-            metazoo.gid,
-            metazoo.lid,
-            metazoo.register['a_key'],
-            metazoo.register['secret']))
+        print('I (peer {}:{}) slept well. Pre-experiment says "{}" with secret code {}. Goodbye!'.format(
+            peerkeeper.gid,
+            peerkeeper.lid,
+            peerkeeper.register['a_key'],
+            peerkeeper.register['secret']))
 
 
-    def experiment_server(self, metazoo):
-        '''Execution occuring on ALL server nodes'''
-        print('I am server {}:{}, and I will try to modify the register now'.format(metazoo.gid, metazoo.lid))
+    def experiment_tracker(self, peerkeeper):
+        '''Execution occuring on ALL tracker nodes'''
+        print('I am tracker {}:{}, and I will try to modify the register now'.format(peerkeeper.gid, peerkeeper.lid))
         try:
-            metazoo.register['secret'] = -1
+            peerkeeper.register['secret'] = -1
         except Exception as e:
-            print('Turns out I (server {}) cannot add or change or delete variables after pre_experiment. Goodbye!'.format(metazoo.id))
+            print('Turns out I (tracker {}) cannot add or change or delete variables after pre_experiment. Goodbye!'.format(peerkeeper.id))
         time.sleep(5)
-        print('I (server {}:{}) slept well. Goodbye!'.format(
-            metazoo.gid,
-            metazoo.lid))
+        print('I (tracker {}:{}) slept well. Goodbye!'.format(
+            peerkeeper.gid,
+            peerkeeper.lid))
 
-    def post_experiment(self, metazoo):
-        '''get amount of client nodes to allocate'''
-        print('Experiments are done. Pre-experiment had this secret: {}'.format(metazoo.register['secret']))
+    def post_experiment(self, peerkeeper):
+        '''get amount of peer nodes to allocate'''
+        print('Experiments are done. Pre-experiment had this secret: {}'.format(peerkeeper.register['secret']))

@@ -36,6 +36,7 @@ class PeerKeeper(object):
         self._log_location = None
         self._repeats = None
         self._repeat = None
+        self._port = None
 
     @property
     def executor(self):
@@ -83,6 +84,13 @@ class PeerKeeper(object):
     @repeat.setter
     def set_repeat(self):
         raise RuntimeError('You cannot set repeat number yourself!')
+
+    @property
+    def port(self):
+        return self._port
+    @port.setter
+    def set_port(self):
+        raise RuntimeError('You cannot set port number yourself!')
 
 
     # Function to completely prohibit changing (i.e. writing, updating, deleting) PeerKeeper register
