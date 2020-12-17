@@ -19,6 +19,18 @@
 
 // Usage of std async: https://kholdstare.github.io/technical/2012/12/18/perfect-forwarding-to-async-1.html
 
+/**
+ * Prepares a request, by allocating a buffer for given datasize, 
+ * starting with a message::standard::Header of given type.
+ * 
+ * '''Note:''' size of a message::standard::Header is automatically appended to the datasize. Also: caller has to free returned buffer.
+ * @return pointer to start of buffer.
+ */
+static inline uint8_t* prepare_standard_message(size_t datasize, message::standard::Tag tag) {
+    uint8_t* const data = (uint8_t*) malloc(message::standard::bytesize()+datasize);
+    message::standard::from(datasize, tag).write(data);
+    return data;
+}
 
 static void handle_discovery(Session* session, bool* stop) {
     std::cout << "Discovery thread started\n";
@@ -116,25 +128,21 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
 
     size_t table_size = table.size() * Address::size();
     //Message contains: header, peeraddress (Address), table 
-    size_t msg_size = sizeof(message::standard::Header)+Address::size()+table_size;
-    uint8_t* const table_buffer = (uint8_t*) malloc(msg_size);
-    uint8_t* writer = table_buffer;
+    size_t msg_size = Address::size()+table_size;
+    uint8_t* const data = prepare_standard_message(msg_size, message::standard::OK);
+    uint8_t* writer = data + message::standard::bytesize();
 
-    //Writing header
-    *((message::standard::Header*) writer) = message::standard::from_r(msg_size, message::standard::OK);
-    writer += sizeof(message::standard::Header);
-
-    //Writing peeraddress
+    //Write peeraddress
     Address a(client_conn->get_type(), client_conn->getAddress(), client_conn->getDestinationPort());
     writer = a.write_buffer(writer);
 
-    //Writing table
+    //Write table
     for (auto it = table.cbegin(); it != table.cend(); ++it)
         writer = it->write_buffer(writer);
 
-    if (!client_conn->sendmsg(table_buffer, msg_size)) {
+    if (!client_conn->sendmsg(data, message::standard::bytesize()+msg_size)) {
         std::cerr << "Had problems sending table back to peer "; client_conn->print(std::cerr); std::cerr << '\n';
-        free(table_buffer);
+        free(data);
         return;
     }
 
@@ -142,23 +150,28 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
     for (auto it = table.cbegin(); it != table.cend(); ++it) {
         std::cerr << it->ip << ':' << it->port << '\n';
     }
-    free(table_buffer);
+    free(data);
 }
 
+// Handle REGISTER requests
+// peermessage (tag REGISTER)
+// hash (string)
+// port to register (uint16_t)
 static void handle_register(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
-    std::string hash((char*) msg+message::tracker::bytesize(), bufsize-message::tracker::bytesize()-sizeof(uint16_t));
-    uint16_t port_to_register = *(uint16_t*)(msg+message::tracker::bytesize());
+    const auto hashlength = bufsize-message::tracker::bytesize()-sizeof(uint16_t);
+    std::string hash((char*) msg+message::tracker::bytesize(), hashlength);
+    uint16_t port_to_register = *(uint16_t*)(msg+message::tracker::bytesize()+hashlength);
     std::cout << "Got a Register request (hash=" << hash << ", port="<< port_to_register<<")" << std::endl;
     
-    IPTable table;
-    if (!session.get_registry().get_table(hash, table)) { // Table does not exist yet, insert new table.
+    const auto& registry = session.get_registry();
+    if (!registry.has_table(hash)) { // Table does not exist yet, insert new table.
         std::cerr << "Could not find table for hash " << hash << "\n";
         message::standard::send(client_conn, message::standard::ERROR);
     } else { // Table already exists. Add this peer to the list.
         if (session.add_peer(hash, {client_conn->get_type(), client_conn->getAddress(), port_to_register})) {
-            std::cout << "Table with hash " << hash << " has "<< table.size() << " entries (added 1 new entry: " << client_conn->getAddress() << ':' << port_to_register << ")\n";
+            std::cout << "Table with hash " << hash << " has "<< registry.size() << " entries (added 1 new entry: " << client_conn->getAddress() << ':' << port_to_register << ")\n";
         } else {
-            std::cout << "Table with hash " << hash << " has "<< table.size() << " entries (added 0 new entries)\n";
+            std::cout << "Table with hash " << hash << " has "<< registry.size() << " entries (added 0 new entries)\n";
         }
         message::standard::send(client_conn, message::standard::OK);
     }

@@ -19,8 +19,8 @@ struct Address : public Streamable {
     Address(ConnectionType type, std::string&& ip, uint16_t port) : type(type), ip(std::move(ip)), port(port) {};
     Address(ConnectionType type, const std::string& ip, uint16_t port) : type(type), ip(ip), port(port) {};
  
-    Address(std::string&& ip, uint16_t port) : type(), ip(std::move(ip)), port(port) {}
-    Address(const std::string& ip, uint16_t port) : type(), ip(ip), port(port) {}
+    Address(std::string&& ip, uint16_t port) : type({TransportType(), NetType()}), ip(std::move(ip)), port(port) {}
+    Address(const std::string& ip, uint16_t port) : type({TransportType(), NetType()}), ip(ip), port(port) {}
 
     Address() : Address(ConnectionType(TransportType(), NetType()), "", 0) {}
 
@@ -34,11 +34,14 @@ struct Address : public Streamable {
         return this->ip == other.ip && this->port == other.port;
     }
 
-    // Returns the maximum size of Address, 
-    // We assume ip has a maximum size of 16 bytes (IPv6)
-    // Allocate 2 more bytes for NULL terminator and size of ip
+
+    // We enforce ip has a maximum size of 16 bytes (for IPv6, IPv4 uses less)
+    constexpr static size_t ip_size() { return 16; }
+
+    // Returns the size of an Address, applying ip constant expression enforcement.
+    // We allocate first the connectiontype, then the ip buffer, next up 1 more byte for size of ip.
     // Lastly, we need 2 bytes for the port number
-    static size_t size() { return sizeof(ConnectionType) + 16 + sizeof(char) + sizeof(uint8_t) + sizeof(uint16_t);};
+    constexpr static size_t size() { return sizeof(ConnectionType) + ip_size()*sizeof(char) + sizeof(uint8_t) + sizeof(uint16_t); }
 
     // Read and write to a SwarmTorrent file
     void write_stream(std::ostream& os) const override;

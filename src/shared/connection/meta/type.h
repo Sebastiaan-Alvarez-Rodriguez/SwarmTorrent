@@ -14,7 +14,7 @@ public:
         IPv4,
         IPv6
     };
-    Type t;
+    Type t = IPv4;
 
     NetType() = default;
     NetType(Type t) : t(t) {}
@@ -41,7 +41,7 @@ public:
     enum Type {
         TCP
     };
-    Type t;
+    Type t = TCP;
 
     TransportType() = default;
     TransportType(Type t) : t(t) {}
@@ -52,7 +52,7 @@ public:
 
     inline bool operator==(const Type& other) const { return this->t == other; }
     inline bool operator!=(const Type& other) const { return !(*this == other); }
-    
+
     friend std::ostream& operator<<(std::ostream& stream, const TransportType& t);
 
 };

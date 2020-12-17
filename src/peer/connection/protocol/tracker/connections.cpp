@@ -17,7 +17,7 @@ static uint8_t* prepare_request(const std::string& torrent_hash, message::tracke
     uint8_t* const data = (uint8_t*) malloc(message::tracker::bytesize()+m_size+extra_body_length);
     uint8_t* ptr = data;
 
-    message::tracker::from(m_size, tag).write(ptr);
+    message::tracker::from(m_size+extra_body_length, tag).write(ptr);
 
     ptr += message::tracker::bytesize();
     memcpy(ptr, torrent_hash.c_str(), m_size);
@@ -48,6 +48,10 @@ bool connections::tracker::send::receive(std::unique_ptr<ClientConnection>& conn
     return send_request(connection, torrent_hash, message::tracker::RECEIVE);
 }
 
+// Message remote tracker to register
+// peermessage (tag REGISTER)
+// hash (string)
+// port to register (uint16_t)
 bool connections::tracker::send::register_self(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port) {
     uint8_t* const data = prepare_request(torrent_hash, message::tracker::REGISTER, sizeof(uint16_t));
 
@@ -61,10 +65,8 @@ bool connections::tracker::send::register_self(std::unique_ptr<ClientConnection>
 
 
 
-bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, IPTable& peertable, Address& own_address, uint16_t sourcePort) {
-    if (!send_request(connection, torrent_hash, message::tracker::RECEIVE))
-        return false;
-
+bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& connection, IPTable& peertable, Address& own_address, uint16_t sourcePort) {
+    std::cerr << "Trying to get RECV reply!\n";
     const auto& header = message::tracker::recv(connection);
 
     uint8_t* const data = (uint8_t*) malloc(header.size);
@@ -73,8 +75,8 @@ bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& conn
     // Body of the message only contains a number of addresses.
     // Each address is const-size, so we can get amount of addresses simply by doing below.
     // First address is own address
-    const size_t amount = ((header.size - sizeof(header)) / Address::size()) - 1;
-    const uint8_t* reader = data + sizeof(header);
+    const size_t amount = ((header.size - message::tracker::bytesize()) / Address::size()) - 1;
+    const uint8_t* reader = data + message::tracker::bytesize();
     reader = own_address.read_buffer(reader);
     own_address.port = sourcePort;
 

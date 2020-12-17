@@ -52,7 +52,7 @@ void do_test(int argc, char const ** argv) {
 
             if (!connections::tracker::send::receive(tracker_conn, torrent_hash))
                 return;
-            if (!connections::tracker::recv::receive(tracker_conn, torrent_hash, peertable, own_address, port))
+            if (!connections::tracker::recv::receive(tracker_conn, peertable, own_address, port))
                 return;
             break;
         }
