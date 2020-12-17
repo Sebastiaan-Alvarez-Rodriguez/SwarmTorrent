@@ -10,9 +10,6 @@
 // Object to read from and write to fragments for a single file
 class FragmentHandler {
 protected:
-    const uint64_t file_size;
-    const uint64_t fragment_size;
-    const uint64_t num_fragments;
 
     std::ofstream write_head; // Current write_head position
     unsigned prev_write_index = 0; // Previous Fragment index to which was written
@@ -20,7 +17,10 @@ protected:
     unsigned prev_read_index = 0; // Previous Fragment index to which was read
 
 public:
-    FragmentHandler(uint64_t file_size, uint64_t fragment_size, uint64_t num_fragments, const std::string& path) : file_size(file_size), fragment_size(fragment_size), num_fragments(num_fragments), write_head(path, std::ios::out | std::ios::app | std::ios::binary), read_head(path, std::ios::in | std::ios::binary) {
+    const uint64_t file_size;
+    const uint64_t fragment_size;
+    const uint64_t num_fragments;
+    FragmentHandler(uint64_t file_size, uint64_t fragment_size, uint64_t num_fragments, const std::string& path) : write_head(path, std::ios::out | std::ios::app | std::ios::binary), read_head(path, std::ios::in | std::ios::binary), file_size(file_size), fragment_size(fragment_size), num_fragments(num_fragments) {
         std::cerr << "Reading path '"<<path<<"' (file_size="<<file_size<< " bytes)\n";
         write_head.seekp(0, std::ios::beg);
         read_head.seekg(0, std::ios::beg);

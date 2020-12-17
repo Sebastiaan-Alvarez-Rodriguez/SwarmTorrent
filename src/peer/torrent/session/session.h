@@ -57,11 +57,15 @@ namespace peer::torrent {
          *             Connection is closed when the session is deconstructed.
          */
         inline explicit Session(const TorrentFile& tf, const std::string& workpath, uint16_t registered_port) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), ttable(tf.getTrackerTable()), fragments_completed(metadata.get_num_fragments(), false), num_fragments(metadata.get_num_fragments()), registered_port(registered_port), rand(std::move(std::random_device())) {
-            if (fs::is_file(workpath+metadata.name)) {
-                std::cerr << "Found correct file in working path. Checking out fragments...\n";
-                // We check if the hash is correct for each fragment of the file.
-                // For all matches, we set the corresponding completed-bit to true
-                for (size_t x = 0; x < num_fragments; ++x) {
+            // if (fs::is_file(workpath+metadata.name)) {
+            std::cerr << "Checking out fragments...\n";
+            // We check if the hash is correct for each fragment of the file.
+            // For all matches, we set the corresponding completed-bit to true
+            const auto filesize = fs::file_size(workpath + metadata.name);
+            if (filesize != 0) {
+                const auto fragsize = fragmentHandler.fragment_size;
+                const auto frags_to_read = ((filesize-1) / fragsize)+1;
+                for (size_t x = 0; x < frags_to_read; ++x) {
                     uint8_t* data;
                     unsigned size;
                     if (fragmentHandler.read(x, data, size)) {
@@ -75,8 +79,9 @@ namespace peer::torrent {
                         }
                     }
                 }
-                std::cerr << "Reading complete. " << num_fragments_completed << '/' << num_fragments << " OK." << (num_fragments_completed == num_fragments ? " Download completed.\n" : "\n");
             }
+            std::cerr << "Reading complete. " << num_fragments_completed << '/' << num_fragments << " OK." << (num_fragments_completed == num_fragments ? " Download completed.\n" : "\n");
+            // }
         }
 
         inline void mark_fragment(size_t fragment_nr) {

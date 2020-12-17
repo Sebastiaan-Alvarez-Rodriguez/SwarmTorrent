@@ -467,28 +467,28 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     bool gc_stop = false;
 
     std::future<void> availability;
-    if (!session.download_completed()) // Periodically send our availability, and ask for availability of others
-        availability = std::async(std::launch::async, [&session, &availability_stop]() {
-            while (!availability_stop && !session.download_completed()) {
-                requests_send_availability(session);
-                std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
-            }
-        });
+    // if (!session.download_completed()) // Periodically send our availability, and ask for availability of others
+    //     availability = std::async(std::launch::async, [&session, &availability_stop]() {
+    //         while (!availability_stop && !session.download_completed()) {
+    //             requests_send_availability(session);
+    //             std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
+    //         }
+    //     });
     std::future<void> receive(std::async(std::launch::async, [&session, &receive_stop](auto&& hostconnection) {
         while (!receive_stop) {
             requests_receive(session, hostconnection);
             std::this_thread::sleep_for(std::chrono::milliseconds(6000));
         } 
     }, std::move(hostconnection)));
-    std::future<void> gc(std::async(std::launch::async, [&session, &gc_stop]() {
-        while (!gc_stop) {
-            session.peer_registry_gc();
-            session.request_registry_gc();
-            std::this_thread::sleep_for(std::chrono::milliseconds(6000));
-        }
-    }));
+    // std::future<void> gc(std::async(std::launch::async, [&session, &gc_stop]() {
+    //     while (!gc_stop) {
+    //         session.peer_registry_gc();
+    //         session.request_registry_gc();
+    //         std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+    //     }
+    // }));
     std::cerr << "Start main program loop.\n";
-    while (!stop) 
+    while (!stop)
         requests_send(session);
 
     availability_stop = true;
