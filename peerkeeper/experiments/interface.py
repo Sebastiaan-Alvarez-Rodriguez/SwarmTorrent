@@ -61,27 +61,32 @@ class ExperimentInterface(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def pre_experiment(self, metazoo):
+    def pre_experiment(self, peerkeeper):
         '''Execution before experiment starts. Executed on the remote once.'''
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_peer_run_command(self, metazoo):
+    def get_peer_run_command(self, peerkeeper):
         '''Get peer run command, executed in All peer nodes'''
         raise NotImplementedError
 
     @abc.abstractmethod
-    def experiment_peer(self, metazoo):
+    def get_tracker_run_command(self, peerkeeper):
+        '''Get peer run command, executed in All peer nodes'''
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def experiment_peer(self, peerkeeper):
         '''Execution occuring on ALL peer nodes'''
         raise NotImplementedError
 
     @abc.abstractmethod
-    def experiment_tracker(self, metazoo):
+    def experiment_tracker(self, peerkeeper):
         '''Execution occuring on ALL tracker nodes'''
         raise NotImplementedError
 
 
     @abc.abstractmethod
-    def post_experiment(self, metazoo):
+    def post_experiment(self, peerkeeper):
         '''Execution after experiment finishes. Executed no the remote once.'''
         raise NotImplementedError

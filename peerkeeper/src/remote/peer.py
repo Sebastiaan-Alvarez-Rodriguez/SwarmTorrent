@@ -26,12 +26,10 @@ def boot_make(infile, outfile, trackers):
     return executor
 
 # Torrent a file, returns immediately after starting a thread containing our process
-def boot_torrent(port, workpath, infile, register):
-    command = f'./peer torrent -p {port} -w {workpath} -f {infile}'
-    if (register):
-        command += ' -r'
+def boot_torrent(experiment):
+    command = experiment.get_peer_run_command()
     executor = Executor(command)
-    executor.run(schell=True)
+    executor.run(shell=True)
     return executor
 
 # Stops peer instance

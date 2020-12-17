@@ -21,7 +21,7 @@ def run_tracker(debug_mode):
     global_status = True
     for repeat in range(repeats):
         syncer.sync()
-        executor = tracker.boot()
+        executor = tracker.boot(experiment)
 
         #TODO: create barrier? timer?
 
@@ -38,12 +38,16 @@ def run_tracker(debug_mode):
     return global_status
 
 def run_peer(debug_mode):
-    #TODO: find out if peer is seeder
     experiment = Experiment.load()
     repeats = experiment.peerkeeper.repeats
     config = config_construct(experiment, False)
     syncer = Syncer(config, experiment, 'peer', debug_mode)
     is_seeder = experiment.peerkeeper.lid == 0
+
+    # Required for initial seeder
+    infile = loc.get_initial_file_dir()
+    outfile = loc.get_output_loc()
+    trackers = experiment.peerkeeper.trackers()
 
     global_status = True
     for repeat in range(repeats):
@@ -51,12 +55,12 @@ def run_peer(debug_mode):
         syncer.sync()
         if debug_mode: print('Peer {} stage POST_SYNC1'.format(idr.identifier_global()))
         if is_seeder:
-            executor = peer.boot_make()
+            executor = peer.boot_make(infile, outfile, trackers)
             executor.wait()
-            executor = peer.boot_torrent()
+            executor = peer.boot_torrent(experiment)
         else: #TODO: more/ different?
             time.sleep(10)
-            executor = peer.boot_torrent()
+            executor = peer.boot_torrent(experiment)
 
         #TODO: timer?? Any way to stop peers?
 

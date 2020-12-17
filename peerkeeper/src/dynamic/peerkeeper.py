@@ -37,6 +37,7 @@ class PeerKeeper(object):
         self._repeats = None
         self._repeat = None
         self._port = None
+        self._trackers = None
 
     @property
     def executor(self):
@@ -91,6 +92,13 @@ class PeerKeeper(object):
     @port.setter
     def set_port(self):
         raise RuntimeError('You cannot set port number yourself!')
+
+    @property
+    def trackers(self):
+        return self._trackers
+    @port.setter
+    def set_trackers(self):
+        raise RuntimeError('You cannot set the tracker list yourself!')
 
 
     # Function to completely prohibit changing (i.e. writing, updating, deleting) PeerKeeper register

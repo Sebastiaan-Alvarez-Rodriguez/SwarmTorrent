@@ -1,9 +1,8 @@
 from util.executor import Executor
 
 # Starts tracker, returns immediately after starting a thread containing our process
-def boot(port):
-    command = f'./tracker -p {port}'
-    executor = Executor(command)
+def boot(experiment):
+    executor = Executor(experiment.get_tracker_run_command())
     executor.run(shell=True)
     return executor
 
