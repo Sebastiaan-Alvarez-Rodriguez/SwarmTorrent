@@ -187,7 +187,7 @@ static bool run(uint16_t port) {
     Session session;
     std::cout << "Session initialized\n";
     bool discovery_stop = false;
-    std::future<void> result(std::async(handle_discovery, &session, &discovery_stop));
+    // std::future<void> result(std::async(handle_discovery, &session, &discovery_stop));
     std::cout << "Discovery thread initialized\n";
     std::cout << "Listening started on port " << port << std::endl;
 

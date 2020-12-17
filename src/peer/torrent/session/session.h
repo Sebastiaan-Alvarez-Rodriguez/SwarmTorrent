@@ -58,17 +58,15 @@ namespace peer::torrent {
          */
         inline explicit Session(const TorrentFile& tf, const std::string& workpath, uint16_t registered_port) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), ttable(tf.getTrackerTable()), fragments_completed(metadata.get_num_fragments(), false), num_fragments(metadata.get_num_fragments()), registered_port(registered_port), rand(std::move(std::random_device())) {
             // if (fs::is_file(workpath+metadata.name)) {
-            std::cerr << "Checking out fragments...\n";
+            std::cerr << "Checking out " << fragments_completed.size() << " fragments...\n";
             // We check if the hash is correct for each fragment of the file.
             // For all matches, we set the corresponding completed-bit to true
             const auto filesize = fs::file_size(workpath + metadata.name);
-            if (filesize != 0) {
-                const auto fragsize = fragmentHandler.fragment_size;
-                const auto frags_to_read = ((filesize-1) / fragsize)+1;
-                for (size_t x = 0; x < frags_to_read; ++x) {
-                    uint8_t* data;
+            if (filesize == metadata.size) {
+                for (size_t x = 0; x < fragments_completed.size(); ++x) {
                     unsigned size;
-                    if (fragmentHandler.read(x, data, size)) {
+                    uint8_t* data = fragmentHandler.read(x, size);
+                    if (data != nullptr) {
                         std::string fragment_hash;
                         hash::sha256(fragment_hash, data, size);
                         if (!htable.check_hash(x, fragment_hash)) {// Hash mismatch, wrong data

@@ -113,7 +113,7 @@ static void requests_send_local_discovery(peer::torrent::Session& session) {
         const auto registry = session.get_peer_registry();
         if (registry.size() == 0) // Cannot discover on an empty registry. First need to join some peers.
             return;
-        const auto peer_idx = session.rand.generate(0, session.get_peer_registry().size());
+        const auto peer_idx = session.rand.generate(0, session.get_peer_registry().size()-1);
         auto it = registry.cbegin();
         std::advance(it, peer_idx);
         const auto& address = it->first;
@@ -179,6 +179,13 @@ static void requests_send_join(peer::torrent::Session& session) {
             std::cerr << "Could not connect to peer ";conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
+        // TODO: Remove below code after debug:
+        size_t x = 0;
+        for (const auto y : session.get_fragments_completed())
+            if (y)
+                ++x;
+        // end TODO
+        std::cerr << "Sending a JOIN request. We own " << x << '/' << session.get_fragments_completed().size() << " fragments\n";
         if (!connections::peer::send::join(conn, session.registered_port, torrent_hash, session.get_fragments_completed())) {
             std::cerr << print::YELLOW << "[WARN] Could not send send_exchange request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
@@ -187,7 +194,7 @@ static void requests_send_join(peer::torrent::Session& session) {
         // std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         // continue;
         if (header.tag == message::standard::OK) {
-            std::cerr << print::CYAN << "[TEST] We got an OK for our send_exchange request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
+            std::cerr << print::CYAN << "[TEST] We got an OK for our JOIN request from peer: " << print::CLEAR; conn->print(std::cerr);
             std::string recv_hash;
             std::vector<bool> remote_available;
 
@@ -196,6 +203,18 @@ static void requests_send_join(peer::torrent::Session& session) {
 
             connections::peer::recv::join_reply(data, header.size, recv_hash, remote_available);
             free(data);
+
+            //TODO Remove below block after debug.
+            size_t x = 0;
+            for (const auto y : remote_available)
+                if (y)
+                    ++x;
+            std::cerr << " Remote sent us that it owns " << x << '/' << remote_available.size() << " fragments.\n";
+            if (remote_available.size() != session.num_fragments) {
+                std::cerr << "ERRRRRRRRRRRRRROR: remote_available.size()="<<remote_available.size()<<", session.num_fragments="<<session.num_fragments<<std::endl;
+                exit(1);
+            }
+            // end TODO
             session.register_peer({conn->get_type(), address.ip, address.port}, remote_available);
         } else if (header.tag == message::standard::REJECT) {
             std::cerr << print::CYAN << "[TEST] We got a REJECT for our send_exchange request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
@@ -384,6 +403,7 @@ static void requests_send(peer::torrent::Session& session) {
     if (session.get_peertable().size() == 0) { // We have 0 peers. Ask tracker to provide us peers
         std::this_thread::sleep_for(::peer::torrent::defaults::dead_peer_poke_time);
         session.set_peers(compose_peertable(session.get_metadata().content_hash, session.get_trackertable(), session.registered_port, false));
+        return;
     } 
     // We have at least 1 peer. Get some data!
     // 1. while small peertable -> LOCAL_DISCOVERY_REQ
@@ -391,7 +411,7 @@ static void requests_send(peer::torrent::Session& session) {
     // 3. while large jointable -> LEAVE
     // 4. while #requests < max -> DATA_REQ
 
-    requests_send_local_discovery(session);
+    // requests_send_local_discovery(session);
 
     if (session.peers_amount() < peer::torrent::defaults::prefered_group_size)
         requests_send_join(session);

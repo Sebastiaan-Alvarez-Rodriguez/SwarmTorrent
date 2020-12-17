@@ -35,8 +35,8 @@ public:
      * '''Warning:''' It is up to the caller to find out whether file fragment is available or not
      * @return `false` if read_head is invalid
      */
-    inline bool read(unsigned index, uint8_t*& data, unsigned& data_size) {
-        return read_with_leading(index, data, data_size, 0);
+    inline uint8_t* read(unsigned index, unsigned& data_size) {
+        return read_with_leading(index, data_size, 0);
     }
 
     /**
@@ -47,7 +47,7 @@ public:
      * '''Warning:''' It is up to the caller to find out whether file fragment is available or not
      * @return `false` if read_head is invalid
      */
-    bool read_with_leading(unsigned index, uint8_t*& data, unsigned& data_size, unsigned leading_size);
+    uint8_t* read_with_leading(unsigned index, unsigned& data_size, size_t leading_size);
 
     /**
      * Writes a fragment to file.

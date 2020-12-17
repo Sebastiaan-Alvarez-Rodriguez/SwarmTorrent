@@ -22,12 +22,20 @@ void peer::pipeline::join(peer::torrent::Session& session, const std::unique_ptr
     std::string hash;
     std::vector<bool> fragments_completed;
     connections::peer::recv::join(data, size, hash, req_port, fragments_completed);
-    std::cerr << "Got a JOIN (hash=" << hash << ", req_port=" << req_port << ")\n";
+
+    //TODO: Remove below after testing
+    size_t x = 0;
+    for (const auto y : fragments_completed)
+        if (y)
+            ++x;
+
+    std::cerr << "Got a JOIN (hash=" << hash << ", req_port=" << req_port << ", frags_completed="<<x<<'/'<<fragments_completed.size()<<", num_fragments="<<session.num_fragments<<")\n";
+    if (fragments_completed.size() != session.num_fragments) {
+        std::cerr << "ERRRRRRRRRRRROR: Remote did not do so well?\n";
+        exit(1);
+    }
     const auto addr = Address(connection->get_type(), connection->getAddress(), req_port);
 
-    std::cerr << "address: "<<addr.ip << '\n';
-    std::cerr << "port: "<<addr.port<< '\n';
-    std::cerr << "type:"<<addr.type<< '\n';
     // Register peer as an existing peer
     session.add_peer(Address(connection->get_type(), connection->getAddress(), req_port));
 
@@ -49,7 +57,8 @@ void peer::pipeline::join(peer::torrent::Session& session, const std::unique_ptr
         std::cerr << "Could not send positive join reply to peer: "; connection->print(std::cerr); std::cerr << '\n';
         return;
     }
-    std::cerr << print::CYAN << "We accepted the join request\n!" << print::CLEAR << std::endl;
+
+    std::cerr << print::CYAN << "We accepted the join request! " << print::CLEAR << "It has "<<x<<'/'<<fragments_completed.size()<<" fragments available"<<std::endl;
     // Register peer to our group!
     session.register_peer({connection->get_type(), connection->getAddress(), req_port}, fragments_completed);
 }
@@ -71,7 +80,9 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
     uint16_t req_port;
     size_t fragment_nr;
     connections::peer::recv::data_req(data, size, req_port, fragment_nr);
-    if (!session.has_registered_peer(Address(connected_ip, req_port))) { //Data requests from unknown entities produce only ERROR
+    const auto addr = Address(connected_ip, req_port);
+    std::cerr << "Received a DATA_REQ (port=" << req_port << ", fragment_nr=" << fragment_nr << ") ("<<addr.ip<<':'<<addr.port<<")\n";
+    if (!session.has_registered_peer(addr)) { //Data requests from unknown entities produce only ERROR
         message::standard::send(connection, message::standard::ERROR);
         return;
     }
@@ -89,10 +100,12 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
     message::standard::send(connection, message::standard::OK);
     connection.reset(); // Closes the connection
 
+    std::cerr << print::CYAN << "We accepted the DATA_REQ request!\n" << print::CLEAR << std::endl;
+
     auto& handler = session.get_handler();
-    uint8_t* diskdata;
     unsigned data_size;
-    if (!handler.read_with_leading(fragment_nr, diskdata, data_size, message::peer::bytesize()+sizeof(size_t))) {
+    uint8_t* diskdata = handler.read_with_leading(fragment_nr, data_size, message::peer::bytesize()+sizeof(size_t));
+    if (diskdata == nullptr) {
         std::cerr << "There was a problem reading fragment " << fragment_nr << " from disk\n";
         free(diskdata);
         return;
@@ -111,12 +124,12 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
         free(diskdata);
         return;
     }
-    if (!connections::peer::send::data_reply_fast(target_conn, fragment_nr, diskdata, data_size)) {
+    std::cerr << "sending data reply to "; target_conn->print(std::cerr); std::cerr << ": fragment_nr="<<fragment_nr<<", data_size="<<data_size<<'\n';
+    if (!connections::peer::send::data_reply_fast(target_conn, fragment_nr, diskdata, message::peer::bytesize()+sizeof(size_t)+data_size)) {
         std::cerr << "Could not send data to peer. Hangup? Some other problem?\n";
     } else {
         std::cerr << "Sent fragment nr " << fragment_nr << ", size=" << data_size << " bytes to peer "; target_conn->print(std::cerr); std::cerr << '\n';
     }
-    free(diskdata);
 }
 
 void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
@@ -127,8 +140,10 @@ void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr
     // 5. Check if data matches hash for that data
     // 6. Write to disk at right location.
     // 7. Mark object as completed when finished
-    auto connected_ip = connection->getAddress();
+    std::cerr << "Received a DATA_REPLY ";
 
+    const auto connected_ip = connection->getAddress();
+    const uint16_t port = connection->getSourcePort();
     // Note: Even if the address is not from our group, we still process the data.
     // After all: If the data matches the checksum, why would we not use it?
 
@@ -137,6 +152,8 @@ void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr
     size_t fragment_nr;
     uint8_t* fragment_data;
     connections::peer::recv::data_reply(data, size, fragment_nr, fragment_data);
+
+    std::cerr << "(fragment_nr=" << fragment_nr << ") ("<<connected_ip<<':'<<port<<")\n";
 
     if (session.fragment_completed(fragment_nr)) // We already have this fragment
         return;
