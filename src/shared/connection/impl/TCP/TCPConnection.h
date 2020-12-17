@@ -123,7 +123,7 @@ class TCPHostConnection: public HostConnection {
 public:
     class Factory;
 
-    explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout) : HostConnection(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout) {
+    explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout, unsigned backlogSize) : HostConnection(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout, backlogSize) {
         this->state = ClientConnection::ERROR;
         if ((sockfd = sock::make(type)) < 0) {
             std::cerr << "Could not build socket!" << std::endl;
@@ -232,7 +232,7 @@ public:
     }
 
     inline std::unique_ptr<HostConnection> create() const override {
-        return std::make_unique<TCPHostConnection>(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout);
+        return std::make_unique<TCPHostConnection>(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout, backlogSize);
     }
 };
 #endif

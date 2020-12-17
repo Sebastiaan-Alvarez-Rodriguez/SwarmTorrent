@@ -116,7 +116,7 @@ protected:
 
 class HostConnection : public Connection {
 public:
-    explicit HostConnection(ConnectionType type, uint16_t hostPort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout) : Connection(type, hostPort, blockmode, reusemode, sendTimeout, recvTimeout) {};
+    explicit HostConnection(ConnectionType type, uint16_t hostPort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout, unsigned backlogSize) : Connection(type, hostPort, blockmode, reusemode, sendTimeout, recvTimeout), backlogSize(backlogSize) {};
     ~HostConnection() = default;
 
     class Factory;
