@@ -18,6 +18,7 @@ from util.executor import Executor
 
 # Make a torrentfile by peer, returns immediately after starting a thread containing our process
 def boot_make(infile, outfile, trackers):
+    #TODO: from experiment
     command = f'./peer make -i {infile} -o {outfile}'
     for tracker in trackers:
         command += f' -t {tracker}'

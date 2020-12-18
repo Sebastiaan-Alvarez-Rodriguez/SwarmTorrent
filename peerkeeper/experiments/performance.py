@@ -73,6 +73,14 @@ class PerformanceExperiment(ExperimentInterface):
         resultfile = open(get_result_file(), 'w+')
         resultfile.write('file_size iteration peer duration\n')
 
+    def get_initial_seeder_run_command(self, peerkeeper):
+        #TODO: generate infiles?
+        #TODO: find tracker ips and generate required strings
+        outfile = loc.get_swarmtorrent_torrentfile()
+        command = f'./peer make -i {infile} -o {outfile}'
+        for tracker in trackers:
+            command += f' -t {tracker}'
+
 
     def get_peer_run_command(self, peerkeeper):
         '''Get peer run command, executed in All peer nodes'''
