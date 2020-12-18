@@ -25,6 +25,12 @@ def get_swarmtorrent_test_dir():
 def get_swarmtorrent_torrentfile_dir():
     return fs.join(get_swarmtorrent_test_dir(), 'tfs')
 
+def get_swarmtorrent_torrentfile():
+    return fs.join(get_swarmtorrent_torrentfile_dir(), 'tf.out')
+
+def get_swarmtorrent_log_dir():
+    return fs.join(get_swarmtorrent_test_dir(), 'logs')
+
 #################### Remote directories ####################
 def get_remote_swarmtorrent_dir():
     return st.remote_swarmtorrent_dir
@@ -32,7 +38,7 @@ def get_remote_swarmtorrent_dir():
 def get_remote_peerkeeper_dir():
     return fs.join(get_remote_metazoo_parent_dir(), 'peerkeeper')
 
-#################### Seeder directories ####################
+#################### Node directories ####################
 def get_node_dir()
     return '/local/{}/'.format(st.ssh_user_name) 
 
