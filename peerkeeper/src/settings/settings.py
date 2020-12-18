@@ -45,8 +45,8 @@ def write_config(config_loc, key_name, user, swarmtorrent_dir):
 
 # Change an amount of user settings
 def change_settings():
-    if not fs.exists(get_metazoo_settings_file()):
-        gen_config(get_metazoo_settings_file())
+    if not fs.exists(get_settings_file()):
+        gen_config(get_settings_file())
         return
     l = ['key_name', 'user', 'swarmtorrent_dir']
     while True:
@@ -58,7 +58,7 @@ def change_settings():
         elif idx == 1:
             s.ssh_user_name = ask_ssh_user_name()
         elif idx == 2:
-            s.ask_remote_metazoo_dir = ask_remote_swarmtorrent_dir()
+            s.ask_remote_swarmtorrent_dir = ask_remote_swarmtorrent_dir()
         s.persist()
         if ui.ask_bool('Done?'):
             return
@@ -87,7 +87,7 @@ class SettingsConfig(object):
     Below, we define a global instance.
     '''
     def __init__(self):
-        loc = get_metazoo_settings_file()
+        loc = get_settings_file()
         if not fs.exists(loc):
             gen_config(loc)
         else:

@@ -36,13 +36,13 @@ def get_swarmtorrent_log_dir():
 
 #################### Remote directories ####################
 def get_remote_swarmtorrent_dir():
-    return st.remote_swarmtorrent_dir
+    return fs.join(st.remote_swarmtorrent_dir, 'SwarmTorrent')
 
 def get_remote_peerkeeper_dir():
-    return fs.join(get_remote_metazoo_parent_dir(), 'peerkeeper')
+    return fs.join(get_remote_swarmtorrent_dir(), 'peerkeeper')
 
 #################### Node directories ####################
-def get_node_dir()
+def get_node_dir():
     return '/local/{}/'.format(st.ssh_user_name) 
 
 def get_initial_file(index):

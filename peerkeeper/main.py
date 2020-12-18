@@ -13,8 +13,6 @@ import dynamic.experiment as exp
 import remote.remote as rmt
 import result.results as res
 from settings.settings import settings_instance as st
-import supplier.ant as ant
-import supplier.java as jv
 from util.executor import Executor
 import util.location as loc
 import util.fs as fs
@@ -22,26 +20,25 @@ import util.time as tm
 import util.ui as ui
 from util.printer import *
 
-# Returns True if Zookeeper is compiled, False otherwise
+# Returns True if SwarmTorrent is compiled, False otherwise
 def is_compiled():
     return fs.isfile(loc.get_swarmtorrent_dir(), 'peer') and fs.isfile(loc.get_swarmtorrent_dir(), 'tracker')
 
 # Handles clean commandline argument
 def clean():
     print('Cleaning...')
-    return os.system('cd {0} && make c > /dev/null 2>&1'.format(loc.get_swarmtorrent_dir())) == 0
+    return True
+    swarmtorrent_loc = loc.get_remote_swarmtorrent_dir()
+    return os.system('ssh {} "cd {} && make c > /dev/null 2>&1"'.format(st.ssh_key_name, swarmtorrent_loc)) == 0
 
 # Handles compile commandline argument
 def compile():
     print('Compiling...')
+    return True
 
-    swarmtorrent_loc = loc.get_swarmtorrent_dir()
-    makefile = fs.join(swarmtorrent_loc, 'Makefile')
-    if not fs.isfile(makefile):
-        printe('Could not find {0}'.format(makefile))
-        return False
-
-    statuscode = os.system('cd {0} && make > /dev/null 2>&1'.format(swarmtorrent_loc))
+    swarmtorrent_loc = loc.get_remote_swarmtorrent_dir()
+    printw('ssh {} "cd {} && make > /dev/null 2>&1"'.format(st.ssh_key_name, swarmtorrent_loc))
+    statuscode = os.system('ssh {} "cd {} && make > /dev/null 2>&1"'.format(st.ssh_key_name, swarmtorrent_loc))
 
     if statuscode == 0:
         prints('Compilation completed!')

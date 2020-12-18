@@ -1,6 +1,6 @@
 import time
 from dynamic.experiment import Experiment
-from remote.config import config_construct, Config
+from remote.config import config_construct_tracker, config_construct_peer, Config
 from remote.util.syncer import Syncer
 import remote.tracker as tracker
 import remote.peer as peer
