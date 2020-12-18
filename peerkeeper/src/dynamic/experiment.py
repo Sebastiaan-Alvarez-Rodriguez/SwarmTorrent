@@ -115,7 +115,7 @@ class Experiment(object):
         return self.instance.experiment_peer(self._peerkeeper)
 
 
-    def experiment_tracker(self, config, executor, repeat, is_leader_func):
+    def experiment_tracker(self, config, executor, repeat):
         self._peerkeeper._gid = config.gid
         self._peerkeeper._lid = config.lid
         self._peerkeeper._executor = executor

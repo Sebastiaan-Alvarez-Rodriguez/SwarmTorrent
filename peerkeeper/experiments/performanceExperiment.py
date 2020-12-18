@@ -46,12 +46,29 @@ class PerformanceExperiment(ExperimentInterface):
         '''Amount of peer processes which may be mapped on the same physical node'''
         return 1
 
+    def get_result_file(self):
+        #TODO: create somewhere, we need to give it a header
+        return fs.join(loc.get_peerkeeper_results_dir(), 'performance_experiment.csv')
+
     def check_ready(self):
+        #TODO: via peerkeeper?
         return len(list(fs.ls(loc.get_swarmtorrent_log_dir()))) == num_peers()-1
+
+    def process_logs(self, peerkeeper):
+        durations = []
+        for log in fs.ls(loc.get_swarmtorrent_log_dir()):
+            logfile = open(log, 'r')
+            duration.append(logfile.read())
+
+        resultfile = open(get_result_file(), 'a')
+        for x, duration in enumerate(durations):
+            resultfile.write('{} {} {}\n'.format(peerkeeper.repeat, x, duration))
+
 
     def pre_experiment(self, peerkeeper):
         '''Execution before experiment starts. Executed on the remote once.'''
         print('Hi there! I am executed before the experiment starts!')
+        #TODO: via peerkeeper?
         fs.mkdir(loc.get_swarmtorrent_log_dir(), exist_ok=True)
         fs.mkdir(loc.get_swarmtorrent_torrentfile_dir(), exist_ok=True)
 
@@ -60,6 +77,7 @@ class PerformanceExperiment(ExperimentInterface):
         '''Get peer run command, executed in All peer nodes'''
         register = peerkeeper.lid == 0
         port = 2322 if register else 2321
+        #TODO: via peerkeeper?
         workpath = loc.get_initial_file_dir() if register else loc.get_output_loc()
         torrentfile = loc.get_swarmtorrent_torrentfile()
         command = './peer torrent -p {} -w {} -f {}'.format(port, workpath, torrentfile)
@@ -73,25 +91,30 @@ class PerformanceExperiment(ExperimentInterface):
         return './tracker -p {}'.format(port)
 
 
-    def experiment_peer(self, peerkeeper, executor):
+    def experiment_peer(self, peerkeeper):
         '''Execution occuring on ALL peer nodes'''
         while (True):
             time.sleep(30)
             if check_ready():
                 break
-        executor.stop()
-        #TODO: output file delete
 
-    def experiment_tracker(self, peerkeeper, executor):
+        status = peerkeeper.executor.stop()
+        #TODO: setup initial_file only once? delete only at the end of all experiments?
+        workpath = loc.get_initial_file_dir() if peerkeeper.lid == 0 else loc.get_output_loc()
+        fs.rm(workpath)
+        return status
+        
+
+    def experiment_tracker(self, peerkeeper):
         '''Execution occuring on ALL tracker nodes'''
         while (True):
             time.sleep(30)
             if check_ready():
                 break
-        executor.stop()
+        return peerkeeper.executor.stop()
 
     def post_experiment(self, peerkeeper):
         '''get amount of peer nodes to allocate'''
-        #TODO: process logs
-        #TODO: remove log files
-        #TODO: remove torrentfile
+        process_logs()
+        fs.rm(loc.get_swarmtorrent_log_dir())
+        fs.rm(loc.get_swarmtorrent_torrentfile())

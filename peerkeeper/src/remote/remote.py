@@ -23,10 +23,8 @@ def run_tracker(debug_mode):
         syncer.sync()
         executor = tracker.boot(experiment)
 
-        #TODO: create barrier? timer?
+        status = experiment.experiment_tracker(config, executor, repeat)
 
-        #TODO: remove? or remove in experiment?
-        status = tracker.stop(executor)
         global_status &= status
         if config.gid == 0:
             prints('Tracker iteration {}/{} complete').format(repeat+i, repeats)
@@ -56,6 +54,7 @@ def run_peer(debug_mode):
         syncer.sync()
         if debug_mode: print('Peer {} stage POST_SYNC1'.format(idr.identifier_global()))
         if is_seeder: #TODO: wait for tracker ready?
+            #TODO: create file to torrent --> somewhere in experiments
             executor = peer.boot_make(infile, outfile, trackers)
             executor.wait()
             #TODO: set timestamp?
@@ -64,10 +63,7 @@ def run_peer(debug_mode):
             time.sleep(10)
             executor = peer.boot_torrent(experiment)
 
-        #TODO: timer?? Any way to stop peers?
-
-        #TODO: remove? Or remove in experiment?
-        status = peer.stop(executor)
+        status = experiment.experiment_peer(config, executor, repeat)
         global_status &= status
 
         if not status:
