@@ -15,6 +15,9 @@ def get_peerkeeper_results_dir():
 def get_peerkeeper_graphs_dir():
     return fs.join(fs.abspath(), 'graphs')
 
+def get_cfg():
+    return fs.join(fs.abspath(), '.peerkeeper.cfg')
+
 #################### SwarmTorrent directories ####################
 def get_swarmtorrent_dir():
     return fs.dirname(fs.dirname(fs.abspath()))
@@ -42,8 +45,8 @@ def get_remote_peerkeeper_dir():
 def get_node_dir()
     return '/local/{}/'.format(st.ssh_user_name) 
 
-def get_initial_file():
-    return fs.join(get_node_dir(), 'initial.out')
+def get_initial_file(index):
+    return fs.join(get_node_dir(), 'initial{}.out'.format(index))
 
 def get_output_loc():
     return fs.join(get_node_dir(), 'file.out')

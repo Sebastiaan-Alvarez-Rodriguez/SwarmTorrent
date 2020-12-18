@@ -11,26 +11,29 @@ from util.printer import *
 def run_tracker(debug_mode):
     experiment = Experiment.load()
     repeats = experiment.peerkeeper.repeats
-    config = config_construct(experiment, True)
+    config = config_construct_tracker(experiment)
 
     if config.gid == 0:
         print('Network booted. Prime ready')
+        with open(loc.get_cfg(), 'w') as file:
+            file.write('\n'.join(tracker.gen_trackerlist(config, experiment)))
 
     syncer = Syncer(config, experiment, 'tracker', debug_mode)
 
     global_status = True
     for repeat in range(repeats):
-        syncer.sync()
-        executor = tracker.boot(experiment)
+        for index in range(experiment.num_files()):
+            syncer.sync()
+            executor = tracker.boot(experiment)
 
-        status = experiment.experiment_tracker(config, executor, repeat)
+            status = experiment.experiment_tracker(config, executor, repeat)
 
-        global_status &= status
-        if config.gid == 0:
-            prints('Tracker iteration {}/{} complete').format(repeat+i, repeats)
+            global_status &= status
+            if config.gid == 0:
+                prints('Tracker iteration {}/{} complete').format(repeat+1, repeats)
 
-        if not status:
-            printw('Tracker {} status in iteration {}/{} not good').format(config.gid, repeat, repeats-1)
+            if not status:
+                printw('Tracker {} status in iteration {}/{} not good').format(config.gid, repeat, repeats-1)
 
     syncer.close()
 
@@ -39,36 +42,35 @@ def run_tracker(debug_mode):
 def run_peer(debug_mode):
     experiment = Experiment.load()
     repeats = experiment.peerkeeper.repeats
-    config = config_construct(experiment, False)
-    syncer = Syncer(config, experiment, 'peer', debug_mode)
     is_seeder = experiment.peerkeeper.lid == 0
 
-    # Required for initial seeder
-    # TODO: from experiment?
-    infile = loc.get_initial_file()
-    outfile = loc.get_output_loc()
-    trackers = experiment.peerkeeper.trackers()
+    while not fs.isfile(loc.get_cfg()):
+        time.sleep(1)
+    with open(loc.get_cfg(), 'r') as file:
+        trackers = [line.strip() for line in file.readlines()]
+
+    config = config_construct_peer(experiment, trackers)
+    syncer = Syncer(config, experiment, 'peer', debug_mode)
 
     global_status = True
     for repeat in range(repeats):
-        if debug_mode: print('Peer {} stage PRE_SYNC1'.format(idr.identifier_global()))
-        syncer.sync()
-        if debug_mode: print('Peer {} stage POST_SYNC1'.format(idr.identifier_global()))
-        if is_seeder: #TODO: wait for tracker ready?
-            #TODO: create file to torrent --> somewhere in experiments
-            executor = peer.boot_make(infile, outfile, trackers)
-            executor.wait()
-            #TODO: set timestamp?
-            executor = peer.boot_torrent(experiment)
-        else: #TODO: more/ different? Perhaps if timestamp != default, go go go?
-            time.sleep(10)
-            executor = peer.boot_torrent(experiment)
+        for index in range(experiment.num_files()):
+            if debug_mode: print('Peer {} stage PRE_SYNC1'.format(idr.identifier_global()))
+            syncer.sync()
+            if debug_mode: print('Peer {} stage POST_SYNC1'.format(idr.identifier_global()))
+            if is_seeder: 
+                executor = peer.boot_make(experiment, config, index)
+                executor.wait()
+                executor = peer.boot_torrent(experiment, config, repeat)
+            else:
+                time.sleep(10)
+                executor = peer.boot_torrent(experiment)
 
-        status = experiment.experiment_peer(config, executor, repeat)
-        global_status &= status
+            status = experiment.experiment_peer(config, executor, repeat)
+            global_status &= status
 
-        if not status:
-            printw('Peer {} status in iteration {}/{} not good').format(config.gid, repeat, repeats-1)
+            if not status:
+                printw('Peer {} status in iteration {}/{} not good').format(config.gid, repeat, repeats-1)
 
 
     syncer.close()

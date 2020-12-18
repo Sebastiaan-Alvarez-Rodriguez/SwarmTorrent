@@ -66,6 +66,11 @@ class ExperimentInterface(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
+    def get_seeder_make_command(self, peerkeeper):
+        '''Get peer run command, executed in All peer nodes'''
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def get_peer_run_command(self, peerkeeper):
         '''Get peer run command, executed in All peer nodes'''
         raise NotImplementedError

@@ -32,16 +32,16 @@ def clean():
     return os.system('cd {0} && make c > /dev/null 2>&1'.format(loc.get_swarmtorrent_dir())) == 0
 
 # Handles compile commandline argument
-#TODO: implement compiling using make
 def compile():
     print('Compiling...')
 
-    zookeeper_loc = loc.get_zookeeper_dir()
-    if not fs.isdir(zookeeper_loc):
-        printe('Could not find {0}'.format(zookeeper_loc))
+    swarmtorrent_loc = loc.get_swarmtorrent_dir()
+    makefile = fs.join(swarmtorrent_loc, 'Makefile')
+    if not fs.isfile(makefile):
+        printe('Could not find {0}'.format(makefile))
         return False
 
-    statuscode = os.system('cd {0} && bash {1} jar > /dev/null 2>&1'.format(zookeeper_loc, loc.get_ant_loc_bin()))
+    statuscode = os.system('cd {0} && make > /dev/null 2>&1'.format(swarmtorrent_loc))
 
     if statuscode == 0:
         prints('Compilation completed!')
@@ -49,14 +49,14 @@ def compile():
         printe('Compilation failed!')
     return statuscode == 0
 
-# Redirects server node control to dedicated code
-def _exec_internal_client(debug_mode=False):
-    return rmt.run_client(debug_mode)
+# Redirects tracker node control to dedicated code
+def _exec_internal_peer(debug_mode=False):
+    return rmt.run_peer(debug_mode)
 
 
-# Redirects server node control to dedicated code
-def _exec_internal_server(debug_mode=False):
-    return rmt.run_server(debug_mode)
+# Redirects tracker node control to dedicated code
+def _exec_internal_tracker(debug_mode=False):
+    return rmt.run_tracker(debug_mode)
 
 
 # Handles execution on the remote main node, before booting the cluster
@@ -88,35 +88,23 @@ Note: Prefer reserving more time over getting timeouts.
     repeats, 'repeat' if repeats == 1 else 'repeats'))
 
     global_status = True
-    for idx, experiment in enumerate(experiments):
-        # Constructs result and log directories
-        for x in range(repeats):
-            fs.mkdir(loc.get_metazoo_results_dir(), experiment.timestamp, x) 
-            fs.mkdir(loc.get_metazoo_results_dir(), experiment.timestamp, x, 'experiment_logs')
-
-        
+    for idx, experiment in enumerate(experiments):     
         experiment.pre_experiment(repeats)
-
-        # Remove stale dirs from previous runs
-        fs.rm(loc.get_remote_crawlspace_dir(), ignore_errors=True)
-        fs.mkdir(loc.get_remote_crawlspace_dir())
-        fs.rm(loc.get_cfg_dir(), '.metazoo.cfg', ignore_errors=True)
-        fs.rm(loc.get_metazoo_experiment_dir(), '.port.txt', ignore_errors=True)
         
         # Build commands to boot the experiment
-        aff_server = experiment.servers_core_affinity
-        nodes_server = experiment.num_servers // aff_server
-        command_server = 'prun -np {} -{} -t {} python3 {} --exec_internal_server {}'.format(nodes_server, aff_server, time_to_reserve, fs.join(fs.abspath(), 'main.py'), '-d' if debug_mode else '')
-        aff_client = experiment.clients_core_affinity
-        nodes_client = experiment.num_clients // aff_client
-        command_client = 'prun -np {} -{} -t {} python3 {} --exec_internal_client {}'.format(nodes_client, aff_client, time_to_reserve, fs.join(fs.abspath(), 'main.py'), '-d' if debug_mode else '')
+        aff_tracker = experiment.trackers_core_affinity
+        nodes_tracker = experiment.num_tracker // aff_tracker
+        command_tracker = 'prun -np {} -{} -t {} python3 {} --exec_internal_tracker {}'.format(nodes_tracker, aff_tracker, time_to_reserve, fs.join(fs.abspath(), 'main.py'), '-d' if debug_mode else '')
+        aff_peer = experiment.peers_core_affinity
+        nodes_peer = experiment.num_peer // aff_peer
+        command_peer = 'prun -np {} -{} -t {} python3 {} --exec_internal_peer {}'.format(nodes_peer, aff_peer, time_to_reserve, fs.join(fs.abspath(), 'main.py'), '-d' if debug_mode else '')
 
         print('Booting network...')
-        server_exec = Executor(command_server)
-        client_exec = Executor(command_client)
+        tracker_exec = Executor(command_tracker)
+        peer_exec = Executor(command_peer)
 
-        Executor.run_all(server_exec, client_exec, shell=True)
-        status = Executor.wait_all(server_exec, client_exec)
+        Executor.run_all(tracker_exec, peer_exec, shell=True)
+        status = Executor.wait_all(tracker_exec, peer_exec)
 
         experiment.post_experiment()
         experiment.clean()
@@ -135,28 +123,29 @@ def export(full_exp=False):
         command = 'rsync -az {} {}:{} {} {} {}'.format(
             fs.dirname(fs.abspath()),
             st.ssh_key_name,
-            loc.get_remote_metazoo_parent_dir(),
+            loc.get_remote_swarmtorrent_dir(),
             '--exclude .git',
             '--exclude __pycache__',
-            '--exclude zookeeper-client', 
-            '--exclude results', 
-            '--exclude graphs')
+            '--exclude peer',
+            '--exclude tracker', 
+            '--exclude obj', 
+            '--exclude test')
         if not clean():
             printe('Cleaning failed')
             return False
     else:
-        print('[NOTE] This means we skip zookeeper-release-3.3.0 files.')
+        print('[NOTE] This means we skip thirdparty code.')
         command = 'rsync -az {} {}:{} {} {} {} {} {}'.format(
             fs.dirname(fs.abspath()),
             st.ssh_key_name,
-            loc.get_remote_parent_dir(),
-            '--exclude zookeeper-release-3.3.0',
-            '--exclude zookeeper-client',
-            '--exclude results',
-            '--exclude graphs',
-            '--exclude deps',
+            loc.get_remote_swarmtorrent_dir(),
             '--exclude .git',
-            '--exclude __pycache__')
+            '--exclude __pycache__',
+            '--exclude peer',
+            '--exclude tracker', 
+            '--exclude obj', 
+            '--exclude test',
+            '--exclude thirdparty')
     if os.system(command) == 0:
         prints('Export success!')
         return True
@@ -174,14 +163,14 @@ def _init_internal():
 
 # Handles init commandline argument
 def init():
-    print('Initializing MetaZoo...')
+    print('Initializing PeerKeeper...')
     if not export(full_exp=True):
         printe('Unable to export to DAS5 remote using user/ssh-key "{}"'.format(st.ssh_key_name))
         return False
     print('Connecting using key "{0}"...'.format(st.ssh_key_name))
 
-    if os.system('ssh {0} "python3 {1}/metazoo/main.py --init_internal"'.format(st.ssh_key_name, loc.get_remote_metazoo_dir())) == 0:
-        prints('Completed MetaZoo initialization. Use "{} --remote" to start execution on the remote host'.format(sys.argv[0]))
+    if os.system('ssh {0} "python3 {1}/main.py --init_internal"'.format(st.ssh_key_name, loc.get_remote_peerkeeper_dir())) == 0:
+        prints('Completed PeerKeeper initialization. Use "{} --remote" to start execution on the remote host'.format(sys.argv[0]))
 
 # Handles remote commandline argument
 def remote(repeats, force_exp=False, force_comp=False, debug_mode=False):
@@ -193,9 +182,9 @@ def remote(repeats, force_exp=False, force_comp=False, debug_mode=False):
     program +=(' -c' if force_comp else '')+(' -d' if debug_mode else '')
 
 
-    command = 'ssh {0} "python3 {1}/metazoo/main.py {2}"'.format(
+    command = 'ssh {0} "python3 {1}/main.py {2}"'.format(
         st.ssh_key_name,
-        loc.get_remote_metazoo_dir(),
+        loc.get_remote_peerkeeper_dir(),
         program)
     print('Connecting using key "{0}"...'.format(st.ssh_key_name))
     return os.system(command) == 0
@@ -205,7 +194,7 @@ def settings():
     st.change_settings()
 
 
-# The main function of MetaZoo
+# The main function of PeerKeeper
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     subparser = parser.add_subparsers()
@@ -215,15 +204,15 @@ def main():
     group.add_argument('--clean', help='clean build directory', action='store_true')
     group.add_argument('--check', help='check whether environment has correct tools', action='store_true')
     group.add_argument('--compile', help='compile ancient', action='store_true')
-    group.add_argument('--exec_internal_client', help=argparse.SUPPRESS, action='store_true')
-    group.add_argument('--exec_internal_server', help=argparse.SUPPRESS, action='store_true')
-    group.add_argument('--exec', nargs=1, metavar='repeats', help='call this on the DAS5 to handle server orchestration')
-    group.add_argument('--export', help='export only metazoo and script code to the DAS5', action='store_true')
+    group.add_argument('--exec_internal_peer', help=argparse.SUPPRESS, action='store_true')
+    group.add_argument('--exec_internal_tracker', help=argparse.SUPPRESS, action='store_true')
+    group.add_argument('--exec', nargs=1, metavar='repeats', help='call this on the DAS5 to handle tracker orchestration')
+    group.add_argument('--export', help='export only peerkeeper and script code to the DAS5', action='store_true')
     group.add_argument('--init_internal', help=argparse.SUPPRESS, action='store_true')
-    group.add_argument('--init', help='Initialize MetaZoo to run code on the DAS5', action='store_true')
+    group.add_argument('--init', help='Initialize PeerKeeper to run code on the DAS5', action='store_true')
     group.add_argument('--remote', nargs='?', const=1, type=int, metavar='repeats', help='execute code on the DAS5 from your local machine')
     group.add_argument('--settings', help='Change settings', action='store_true')
-    parser.add_argument('-c', '--force-compile', dest='force_comp', help='Forces to (re)compile Zookeeper, even when build seems OK', action='store_true')
+    parser.add_argument('-c', '--force-compile', dest='force_comp', help='Forces to (re)compile SwarmTorrent, even when build seems OK', action='store_true')
     parser.add_argument('-d', '--debug-mode', dest='debug_mode', help='Run remote in debug mode', action='store_true')
     parser.add_argument('-e', '--force-export', dest='force_exp', help='Forces to re-do the export phase', action='store_true')
     args = parser.parse_args()
@@ -236,10 +225,10 @@ def main():
         check()
     elif args.clean:
         clean()
-    elif args.exec_internal_client:
-        _exec_internal_client(args.debug_mode)
-    elif args.exec_internal_server:
-        _exec_internal_server(args.debug_mode)
+    elif args.exec_internal_peer:
+        _exec_internal_peer(args.debug_mode)
+    elif args.exec_internal_tracker:
+        _exec_internal_tracker(args.debug_mode)
     elif args.exec:
         exec(int(args.exec[0]), force_comp=args.force_comp, debug_mode=args.debug_mode)
     elif args.export:

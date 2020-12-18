@@ -1,34 +1,15 @@
 from util.executor import Executor
 
-# # Generates a connectionlist, which client nodes read to decide which host to connect to 
-# def gen_connectionlist(config, experiment):
-#     # End goal:
-#     # <node101>:<clientport1>
-#     # <node101>:<clientport2>
-#     # <node102>:<clientport1>
-#     # <node102>:<clientport2>
-#     clientport = 2181
-#     serverlist = []
-#     for x in range(len(config.nodes) // idr.num_procs_per_node()):
-#         addr = ip.node_to_infiniband_ip(config.nodes[x]) if experiment.clients_use_infiniband else 'node{:03d}'.format(config.nodes[x]) 
-#         for y in range(idr.num_procs_per_node()):
-#             cport = clientport + (idr.num_procs_per_node()+1)*y
-#             serverlist.append('{}:{}'.format(addr, cport))
-#     return serverlist
-
 # Make a torrentfile by peer, returns immediately after starting a thread containing our process
-def boot_make(infile, outfile, trackers):
-    #TODO: from experiment
-    command = f'./peer make -i {infile} -o {outfile}'
-    for tracker in trackers:
-        command += f' -t {tracker}'
+def boot_make(experiment, config, index):
+    command = experiment.get_seeder_make_command(config, index)
     executor = Executor(command)
     executor.run(shell=True)
     return executor
 
 # Torrent a file, returns immediately after starting a thread containing our process
-def boot_torrent(experiment):
-    command = experiment.get_peer_run_command()
+def boot_torrent(experiment, config, repeat):
+    command = experiment.get_peer_run_command(config, repeat)
     executor = Executor(command)
     executor.run(shell=True)
     return executor

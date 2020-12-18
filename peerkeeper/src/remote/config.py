@@ -21,14 +21,19 @@ import remote.util.identifier as idr
 #         raise RuntimeError('Allocated incorrect number of nodes ({}) for {} trackers'.format(len(nodenumbers), experiment.num_trackers))
 #     return ServerConfig(experiment, nodenumbers)
 
-def config_construct(experiment, is_tracker):
+def config_construct_tracker(experiment):
     nodenumbers = [int(nodename[4:]) for nodename in os.environ['HOSTS'].split()]
     nodenumbers.sort()
-    if is_tracker and not len(nodenumbers) == experiment.num_trackers:
+    if len(nodenumbers) == experiment.num_trackers:
         raise RuntimeError('Allocated incorrect number of nodes ({}) for {} trackers'.format(len(nodenumbers), experiment.num_trackers))
-    if not is_tracker and not len(nodenumbers) == experiment.num_peers:
+    return Config(experiment, nodenumbers, None)
+
+def config_construct_peer(experiment, trackers=None):
+    nodenumbers = [int(nodename[4:]) for nodename in os.environ['HOSTS'].split()]
+    nodenumbers.sort()
+    if not len(nodenumbers) == experiment.num_peers:
         raise RuntimeError('Allocated incorrect number of nodes ({}) for {} peers'.format(len(nodenumbers), experiment.num_peers))
-    return Config(experiment, nodenumbers)
+    return Config(experiment, nodenumbers, trackers)
 
 class Config(metaclass=abc.ABCMeta):
     '''
@@ -36,7 +41,7 @@ class Config(metaclass=abc.ABCMeta):
     since it provides storage for and access to
     essential variables for trackers and peers.
     '''
-    def __init__(self, experiment, nodes):
+    def __init__(self, experiment, nodes, trackers=None):
         self._nodes = nodes
 
         self._tracker_infiniband = experiment.trackers_use_infiniband
@@ -44,6 +49,8 @@ class Config(metaclass=abc.ABCMeta):
 
         self._gid = idr.identifier_global()
         self._lid = idr.identifier_local()
+
+        self._trackers = trackers
 
     # True if trackers should communicate using infiniband, False otherwise
     @property
@@ -70,6 +77,11 @@ class Config(metaclass=abc.ABCMeta):
     @property
     def nodes(self):
         return self._nodes
+
+    @property
+    def trackers(self):
+        return self._trackers
+    
 
 
 

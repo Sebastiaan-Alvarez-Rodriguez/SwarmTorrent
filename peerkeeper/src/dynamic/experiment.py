@@ -94,14 +94,19 @@ class Experiment(object):
         self.persist()
         return val
 
+    def get_seeder_make_command(self, config, index):
+        self._peerkeeper._index = index 
+        self._peerkeeper._trackers = config.trackers
+        return self.instance.get_seeder_make_command(self._peerkeeper)
 
     def get_peer_run_command(self, config, repeat):
         self._peerkeeper._gid = config.gid
         self._peerkeeper._lid = config.lid
-        self._peerkeeper._hosts = tuple(config.hosts)
         self._peerkeeper._repeat = repeat
-        self._peerkeeper._log_location = fs.join(loc.get_peerkeeper_results_dir(), self.timestamp, repeat, 'experiment_logs')
         return self.instance.get_peer_run_command(self._peerkeeper)
+
+    def get_tracker_run_command(self):
+        return self.instance.get_tracker_run_command(self._peerkeeper)
 
 
     def experiment_peer(self, config, executor, repeat):
@@ -142,7 +147,7 @@ class Experiment(object):
         with open(fs.join(loc.get_peerkeeper_experiment_dir(), '.elected.hidden'), 'r') as file:
             timestamp, location = file.read().split('|')
             exp = load_experiment(timestamp, location)
-            exp._peerkeeper = MetaZoo.load()
+            exp._peerkeeper = PeerKeeper.load()
             return exp
 
     # Cleans persisted information

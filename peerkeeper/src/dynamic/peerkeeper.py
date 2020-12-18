@@ -31,13 +31,12 @@ class PeerKeeper(object):
         self._register = dict()
         self._executor = None
         self._gid = None
-        self._hosts = None
         self._lid = None
-        self._log_location = None
         self._repeats = None
         self._repeat = None
         self._port = None
         self._trackers = None
+        self._index = None
 
     @property
     def executor(self):
@@ -98,6 +97,13 @@ class PeerKeeper(object):
         return self._trackers
     @port.setter
     def set_trackers(self):
+        raise RuntimeError('You cannot set the tracker list yourself!')
+
+    @property
+    def index(self):
+        return self._index
+    @port.setter
+    def set_index(self):
         raise RuntimeError('You cannot set the tracker list yourself!')
 
 

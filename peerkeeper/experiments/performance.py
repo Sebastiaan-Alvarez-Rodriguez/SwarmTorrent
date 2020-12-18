@@ -46,6 +46,22 @@ class PerformanceExperiment(ExperimentInterface):
         '''Amount of peer processes which may be mapped on the same physical node'''
         return 1
 
+    def file_sizes(self):
+        '''File sizes in MB'''
+        return [1, 50, 1024]
+
+    def tracker_port(self):
+        return 2323
+
+    def seeder_port(self):
+        return 2322
+
+    def peer_port(self):
+        return 2321
+
+    def num_files(self):
+        return len(file_sizes())
+
     def get_result_file(self):
         return fs.join(loc.get_peerkeeper_results_dir(), 'performance_experiment.csv')
 
@@ -61,32 +77,34 @@ class PerformanceExperiment(ExperimentInterface):
 
         resultfile = open(get_result_file(), 'a')
         for x, duration in enumerate(durations):
-            # TODO: init filesize
-            resultfile.write('{} {} {} {}\n'.format(filesize, peerkeeper.repeat, x, duration))
+            resultfile.write('{} {} {} {}\n'.format(file_sizes(peerkeeper._index), peerkeeper.repeat, x, duration))
 
 
     def pre_experiment(self, peerkeeper):
         '''Execution before experiment starts. Executed on the remote once.'''
-        #TODO: via peerkeeper?
         fs.mkdir(loc.get_swarmtorrent_log_dir(), exist_ok=True)
         fs.mkdir(loc.get_swarmtorrent_torrentfile_dir(), exist_ok=True)
         resultfile = open(get_result_file(), 'w+')
         resultfile.write('file_size iteration peer duration\n')
+        # create files to torrent
+        for index, file_size in enumerate(file_sizes):
+            os.system('head -c {}MB /dev/urandom > {}'.format(file_size, loc.get_initial_file(index)))
 
-    def get_initial_seeder_run_command(self, peerkeeper):
-        #TODO: generate infiles?
+
+
+    def get_seeder_make_command(self, peerkeeper):
         #TODO: find tracker ips and generate required strings
         outfile = loc.get_swarmtorrent_torrentfile()
+        infile = loc.get_initial_file(peerkeeper._index)
         command = f'./peer make -i {infile} -o {outfile}'
-        for tracker in trackers:
+        for tracker in peerkeeper._trackers:
             command += f' -t {tracker}'
 
 
     def get_peer_run_command(self, peerkeeper):
         '''Get peer run command, executed in All peer nodes'''
         register = peerkeeper.lid == 0
-        port = 2322 if register else 2321
-        #TODO: via peerkeeper?
+        port = seeder_port() if register else peer_port()
         workpath = loc.get_initial_file_dir() if register else loc.get_output_loc()
         torrentfile = loc.get_swarmtorrent_torrentfile()
         command = './peer torrent -p {} -w {} -f {}'.format(port, workpath, torrentfile)
@@ -96,7 +114,7 @@ class PerformanceExperiment(ExperimentInterface):
 
     def get_tracker_run_command(self, peerkeeper):
         '''Get tracker run command, executed in All tracker nodes'''
-        port = 2323
+        port = tracker_port()
         return './tracker -p {}'.format(port)
 
     def experiment_peer(self, peerkeeper):
@@ -107,17 +125,6 @@ class PerformanceExperiment(ExperimentInterface):
                 break
 
         status = peerkeeper.executor.stop()
-
-        # TODO: use for different file sizes? What about initial seeders?
-        #         run_time = metazoo.register['time']
-        # time.sleep(run_time) #Client remains active for a while
-        # nr_ratios = len(self.get_read_ratios())
-        # for ratio in range(1, nr_ratios):
-        #     metazoo.executor.cmd = self.get_run_command(metazoo, ratio)
-        #     metazoo.executor.reboot()
-        #     time.sleep(run_time)
-
-        # metazoo.executor.stop()
         
         # cleanup files
         if peerkeeper.lid == 0:
