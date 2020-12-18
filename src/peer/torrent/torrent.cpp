@@ -164,6 +164,8 @@ static void requests_send_join(peer::torrent::Session& session) {
     auto options = session.get_peertable();
     for (auto it = options.cbegin(); it != options.cend() && session.peers_amount() < peer::torrent::defaults::prefered_group_size; ++it) {
         const auto& address = *it;
+        if (session.get_peer_registry().contains(address)) // skip if we are already connected to this peer
+            continue;
 
         if (address.type.t_type != TransportType::TCP) {
             std::cerr << print::YELLOW << "[WARN] Only implemented support for TCP connections, skipping: " << address.type << ": " << address.ip << ':' << address.port << '\n';
@@ -281,7 +283,7 @@ static void requests_send_data_req(peer::torrent::Session& session) {
         // 3. Request picked fragment at picked peer
 
         const auto fragment_nr = rnd::random_from(session.rand, session.get_fragments_completed(), false);
-        if (fragment_nr >= session.get_num_fragments()) // We get here only if all fragments are completed
+        if (fragment_nr >= session.num_fragments) // We get here only if all fragments are completed
             return; // No need to ask for fragment data if we already have all
 
         const auto containmentvector = peer_registry.get_peers_for(fragment_nr);

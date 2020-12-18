@@ -153,7 +153,7 @@ void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr
     uint8_t* fragment_data;
     connections::peer::recv::data_reply(data, size, fragment_nr, fragment_data);
 
-    std::cerr << "(fragment_nr=" << fragment_nr << ") ("<<connected_ip<<':'<<port<<")\n";
+    std::cerr << "(fragment_nr=" << fragment_nr << ") ("<<connected_ip<<':'<<port<<"). ";
 
     if (session.fragment_completed(fragment_nr)) // We already have this fragment
         return;
@@ -172,6 +172,7 @@ void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr
         std::cerr << "There was a problem writing fragment " << fragment_nr << " to disk\n";
         return;
     }
+    std::cerr << "Marked fragment "<<fragment_nr<<" as complete." << std::endl;
     session.mark_fragment(fragment_nr);
 }
 
