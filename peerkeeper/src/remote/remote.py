@@ -44,7 +44,8 @@ def run_peer(debug_mode):
     is_seeder = experiment.peerkeeper.lid == 0
 
     # Required for initial seeder
-    infile = loc.get_initial_file_dir()
+    # TODO: from experiment?
+    infile = loc.get_initial_file()
     outfile = loc.get_output_loc()
     trackers = experiment.peerkeeper.trackers()
 

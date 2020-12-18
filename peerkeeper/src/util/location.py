@@ -42,7 +42,7 @@ def get_remote_peerkeeper_dir():
 def get_node_dir()
     return '/local/{}/'.format(st.ssh_user_name) 
 
-def get_initial_file_dir():
+def get_initial_file():
     return fs.join(get_node_dir(), 'initial.out')
 
 def get_output_loc():

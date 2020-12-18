@@ -47,7 +47,6 @@ class PerformanceExperiment(ExperimentInterface):
         return 1
 
     def get_result_file(self):
-        #TODO: create somewhere, we need to give it a header
         return fs.join(loc.get_peerkeeper_results_dir(), 'performance_experiment.csv')
 
     def check_ready(self):
@@ -62,15 +61,17 @@ class PerformanceExperiment(ExperimentInterface):
 
         resultfile = open(get_result_file(), 'a')
         for x, duration in enumerate(durations):
-            resultfile.write('{} {} {}\n'.format(peerkeeper.repeat, x, duration))
+            # TODO: init filesize
+            resultfile.write('{} {} {} {}\n'.format(filesize, peerkeeper.repeat, x, duration))
 
 
     def pre_experiment(self, peerkeeper):
         '''Execution before experiment starts. Executed on the remote once.'''
-        print('Hi there! I am executed before the experiment starts!')
         #TODO: via peerkeeper?
         fs.mkdir(loc.get_swarmtorrent_log_dir(), exist_ok=True)
         fs.mkdir(loc.get_swarmtorrent_torrentfile_dir(), exist_ok=True)
+        resultfile = open(get_result_file(), 'w+')
+        resultfile.write('file_size iteration peer duration\n')
 
 
     def get_peer_run_command(self, peerkeeper):
@@ -90,7 +91,6 @@ class PerformanceExperiment(ExperimentInterface):
         port = 2323
         return './tracker -p {}'.format(port)
 
-
     def experiment_peer(self, peerkeeper):
         '''Execution occuring on ALL peer nodes'''
         while (True):
@@ -99,9 +99,26 @@ class PerformanceExperiment(ExperimentInterface):
                 break
 
         status = peerkeeper.executor.stop()
-        #TODO: setup initial_file only once? delete only at the end of all experiments?
-        workpath = loc.get_initial_file_dir() if peerkeeper.lid == 0 else loc.get_output_loc()
-        fs.rm(workpath)
+
+        # TODO: use for different file sizes? What about initial seeders?
+        #         run_time = metazoo.register['time']
+        # time.sleep(run_time) #Client remains active for a while
+        # nr_ratios = len(self.get_read_ratios())
+        # for ratio in range(1, nr_ratios):
+        #     metazoo.executor.cmd = self.get_run_command(metazoo, ratio)
+        #     metazoo.executor.reboot()
+        #     time.sleep(run_time)
+
+        # metazoo.executor.stop()
+        
+        # cleanup files
+        if peerkeeper.lid == 0:
+            process_logs()
+            fs.rm(loc.get_swarmtorrent_log_dir())
+            fs.rm(loc.get_swarmtorrent_torrentfile())
+            fs.rm(loc.get_initial_file_dir())
+        else: 
+            fs.rm(loc.get_output_loc()) 
         return status
         
 
@@ -115,6 +132,4 @@ class PerformanceExperiment(ExperimentInterface):
 
     def post_experiment(self, peerkeeper):
         '''get amount of peer nodes to allocate'''
-        process_logs()
-        fs.rm(loc.get_swarmtorrent_log_dir())
-        fs.rm(loc.get_swarmtorrent_torrentfile())
+        
