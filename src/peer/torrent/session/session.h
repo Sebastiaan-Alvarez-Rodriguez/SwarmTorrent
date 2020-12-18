@@ -102,10 +102,6 @@ namespace peer::torrent {
             return fragments_completed;
         }
 
-        inline size_t get_num_fragments() {
-            return num_fragments;
-        }
-
         inline bool download_completed() const {
             return num_fragments == num_fragments_completed;
         }
@@ -114,9 +110,9 @@ namespace peer::torrent {
 
         // const member access methods //
 
-        inline const auto& get_hashtable() const { return htable; }
+        inline const auto& get_hashtable() const volatile { return htable; }
 
-        inline const auto& get_metadata() const { return metadata; }
+        inline const auto& get_metadata() const volatile { return metadata; }
 
         inline auto& get_handler() {
             return fragmentHandler;
@@ -152,8 +148,6 @@ namespace peer::torrent {
         inline bool has_peer(const Address& address) {
             return ptable.contains(address);
         }
-
-        inline size_t peers_amount() { return ptable.size(); }
 
 
 

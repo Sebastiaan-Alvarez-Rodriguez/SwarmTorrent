@@ -87,8 +87,8 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
         return;
     }
 
-    if (fragment_nr > session.get_num_fragments()) {
-        std::cerr << "Cannot get fragment number " << fragment_nr << ", only " << session.get_num_fragments() << " fragments exist!\n";
+    if (fragment_nr > session.num_fragments) {
+        std::cerr << "Cannot get fragment number " << fragment_nr << ", only " << session.num_fragments << " fragments exist!\n";
         connections::peer::send::data_rej(connection, session.get_fragments_completed());
         return;
     }
@@ -180,9 +180,11 @@ void peer::pipeline::local_discovery(const peer::torrent::Session& session, cons
     std::string recv_hash;
     if (!connections::shared::recv::discovery_req(data, size, recv_hash))
         return;
+    std::cerr << "Received a LOCAL_DISCOVERY_REQ (recv_hash="<<recv_hash<<", our hash="<<session.get_metadata().content_hash<<'\n';
     if (recv_hash != session.get_metadata().content_hash) // Hash mismatch
         return;
 
+    std::cerr << "Sending LOCAL_DISCOVERY_REPLY. Note: We believe that our address="<<session.get_address().type<<':'<<session.get_address().ip<<':'<<session.get_address().port<<'\n';
     connections::shared::send::discovery_reply(connection, session.get_peertable(), recv_hash, session.get_address());
 }
 
