@@ -123,29 +123,29 @@ class TCPHostConnection: public HostConnection {
 public:
     class Factory;
 
-    explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout) : HostConnection(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout) {
+    explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout, unsigned backlogSize) : HostConnection(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout, backlogSize) {
         this->state = ClientConnection::ERROR;
-        if ((this->sockfd = sock::make(type)) < 0) {
+        if ((sockfd = sock::make(type)) < 0) {
             std::cerr << "Could not build socket!" << std::endl;
             return;
         }
 
-        if (!blockmode && !sock::set_blocking(this->sockfd, false)) {
+        if (!blockmode && !sock::set_blocking(sockfd, false)) {
             std::cerr << "Could not set blockmode to false\n";
             return;
         }
 
-        if (reusemode && !sock::set_reuse(this->sockfd)) {
+        if (reusemode && !sock::set_reuse(sockfd)) {
             std::cerr << "Could not set reusemode to true\n";
             return;
         }
 
-        if (sendTimeout != 0 && !sock::set_timeout_send(this->sockfd, 0, sendTimeout)) {
+        if (sendTimeout != 0 && !sock::set_timeout_send(sockfd, 0, sendTimeout)) {
             std::cerr << "Could not set sendTimeout\n"; 
             return;
         }
 
-        if (recvTimeout != 0 && !sock::set_timeout_recv(this->sockfd, 0, recvTimeout)) {
+        if (recvTimeout != 0 && !sock::set_timeout_recv(sockfd, 0, recvTimeout)) {
             std::cerr << "Could not set sendTimeout\n"; 
             return;
         }
@@ -232,7 +232,7 @@ public:
     }
 
     inline std::unique_ptr<HostConnection> create() const override {
-        return std::make_unique<TCPHostConnection>(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout);
+        return std::make_unique<TCPHostConnection>(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout, backlogSize);
     }
 };
 #endif

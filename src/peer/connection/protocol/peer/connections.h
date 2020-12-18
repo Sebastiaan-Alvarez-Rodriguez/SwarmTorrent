@@ -36,7 +36,7 @@ namespace connections::peer {
         /** 
          * Reply to peer with a data fragment. Call this function only for positive replies to a DATA_REQ
          *
-         * '''Warning:''' assumes that the data buffer contains sizeof(message::peer::Header)+sizeof(size_t)
+         * '''Warning:''' assumes that the data buffer contains message::peer::bytesize()+sizeof(size_t)
          *                leading bytes of free space
          * '''Note:''' This function frees the data after transmission.
          */

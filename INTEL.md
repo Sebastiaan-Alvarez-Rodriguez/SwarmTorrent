@@ -1,7 +1,7 @@
 # Intel
 To quickly construct a 96MB testfile: 
 ```bash
-python3 -c 'print("A"*100000000, end="")' > test/dl_src/a.out
+python3 -c 'print("A"*1000000, end="")' > test/dl_src/a.out
 ```
 
 Launch a tracker:
@@ -16,10 +16,10 @@ In a separate terminal, make a torrentfile for the testfile:
 
 Get a SRC peer to torrent for our testfile:
 ```bash
-./peer torrent -p 2322 -w test/dl_src/ -f test/tfs/a.tf -r
+valgrind --leak-check=full --track-origins=yes ./peer torrent -p 2322 -w test/dl_src/ -f test/tfs/a.tf -r
 ```
 
 In another separate terminal, get a DST peer to torrent for our testfile:
 ```bash
-valgrind ./peer torrent -p 2321 -w test/dl_dst/ -f test/tfs/a.tf
+valgrind --leak-check=full --track-origins=yes ./peer torrent -p 2321 -w test/dl_dst/ -f test/tfs/a.tf
 ```

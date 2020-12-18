@@ -10,25 +10,25 @@ FragmentHandler::~FragmentHandler() {
         read_head.close(); 
 }
 
-bool FragmentHandler::read_with_leading(unsigned index, uint8_t*& data, unsigned& data_size, unsigned leading_size) {
+uint8_t* FragmentHandler::read_with_leading(unsigned index, unsigned& data_size, size_t leading_size) {
     if (!read_head.is_open())
-        return false;
+        return nullptr;
 
     //receive data_size and allocate required memory
     const unsigned frag_size = fragment_size;
     data_size = (index != num_fragments-1) ?  frag_size : file_size % frag_size;
-    data = (uint8_t*) malloc(data_size+leading_size);
+    uint8_t* const data = (uint8_t*) malloc(data_size+leading_size);
 
     //move until after the packet header to allocate
     uint8_t* const ptr = data + leading_size;
 
     //displacement with respect to previous read
-    const int64_t displ = (index*frag_size) - prev_read_index; 
+    const int64_t displ = (int64_t)(index*frag_size) - (int64_t) prev_read_index; 
     prev_read_index = index*frag_size + data_size; // After reading, readhead is at end of fragment we just read
     read_head.seekg(displ, std::ios_base::cur);
     read_head.read((char*) ptr, data_size);
 
-    return true;
+    return data;
 }
 
 
@@ -37,7 +37,7 @@ bool FragmentHandler::write(unsigned index, const uint8_t* data, unsigned data_s
         return false;
 
     //displacement with respect to previous write
-    const unsigned displ = (index*fragment_size) - prev_write_index;
+    const int64_t displ = (int64_t)(index*fragment_size) - (int64_t) prev_read_index; 
     prev_write_index = index*fragment_size + data_size; // After writing, writehead is at end of fragment we just read
 
     write_head.seekp(displ, std::ios_base::cur);

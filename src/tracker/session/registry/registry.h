@@ -22,6 +22,10 @@ namespace tracker::torrent {
         // Get the table with hash as identifier
         bool get_table(const std::string& hash, IPTable& peertable) const;
 
+        inline bool has_table(const std::string& hash) const {
+            return peertables.find(hash) != peertables.end();
+        }
+
         // Get the last-checked time of a given table hash identifier
         const auto last_checked(const std::string& hash) const;
 

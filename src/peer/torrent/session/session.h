@@ -26,7 +26,6 @@ namespace peer::torrent {
         const TorrentMetadata metadata;
         FragmentHandler fragmentHandler;
 
-        std::shared_ptr<HostConnection> recv_conn;
         Address own_address;
 
         peer::torrent::PeerRegistry peer_registry;
@@ -34,33 +33,40 @@ namespace peer::torrent {
         IPTable ptable; // table containing peers we might join. For joined peers, see [[peer_registry]]
         const IPTable ttable; // table containing trackers, as specified by the TorrentFile
 
-        const size_t num_fragments;
         size_t num_fragments_completed = 0;
         std::vector<bool> fragments_completed;
 
     public:
+        const size_t num_fragments;
+
+        // The port on which this peer is listening
+        const uint16_t registered_port;
+
         // Simple random number generator to use during this session.
         // Initialized such that different peers generate different numbers
         rnd::RandomGenerator<size_t> rand;
-        
+
         /**
          * Constructs a session.
          *
-         * @param tf The torrentfile to use for torrenting
-         * @param recv_conn The connection which will receive all requests.
+         * @param tf torrentfile to use for torrenting
+         * @param workpath path to where we load/store fragments
+         * @param registered_port port on which this peer is listening
          *
          * '''Note:''' Ownership of `recv_conn` is passed to this session upon construction.
          *             Connection is closed when the session is deconstructed.
          */
-        inline explicit Session(const TorrentFile& tf, std::unique_ptr<HostConnection> recv_conn, std::string workpath) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), recv_conn(std::move(recv_conn)), ttable(tf.getTrackerTable()), num_fragments(metadata.get_num_fragments()), fragments_completed(num_fragments, false), rand(std::move(std::random_device())) {
-            if (fs::is_file(workpath+metadata.name)) {
-                std::cerr << "Found correct file in working path. Checking out fragments...\n";
-                // We check if the hash is correct for each fragment of the file.
-                // For all matches, we set the corresponding completed-bit to true
-                for (size_t x = 0; x < num_fragments; ++x) {
-                    uint8_t* data;
+        inline explicit Session(const TorrentFile& tf, const std::string& workpath, uint16_t registered_port) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), ttable(tf.getTrackerTable()), fragments_completed(metadata.get_num_fragments(), false), num_fragments(metadata.get_num_fragments()), registered_port(registered_port), rand(std::move(std::random_device())) {
+            // if (fs::is_file(workpath+metadata.name)) {
+            std::cerr << "Checking out " << fragments_completed.size() << " fragments...\n";
+            // We check if the hash is correct for each fragment of the file.
+            // For all matches, we set the corresponding completed-bit to true
+            const auto filesize = fs::file_size(workpath + metadata.name);
+            if (filesize == metadata.size) {
+                for (size_t x = 0; x < fragments_completed.size(); ++x) {
                     unsigned size;
-                    if (fragmentHandler.read(x, data, size)) {
+                    uint8_t* data = fragmentHandler.read(x, size);
+                    if (data != nullptr) {
                         std::string fragment_hash;
                         hash::sha256(fragment_hash, data, size);
                         if (!htable.check_hash(x, fragment_hash)) {// Hash mismatch, wrong data
@@ -71,8 +77,9 @@ namespace peer::torrent {
                         }
                     }
                 }
-                std::cerr << "Reading complete. " << num_fragments_completed << '/' << num_fragments << " OK." << (num_fragments_completed == num_fragments ? " Download completed.\n" : "\n");
             }
+            std::cerr << "Reading complete. " << num_fragments_completed << '/' << num_fragments << " OK." << (num_fragments_completed == num_fragments ? " Download completed.\n" : "\n");
+            // }
         }
 
         inline void mark_fragment(size_t fragment_nr) {
@@ -114,7 +121,6 @@ namespace peer::torrent {
         inline auto& get_handler() {
             return fragmentHandler;
         }
-        inline const auto& get_conn() const { return recv_conn; }
 
         inline void set_address(Address& address) { own_address = address; }
 

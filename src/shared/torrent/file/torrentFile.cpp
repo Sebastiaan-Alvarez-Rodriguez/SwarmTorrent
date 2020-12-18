@@ -1,6 +1,7 @@
-#include <stdexcept>
-#include <iostream>
+#include <cstring>
 #include <fstream>
+#include <iostream>
+#include <stdexcept>
 
 #include "shared/util/fs/fs.h"
 
@@ -11,13 +12,16 @@ static std::string generate_hash(std::string tf) {
     std::streamsize size = reader.tellg();
     reader.seekg(0, std::ios::beg);
 
-    uint8_t* const data = (uint8_t*)malloc(size);
-    if (!reader.read((char*)data, size))
+    uint8_t* const data = (uint8_t*) malloc(size);
+    if (!reader.read((char*)data, size)) {
+        free(data);
         return "";
+    }
 
     const uint8_t* ptr = data;
     std::string hash = "";
     hash::sha256(hash, ptr, size);
+    free(data);
     return hash;
 }
 

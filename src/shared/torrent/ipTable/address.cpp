@@ -78,28 +78,50 @@ void Address::read_stream(std::istream& is) {
     is.read((char*)(&port), sizeof(port));
 }
 
+// Write address to buffer. Buffer contains:
+// Connectiontype
+// size (uint8_t)
+// ip (string, ip_size() len)
+// port (uint16_t)
 uint8_t* Address::write_buffer(uint8_t* const buf) const {
     uint8_t* writer = buf;
+
+    // Connectiontype
     *((ConnectionType*) writer) = type;
     writer += sizeof(ConnectionType);
-    *writer = ip.length();
+
+    // IP size
+    *writer = (uint8_t) ip.size(); // We can send size as uint8_t, as ip size is always lower than 255 (it is 16 or less)
     ++writer;
-    memcpy(writer, ip.data(), ip.length()+1);
-    writer += ip.length()+1;
+
+    // IP
+    memcpy(writer, ip.data(), ip.size());
+    writer += ip_size();
+
+    // Port
     *((uint16_t*) writer) = port;
     writer += sizeof(uint16_t);
     return writer;
 }
 
+// Read address to buffer. Buffer contains:
+// Connectiontype
+// size (uint8_t)
+// ip (string, ip_size() len)
+// port (uint16_t)
 const uint8_t* Address::read_buffer(const uint8_t* const buf) {
     const uint8_t* reader = buf;
+
     type = *((ConnectionType*) reader);
     reader += sizeof(ConnectionType);
-    size_t string_size = static_cast<size_t>(*reader);
+
+    size_t used_ip_size = (size_t) *reader;
     ++reader;
-    ip.resize(string_size);
-    memcpy(ip.data(), reader, string_size+1);
-    reader += string_size+1;
+
+    ip.resize(used_ip_size);
+    memcpy(ip.data(), reader, used_ip_size);
+    reader += ip_size();
+
     port = *((uint16_t*) reader);
     reader += sizeof(uint16_t);
     return reader;
