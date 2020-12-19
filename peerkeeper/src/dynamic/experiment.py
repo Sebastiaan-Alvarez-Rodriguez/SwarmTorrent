@@ -32,8 +32,8 @@ class Experiment(object):
     def num_trackers(self):
         if self._num_trackers == None:
             self._num_trackers = int(self.instance.num_trackers())
-            if self._num_trackers < 2:
-                raise RuntimeError('Experiment must specify num_trackers >=2 (currently got {})'.format(self._num_trackers))
+            if self._num_trackers < 1:
+                raise RuntimeError('Experiment must specify num_trackers >=1 (currently got {})'.format(self._num_trackers))
         return self._num_trackers
 
     @property
@@ -115,7 +115,6 @@ class Experiment(object):
         self._peerkeeper._hosts = tuple(config.hosts)
         self._peerkeeper._executor = executor
         self._peerkeeper._repeat = repeat
-        self._peerkeeper._log_location = fs.join(loc.get_peerkeeper_results_dir(), self.timestamp, repeat, 'experiment_logs')
 
         return self.instance.experiment_peer(self._peerkeeper)
 
@@ -125,7 +124,6 @@ class Experiment(object):
         self._peerkeeper._lid = config.lid
         self._peerkeeper._executor = executor
         self._peerkeeper._repeat = repeat
-        self._peerkeeper._log_location = fs.join(loc.get_peerkeeper_results_dir(), self.timestamp, repeat, 'experiment_logs')
         return self.instance.experiment_tracker(self._peerkeeper)
 
 

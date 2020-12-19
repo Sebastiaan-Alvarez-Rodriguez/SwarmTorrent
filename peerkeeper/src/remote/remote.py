@@ -36,6 +36,7 @@ def run_tracker(debug_mode):
                 printw('Tracker {} status in iteration {}/{} not good').format(config.gid, repeat, repeats-1)
 
     syncer.close()
+    fs.rm(loc.get_cfg())
 
     return global_status
 
@@ -59,6 +60,9 @@ def run_peer(debug_mode):
             syncer.sync()
             if debug_mode: print('Peer {} stage POST_SYNC1'.format(idr.identifier_global()))
             if is_seeder: 
+                # create file to torrent
+                os.system('head -c {}MB /dev/urandom > {}'.format(experiment.file_size(index), loc.get_initial_file(index)))
+
                 executor = peer.boot_make(experiment, config, index)
                 executor.wait()
                 executor = peer.boot_torrent(experiment, config, repeat)

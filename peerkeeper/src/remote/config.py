@@ -3,6 +3,7 @@ import os
 import socket
 
 import remote.util.identifier as idr
+from util.printer import *
 
 
 # # Constructs a peer config, populates it, and returns it
@@ -24,7 +25,7 @@ import remote.util.identifier as idr
 def config_construct_tracker(experiment):
     nodenumbers = [int(nodename[4:]) for nodename in os.environ['HOSTS'].split()]
     nodenumbers.sort()
-    if len(nodenumbers) == experiment.num_trackers:
+    if not len(nodenumbers) == experiment.num_trackers:
         raise RuntimeError('Allocated incorrect number of nodes ({}) for {} trackers'.format(len(nodenumbers), experiment.num_trackers))
     return Config(experiment, nodenumbers, None)
 

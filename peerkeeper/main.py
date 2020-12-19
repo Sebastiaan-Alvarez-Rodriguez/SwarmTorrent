@@ -90,15 +90,17 @@ Note: Prefer reserving more time over getting timeouts.
     repeats, 'repeat' if repeats == 1 else 'repeats'))
 
     global_status = True
-    for idx, experiment in enumerate(experiments):     
+    for idx, experiment in enumerate(experiments):   
+        if not fs.isdir('/home/ddps2009/scratch/SwarmTorrent'):
+            raise RuntimeError('Directory {} not found'.format('/home/ddps2009/scratch/SwarmTorrent'))  
         experiment.pre_experiment(repeats)
         
         # Build commands to boot the experiment
         aff_tracker = experiment.trackers_core_affinity
-        nodes_tracker = experiment.num_tracker // aff_tracker
+        nodes_tracker = experiment.num_trackers // aff_tracker
         command_tracker = 'prun -np {} -{} -t {} python3 {} --exec_internal_tracker {}'.format(nodes_tracker, aff_tracker, time_to_reserve, fs.join(fs.abspath(), 'main.py'), '-d' if debug_mode else '')
         aff_peer = experiment.peers_core_affinity
-        nodes_peer = experiment.num_peer // aff_peer
+        nodes_peer = experiment.num_peers // aff_peer
         command_peer = 'prun -np {} -{} -t {} python3 {} --exec_internal_peer {}'.format(nodes_peer, aff_peer, time_to_reserve, fs.join(fs.abspath(), 'main.py'), '-d' if debug_mode else '')
 
         print('Booting network...')
@@ -128,22 +130,22 @@ def export(full_exp=False):
             loc.get_remote_swarmtorrent_parent_dir(),
             '--exclude .git',
             '--exclude __pycache__', 
-            '--exclude obj', 
-            '--exclude test')
+            '--exclude SwarmTorrent/test', 
+            '--exclude SwarmTorrent/obj')
         if not clean():
             printe('Cleaning failed')
             return False
     else:
         print('[NOTE] This means we skip thirdparty code.')
-        command = 'rsync -az {} {}:{} {} {} {} {} {}'.format(
+        command = 'rsync -az {} {}:{} {} {} {} {}'.format(
             fs.dirname(fs.abspath()),
             st.ssh_key_name,
             loc.get_remote_swarmtorrent_parent_dir(),
             '--exclude .git',
             '--exclude __pycache__',
-            '--exclude obj', 
-            '--exclude test',
-            '--exclude thirdparty')
+            '--exclude SwarmTorrent/obj', 
+            '--exclude SwarmTorrent/test',
+            '--exclude SwarmTorrent/thirdparty')
     if os.system(command) == 0:
         prints('Export success!')
         return True

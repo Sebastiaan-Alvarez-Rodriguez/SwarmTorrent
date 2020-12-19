@@ -34,7 +34,7 @@ class PeerKeeper(object):
         self._lid = None
         self._repeats = None
         self._repeat = None
-        self._port = None
+        self._tracker_port = None
         self._trackers = None
         self._index = None
 
@@ -86,23 +86,23 @@ class PeerKeeper(object):
         raise RuntimeError('You cannot set repeat number yourself!')
 
     @property
-    def port(self):
-        return self._port
-    @port.setter
-    def set_port(self):
+    def tracker_port(self):
+        return self._tracker_port
+    @tracker_port.setter
+    def set_tracker_port(self):
         raise RuntimeError('You cannot set port number yourself!')
 
     @property
     def trackers(self):
         return self._trackers
-    @port.setter
+    @trackers.setter
     def set_trackers(self):
         raise RuntimeError('You cannot set the tracker list yourself!')
 
     @property
     def index(self):
         return self._index
-    @port.setter
+    @index.setter
     def set_index(self):
         raise RuntimeError('You cannot set the tracker list yourself!')
 
@@ -144,7 +144,10 @@ class PeerKeeper(object):
 
     # Function to persist this instance using pickling
     def persist(self):
-        with open(fs.join(loc.get_remote_peerkeeper_dir(), '.hidden.persist.pickle'), 'wb') as file:
+        if not fs.isdir(loc.get_remote_swarmtorrent_dir()):
+            raise RuntimeError('Directory {} not found'.format(loc.get_remote_swarmtorrent_dir()))
+
+        with open(fs.join(loc.get_remote_swarmtorrent_dir(), '.hidden.persist.pickle'), 'wb+') as file:
             try:
                 pickle.dump(self, file, pickle.HIGHEST_PROTOCOL)
             except Exception as e:
@@ -155,7 +158,7 @@ class PeerKeeper(object):
     # Function to load persisted object using pickling
     @staticmethod
     def load():
-        location = fs.join(loc.get_remote_peerkeeper_dir(), '.hidden.persist.pickle')
+        location = fs.join(loc.get_remote_swarmtorrent_dir(), '.hidden.persist.pickle')
         if not fs.isfile(location):
             raise RuntimeError('Temporary state file not found at {}'.format(location))
         with open(location, 'rb') as file:

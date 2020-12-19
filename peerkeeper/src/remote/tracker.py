@@ -23,7 +23,8 @@ def gen_trackerlist(config, experiment):
     #TODO: handle differently for higher tracker affinities
     for node in config.nodes:
         addr = ip.node_to_infiniband_ip(node) if experiment.peers_use_infiniband else ip.node_to_ip(node)
-        trackerlist.append('{}:{}:{}:{}'.format('TCP', '4', experiment.tracker_port(), addr))
+        trackerlist.append('{}:{}:{}:{}'.format('TCP', '4', experiment.peerkeeper.tracker_port, addr))
+    return trackerlist
 
 
 # Starts tracker, returns immediately after starting a thread containing our process

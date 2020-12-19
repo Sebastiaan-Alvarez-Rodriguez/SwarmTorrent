@@ -3,6 +3,7 @@ import time
 
 import util.fs as fs
 import util.location as loc
+import remote.util.ip as ip
 
 from util.printer import *
 
@@ -12,7 +13,7 @@ class Syncer(object):
     Object to  handle synchronisation of all nodes between runs.
     Works with a barrier-style lock:
     Server 0 (prime) is the barrier lock holder and guide.
-    All other trackers and peers connect to prime and send a few bytes
+    All other servers and clients connect to prime and send a few bytes
     to notify prime they are waiting.
     Once prime has received notifications from all other nodes,
     it sends a few bytes back, signalling them to continue.
@@ -31,14 +32,14 @@ class Syncer(object):
         self.prime = self.gid == 0 and self.designation == 'tracker'
         # Server 0 opens socket to listen
         if self.prime:
-            self.trackersock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.serversock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.port = 2000
             connected = False
             while not connected:
                 trackeraddr = (socket.gethostname(), self.port)
                 for x in range(retries):
                     try:
-                        self.trackersock.bind(trackeraddr)
+                        self.serversock.bind(trackeraddr)
                         connected = True
                         break
                     except OSError as e:
@@ -46,18 +47,18 @@ class Syncer(object):
                             self.port += 1
                             break
                         if x == 0:
-                            printw('[SYNC] PRIME {}.{} cannot host from address {} (connection refused). Retrying...'.format(designation.upper(), self.gid, trackeraddr))
+                            printw('[SYNC] PRIME {}.{} cannot host from address {} (connection refused). Retrying...'.format(designation.upper(), self.gid, serveraddr))
                         elif x == retries-1:
                             raise e
             prints('Prime hosting from {}:{}'.format(socket.gethostname(), self.port))
             with open(fs.join(loc.get_peerkeeper_experiment_dir(), '.port.txt'), 'w') as file:
                 file.write(str(self.port))
-            self.trackersock.listen(1070) #Get up to 1070 connections before refusing them
+            self.serversock.listen(1070) #Get up to 1070 connections before refusing them
             self.expected_connections = experiment.num_trackers-1+experiment.num_peers
             self.connections = []
             if self.debug_mode: print('PRIME stage 0! Address in use: {}'.format(trackeraddr), flush=True)
             for x in range(self.expected_connections):
-                connection, address = self.trackersock.accept()
+                connection, address = self.serversock.accept()
                 self.connections.append(connection)
             if self.debug_mode: print('PRIME Got all {} connections'.format(self.expected_connections), flush=True)
         else: #Others open a socket to prime
@@ -72,9 +73,9 @@ class Syncer(object):
                         time.sleep(1)
                         pass
             if self.designation == 'peer':
-                addr = (config.hosts[0].split(':')[0], self.port)
+                addr = (config.trackers[0].split(':')[3], self.port)
             else:
-                addr = ('node{:03d}'.format(config.nodes[0]), self.port)
+                addr = ('node{:03d}'.format(config.trackers[3]), self.port)
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             if self.debug_mode: print('{}.{} CONNECTING TO addr: {}'.format(self.designation, self.gid, addr), flush=True)
             for x in range(retries):
@@ -87,6 +88,7 @@ class Syncer(object):
                     elif x == retries-1:
                         raise e
                     time.sleep(1)
+
 
     # Handle syncinc if we are prime tracker
     def _handle_sync_prime(self):
