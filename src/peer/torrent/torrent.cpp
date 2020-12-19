@@ -1,6 +1,7 @@
 #include <chrono>
 #include <cstdint>
 #include <iostream>
+#include <fstream>
 #include <random>
 #include <stdexcept>
 #include <thread>
@@ -134,13 +135,16 @@ static void requests_send_local_discovery(peer::torrent::Session& session, rnd::
         std::cerr << "Sending a LOCAL_DISCOVERY_REQ to " << address.type << ", " << address.ip << ':'<<address.port<<'\n';
         auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
         if (!connection->doConnect()) {
+            session.report_registered_peer(address);
             std::cerr << "Could not connect to fellow peer ";connection->print(std::cerr); std::cerr << '\n';
             continue;
         }
+        session.mark_registered_peer(address);
         if (!connections::shared::send::discovery_req(connection, session.get_metadata().content_hash)) {
             std::cerr << "Could not send local_discovery request to fellow peer ";connection->print(std::cerr); std::cerr << '\n';
             continue;
         }
+        
 
         message::standard::Header standard = message::standard::recv(connection);
 
@@ -200,13 +204,16 @@ static void requests_send_join(peer::torrent::Session& session) {
     for (const auto& address : addresses) {
         auto conn = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
         if (conn->get_state() != ClientConnection::READY) {
+            session.report_registered_peer(address);
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
         if (!conn->doConnect()) {
+            session.report_registered_peer(address);
             std::cerr << "Could not connect to peer ";conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
+        session.mark_registered_peer(address);
         
         std::cerr << "Sending a JOIN request\n";
         if (!connections::peer::send::join(conn, session.registered_port, torrent_hash, session.get_fragments_completed_copy())) {
@@ -262,13 +269,16 @@ static void requests_send_leave(peer::torrent::Session& session) {
 
         auto conn = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
         if (conn->get_state() != ClientConnection::READY) {
+            session.mark_registered_peer(address);
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
         if (!conn->doConnect()) {
+            session.mark_registered_peer(address);
             std::cerr << "Could not connect to peer ";conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
+        session.report_registered_peer(address);
         if (!connections::peer::send::leave(conn, torrent_hash, session.registered_port)) {
             std::cerr << print::YELLOW << "[WARN] Could not send leave request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
@@ -337,12 +347,15 @@ static void requests_send_data_req(peer::torrent::Session& session, rnd::RandomG
         auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
         if (!connection->doConnect()) {
             std::cerr << "Could not connect to fellow peer ";connection->print(std::cerr); std::cerr << '\n';
+            session.report_registered_peer(address);
             continue;
         }
+        session.mark_registered_peer(address);
         if (!connections::peer::send::data_req(connection, session.registered_port, fragment_nr)) {
             std::cerr << "Could not send data request to fellow peer ";connection->print(std::cerr); std::cerr << '\n';
             continue;
         }
+        
 
         message::standard::Header standard = message::standard::recv(connection);
         // std::cout << "Unable to peek. System hangup?" << std::endl;
@@ -442,7 +455,7 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
         std::cerr << "We now have 0 peers! We must ask the trackers for a peertable\n";
         session.set_peers(compose_peertable(session, false));
         return;
-    } 
+    }
     // We have at least 1 peer. Get some data!
     // 1. while small peertable -> LOCAL_DISCOVERY_REQ
     // 2. while small jointable -> JOIN
@@ -462,7 +475,7 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
 
 
 // Handle requests we receive
-static void requests_receive(peer::torrent::Session& session, std::unique_ptr<HostConnection>& hostconnection, FragmentHandler& handler) {
+static void requests_receive(peer::torrent::Session& session, std::unique_ptr<HostConnection>& hostconnection, FragmentHandler& handler, const std::string logfile, const std::chrono::high_resolution_clock::time_point starttime) {
     auto connection = hostconnection->acceptConnection();
     message::standard::Header standard = message::standard::recv(connection);
     // std::cerr << "Unable to peek. System hangup?" << std::endl;
@@ -478,7 +491,18 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
             case message::peer::JOIN: peer::pipeline::join(session, connection, data, standard.size); break;
             case message::peer::LEAVE: peer::pipeline::leave(session, connection, data, standard.size); break;
             case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, handler, data, standard.size); break;
-            case message::peer::DATA_REPLY: peer::pipeline::data_reply(session, connection, handler, data, standard.size); break;
+            case message::peer::DATA_REPLY: {
+                peer::pipeline::data_reply(session, connection, handler, data, standard.size);
+                // If we received all fragments, log time
+                if (session.download_completed()) {
+                    auto t2 = std::chrono::high_resolution_clock::now();
+                    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2-starttime).count();
+                    std::ofstream logger(logfile);
+                    logger << duration; 
+                    logger.close();
+                }
+                break;
+            }
             case message::peer::INQUIRE: message::standard::send(connection, message::standard::OK); break;
             case message::peer::AVAILABILITY: peer::pipeline::availability(session, connection, data, standard.size); break;
             default: // We get here when testing or corrupt tag
@@ -501,7 +525,7 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
     }
 }
 
-bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort, bool force_register) {
+bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort, bool force_register, const std::string& logfile) {
     // 0. Prepare and check output location
     // 1. Load trackerlist from tf
     // 2. Get peertables from trackers
@@ -509,6 +533,10 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     // 4. Construct torrent session (to maintain received fragments, maintain receive connection etc)
     // 5. Continually send and receive data
 
+    if (!fs::is_file(logfile)) {
+        std::cerr << print::RED << "[ERROR] log file '" << logfile << "' does not exist" << print::CLEAR << std::endl;
+        return false;
+    }
     if (!fs::is_dir(workpath) && !fs::mkdir(workpath)) {
         std::cerr << print::RED << "[ERROR] Could not construct path '" << workpath << "'" << print::CLEAR << std::endl;
         return false;
@@ -535,11 +563,11 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
                 std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
             }
         });
-    std::thread receivethread([&session, &receive_stop](auto&& hostconnection) {
+    std::thread receivethread([&session, &receive_stop, &logfile](auto&& hostconnection) {
+        auto starttime = std::chrono::high_resolution_clock::now();
         while (!receive_stop) {
             FragmentHandler fragmentHandler(session.metadata, session.workpath + session.metadata.name);
-            requests_receive(session, hostconnection, fragmentHandler);
-            std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+            requests_receive(session, hostconnection, fragmentHandler, logfile, starttime);
         }
     }, std::move(hostconnection));
     std::thread gcthread([&session, &gc_stop]() {

@@ -16,10 +16,12 @@ In a separate terminal, make a torrentfile for the testfile:
 
 Get a SRC peer to torrent for our testfile:
 ```bash
-valgrind --leak-check=full --track-origins=yes ./peer torrent -p 2322 -w test/dl_src/ -f test/tfs/a.tf -r
+touch test/.log0
+valgrind --leak-check=full --track-origins=yes ./peer torrent -p 2322 -w test/dl_src/ -f test/tfs/a.tf -r -l test/.log0
 ```
 
 In another separate terminal, get a DST peer to torrent for our testfile:
 ```bash
-valgrind --leak-check=full --track-origins=yes ./peer torrent -p 2321 -w test/dl_dst/ -f test/tfs/a.tf
+touch test/.log1
+valgrind --leak-check=full --track-origins=yes ./peer torrent -p 2321 -w test/dl_dst/ -f test/tfs/a.tf -l test/.log1
 ```
