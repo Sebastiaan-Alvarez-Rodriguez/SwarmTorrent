@@ -33,10 +33,12 @@ class Syncer(object):
         # Server 0 opens socket to listen
         if self.prime:
             self.serversock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.port = 2000
+            self.port = 9163
             connected = False
             while not connected:
-                trackeraddr = (socket.gethostname(), self.port)
+                hostname = socket.gethostname()
+                ipstring = ip.node_to_infiniband_ip(int(hostname[4:])) if experiment.peers_use_infiniband else ip.node_to_ip(int(hostname[4:]))
+                trackeraddr = (ipstring, self.port)
                 for x in range(retries):
                     try:
                         self.serversock.bind(trackeraddr)

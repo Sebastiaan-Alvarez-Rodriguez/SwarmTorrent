@@ -4,6 +4,7 @@ from remote.config import config_construct_tracker, config_construct_peer, Confi
 from remote.util.syncer import Syncer
 import remote.tracker as tracker
 import remote.peer as peer
+import remote.util.identifier as idr
 import util.fs as fs
 import util.location as loc
 from util.printer import *
@@ -22,7 +23,7 @@ def run_tracker(debug_mode):
 
     global_status = True
     for repeat in range(repeats):
-        for index in range(experiment.num_files()):
+        for index in range(experiment.peerkeeper.num_files):
             syncer.sync()
             executor = tracker.boot(experiment)
 
@@ -43,7 +44,7 @@ def run_tracker(debug_mode):
 def run_peer(debug_mode):
     experiment = Experiment.load()
     repeats = experiment.peerkeeper.repeats
-    is_seeder = experiment.peerkeeper.lid == 0
+    is_seeder = idr.identifier_global() == 0
 
     while not fs.isfile(loc.get_cfg()):
         time.sleep(1)
@@ -55,20 +56,25 @@ def run_peer(debug_mode):
 
     global_status = True
     for repeat in range(repeats):
-        for index in range(experiment.num_files()):
+        for index in range(experiment.peerkeeper.num_files):
             if debug_mode: print('Peer {} stage PRE_SYNC1'.format(idr.identifier_global()))
             syncer.sync()
             if debug_mode: print('Peer {} stage POST_SYNC1'.format(idr.identifier_global()))
             if is_seeder: 
+                if debug_mode: print('Peer {} is seeder'.format(idr.identifier_global()))
                 # create file to torrent
                 os.system('head -c {}MB /dev/urandom > {}'.format(experiment.file_size(index), loc.get_initial_file(index)))
+                if not fs.isfile(loc.get_initial_file(index)):
+                    raise RuntimeError('{} does not exist'.format(loc.get_initial_file(index)))
 
                 executor = peer.boot_make(experiment, config, index)
                 executor.wait()
+                if debug_mode: print('Peer {} made torrent'.format(idr.identifier_global()))
                 executor = peer.boot_torrent(experiment, config, repeat)
             else:
+                if debug_mode: print('Peer {} is not seeder'.format(idr.identifier_global()))
                 time.sleep(10)
-                executor = peer.boot_torrent(experiment)
+                executor = peer.boot_torrent(experiment, config , repeat)
 
             status = experiment.experiment_peer(config, executor, repeat)
             global_status &= status

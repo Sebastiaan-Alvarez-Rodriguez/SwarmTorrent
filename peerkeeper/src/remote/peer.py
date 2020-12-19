@@ -1,4 +1,5 @@
 from util.executor import Executor
+from util.printer import *
 
 # Make a torrentfile by peer, returns immediately after starting a thread containing our process
 def boot_make(experiment, config, index):

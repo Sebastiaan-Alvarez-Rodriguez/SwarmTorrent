@@ -88,6 +88,9 @@ class Experiment(object):
     def peerkeeper(self):
         return self._peerkeeper
 
+    def file_size(self, index):
+        return self.instance.file_sizes()[index]
+
     def pre_experiment(self, repeats):
         self._peerkeeper._repeats = repeats
         val = self.instance.pre_experiment(self._peerkeeper)
@@ -112,7 +115,6 @@ class Experiment(object):
     def experiment_peer(self, config, executor, repeat):
         self._peerkeeper._gid = config.gid
         self._peerkeeper._lid = config.lid
-        self._peerkeeper._hosts = tuple(config.hosts)
         self._peerkeeper._executor = executor
         self._peerkeeper._repeat = repeat
 

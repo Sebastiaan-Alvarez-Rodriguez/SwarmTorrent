@@ -37,6 +37,7 @@ class PeerKeeper(object):
         self._tracker_port = None
         self._trackers = None
         self._index = None
+        self._num_files = None
 
     @property
     def executor(self):
@@ -104,7 +105,14 @@ class PeerKeeper(object):
         return self._index
     @index.setter
     def set_index(self):
-        raise RuntimeError('You cannot set the tracker list yourself!')
+        raise RuntimeError('You cannot set the index yourself!')
+
+    @property
+    def num_files(self):
+        return self._num_files
+    @num_files.setter
+    def set_num_files(self):
+        raise RuntimeError('You cannot set the num files yourself!')
 
 
     # Function to completely prohibit changing (i.e. writing, updating, deleting) PeerKeeper register
