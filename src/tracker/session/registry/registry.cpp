@@ -1,7 +1,7 @@
 #include "registry.h"
 
-void tracker::torrent::Registry::create_table(const std::string& hash) {
-    peertables.insert({hash, {IPTable()}});
+bool tracker::torrent::Registry::create_table(const std::string& hash) {
+    return peertables.insert({hash, {IPTable()}}).second;
 }
 
 bool tracker::torrent::Registry::add_table(const std::string& hash, IPTable&& peertable) {
@@ -15,7 +15,7 @@ bool tracker::torrent::Registry::add_peer(const std::string& hash, const Address
     return it->second.table.add(address) || exist_ok;
 }
 
-bool tracker::torrent::Registry::get_table(const std::string& hash, IPTable& peertable) const {
+bool tracker::torrent::Registry::find_table(const std::string& hash, IPTable& peertable) const {
     auto it = peertables.find(hash);
     if (it == peertables.end())
         return false; 

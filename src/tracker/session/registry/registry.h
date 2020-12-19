@@ -14,14 +14,27 @@ namespace tracker::torrent {
     public:
         Registry() = default;
 
-        void create_table(const std::string& hash);
+        // Add an empty table for given hash. Returns true on insertion, false when there already is a table for hash.
+        bool create_table(const std::string& hash);
 
         // Add a table with hash as identifier. Returns true on insertion, false when it already exists.
         bool add_table(const std::string& hash, IPTable&& peertable);
 
-        // Get the table with hash as identifier
-        bool get_table(const std::string& hash, IPTable& peertable) const;
+        // Find table with hash as identifier. Returns true on success, false if no such table exists.
+        bool find_table(const std::string& hash, IPTable& peertable) const;
 
+        inline const auto& get(const std::string& hash) { return peertables[hash]; }
+
+        inline bool contains(const std::string& hash) const { return peertables.find(hash) != peertables.end(); }
+
+        // gets all keys of registry (all hashes with a registered table)
+        inline const auto get_keys() const {
+            std::vector<std::string> keys;
+            keys.reserve(peertables.size());
+            for(const auto& kv : peertables)
+                keys.push_back(kv.first);
+            return keys;
+        }
         inline bool has_table(const std::string& hash) const {
             return peertables.find(hash) != peertables.end();
         }

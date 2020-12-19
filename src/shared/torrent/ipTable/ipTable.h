@@ -57,6 +57,13 @@ public:
     inline IPTable copy() const {
         return IPTable(*this);
     }
+
+    inline auto get(const std::string& ip, uint16_t port) {
+        Address a;
+        a.ip = ip;
+        a.port = port;
+        return *ips.find(a);
+    }
 protected:
     // a set of addresses
     std::unordered_set<Address> ips;

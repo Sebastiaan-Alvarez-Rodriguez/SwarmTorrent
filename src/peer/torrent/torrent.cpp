@@ -182,7 +182,7 @@ static void requests_send_join(peer::torrent::Session& session) {
 
 
     auto peertable_lock = session.get_peertable_lock_read();
-    const auto& peertable = session.get_peertable();
+    const auto& peertable = session.get_peertable_unsafe();
 
     std::unordered_set<Address> addresses;
     for (auto it = peertable.cbegin(); it != peertable.cend() && addresses.size() < diff; ++it) {
@@ -209,7 +209,7 @@ static void requests_send_join(peer::torrent::Session& session) {
         }
         
         std::cerr << "Sending a JOIN request\n";
-        if (!connections::peer::send::join(conn, session.registered_port, torrent_hash, session.get_fragments_completed())) {
+        if (!connections::peer::send::join(conn, session.registered_port, torrent_hash, session.get_fragments_completed_copy())) {
             std::cerr << print::YELLOW << "[WARN] Could not send send_exchange request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
@@ -526,9 +526,10 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     bool receive_stop = false;
     bool gc_stop = false;
 
-    std::thread availability;
-    if (!session.download_completed()) // Periodically send our availability, and ask for availability of others
-        availability = std::thread([&session, &availability_stop]() {
+    std::thread availabilitythread;
+    const bool use_availabilitythread = session.download_completed();
+    if (use_availabilitythread) // Periodically send our availability, and ask for availability of others
+        availabilitythread = std::thread([&session, &availability_stop]() {
             while (!availability_stop && !session.download_completed()) {
                 requests_send_availability(session);
                 std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
@@ -537,12 +538,11 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     std::thread receivethread([&session, &receive_stop](auto&& hostconnection) {
         while (!receive_stop) {
             FragmentHandler fragmentHandler(session.metadata, session.workpath + session.metadata.name);
-
             requests_receive(session, hostconnection, fragmentHandler);
             std::this_thread::sleep_for(std::chrono::milliseconds(6000));
         }
     }, std::move(hostconnection));
-    std::thread gc([&session, &gc_stop]() {
+    std::thread gcthread([&session, &gc_stop]() {
         while (!gc_stop) {
             session.peer_registry_gc();
             session.request_registry_gc();
@@ -560,8 +560,13 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
         requests_send(session, rand);
 
     availability_stop = true;
+    if (use_availabilitythread)
+        availabilitythread.join();
+
     receive_stop = true;
     receivethread.join();
+    
     gc_stop = true;
+    gcthread.join();
     return true;
 }

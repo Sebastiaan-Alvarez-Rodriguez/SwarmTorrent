@@ -1,9 +1,9 @@
 #include <chrono>
 #include <cstring>
 #include <algorithm>
-#include <future>
 #include <iostream>
 #include <tclap/CmdLine.h>
+#include <thread>
 #include <set>
 #include <stdexcept>
 
@@ -32,75 +32,72 @@ static inline uint8_t* prepare_standard_message(size_t datasize, message::standa
     return data;
 }
 
-static void handle_discovery(Session* session, bool* stop) {
-    std::cout << "Discovery thread started\n";
-    while (!(*stop)) {
-        const auto& registry = session->get_registry();
-        IPTable peertable;
+static void handle_discovery(Session& session, rnd::RandomGenerator<size_t> rand) {
+    const auto& registry_hashes = session.get_registry_keys();
+    IPTable peertable;
 
-        for (auto it = registry.cbegin(); it != registry.cend(); ++it) {
-            const auto& hash = it->first;
-            const auto time_diff = std::chrono::steady_clock::now() - it->second.timestamp;
-            const auto& table = it->second.table;
-            const bool do_discover = 
-                (table.size() < tracker::torrent::defaults::fast_update_size && time_diff > tracker::torrent::defaults::fast_update_time)
-                || (table.size() < tracker::torrent::defaults::medium_update_size && time_diff > tracker::torrent::defaults::medium_update_time)
-                || (table.size() > tracker::torrent::defaults::medium_update_size && time_diff > tracker::torrent::defaults::slow_update_time);
-            if (do_discover) {
-                // 1. Pick a number of peers to discover from
-                // 2. Send discovery requests
-                // 3. Receive discovery requests, set new table
+    for (const auto& hash : registry_hashes) {
+        const auto& element = session.registry_element_for(hash);
+        const auto time_diff = std::chrono::steady_clock::now() - element.timestamp;
+        const auto& table = element.table;
+
+        const bool do_discover = 
+            (table.size() < tracker::torrent::defaults::fast_update_size && time_diff > tracker::torrent::defaults::fast_update_time)
+            || (table.size() < tracker::torrent::defaults::medium_update_size && time_diff > tracker::torrent::defaults::medium_update_time)
+            || (table.size() > tracker::torrent::defaults::medium_update_size && time_diff > tracker::torrent::defaults::slow_update_time);
+        if (do_discover) {
+            // 1. Pick a number of peers to discover from
+            // 2. Send discovery requests
+            // 3. Receive discovery requests, set new table
 
 
-                const auto num_peers = std::min(table.size() < tracker::torrent::defaults::fast_update_size ? tracker::torrent::defaults::fast_update_pool_size :
-                    (table.size() < tracker::torrent::defaults::medium_update_size ? tracker::torrent::defaults::medium_update_pool_size : tracker::torrent::defaults::slow_update_pool_size), table.size());
+            const auto num_peers = std::min(table.size() < tracker::torrent::defaults::fast_update_size ? tracker::torrent::defaults::fast_update_pool_size :
+                (table.size() < tracker::torrent::defaults::medium_update_size ? tracker::torrent::defaults::medium_update_pool_size : tracker::torrent::defaults::slow_update_pool_size), table.size());
 
-                std::set<size_t> used_peers;
-                if (num_peers == table.size())
-                    for (size_t x = 0; x < table.size(); ++x)
-                        used_peers.insert(x);
-                else
-                    while (used_peers.size() < num_peers)
-                        used_peers.insert(session->rand.generate(0, table.size()));
+            std::set<size_t> used_peers;
+            if (num_peers == table.size())
+                for (size_t x = 0; x < table.size(); ++x)
+                    used_peers.insert(x);
+            else
+                while (used_peers.size() < num_peers)
+                    used_peers.insert(rand.generate(0, table.size()));
 
-                for (const auto x : used_peers) {
-                    auto table_it = it->second.table.cbegin();
-                    std::advance(table_it, x);
-                    const auto address = *table_it;
-                    auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
+            for (const auto x : used_peers) {
+                auto table_it = table.cbegin();
+                std::advance(table_it, x);
+                const auto address = *table_it;
+                auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
 
-                    if (!connection->doConnect()) {
-                        std::cerr << print::RED << "[ERROR] Could not connect to remote peer!" << print::CLEAR << std::endl;
-                        continue;
-                    }
-
-                    connections::shared::send::discovery_req(connection, address.ip);
-
-                    message::standard::Header standard = message::standard::recv(connection);
-                    // std::cout << "Unable to peek. System hangup?" << std::endl;
-                    // continue;
-                
-
-                    if (standard.formatType != message::tracker::id) {
-                        std::cerr << "Received invalid message! Not a Tracker-message. Skipping..." << std::endl;
-                        continue;
-                    }
-                    uint8_t* data = (uint8_t*) malloc(standard.size);
-                    connection->recvmsg(data, standard.size);
-                    IPTable tmptable;
-                    std::string recv_hash;
-                    connections::shared::recv::discovery_reply(data, standard.size, tmptable, recv_hash);
-                    if (recv_hash != hash) {
-                        std::cerr << "LOCAL_DISCOVERY hash mismatch (ours=" << hash << ", theirs=" << recv_hash << ")\n";
-                        continue;
-                    }
-                    peertable.merge(tmptable);
-                    free(data);
+                if (!connection->doConnect()) {
+                    std::cerr << print::RED << "[ERROR] Could not connect to remote peer!" << print::CLEAR << std::endl;
+                    continue;
                 }
-                session->set_table(hash, std::move(peertable));
+
+                connections::shared::send::discovery_req(connection, address.ip);
+
+                message::standard::Header standard = message::standard::recv(connection);
+                // std::cout << "Unable to peek. System hangup?" << std::endl;
+                // continue;
+            
+
+                if (standard.formatType != message::tracker::id) {
+                    std::cerr << "Received invalid message! Not a Tracker-message. Skipping..." << std::endl;
+                    continue;
+                }
+                uint8_t* data = (uint8_t*) malloc(standard.size);
+                connection->recvmsg(data, standard.size);
+                IPTable tmptable;
+                std::string recv_hash;
+                connections::shared::recv::discovery_reply(data, standard.size, tmptable, recv_hash);
+                if (recv_hash != hash) {
+                    std::cerr << "LOCAL_DISCOVERY hash mismatch (ours=" << hash << ", theirs=" << recv_hash << ")\n";
+                    continue;
+                }
+                peertable.merge(tmptable);
+                free(data);
             }
+            session.registry_set_table(hash, std::move(peertable));
         }
-        std::this_thread::sleep_for(tracker::torrent::defaults::discovery_tick_time);
     }
 }
 
@@ -108,10 +105,8 @@ static void handle_make_torrent(Session& session, std::unique_ptr<ClientConnecti
     std::string hash((char*) msg+message::tracker::bytesize(), bufsize-message::tracker::bytesize());
     std::cout << "Got a Make Torrent request (hash=" << hash << ")" << std::endl;
 
-    IPTable table;
-    if (!session.get_registry().get_table(hash, table)) { // Table does not exist yet, insert new table.
-        session.create_table(hash);
-        std::cout << "We have " << session.get_registry().size() << " tables (added 1 table)\n";
+    if (session.registry_add_for(hash)) { // Table does not exist yet, insert new table.
+        std::cout << "We now have " << session.get_registry_unsafe().size() << " tables (added 1 table)\n";
     }
     message::standard::send(client_conn, message::standard::OK);
 }
@@ -121,7 +116,7 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
     std::cout << "Got a Receive request (hash=" << hash << ")" << std::endl;
 
     IPTable table;
-    if (!session.get_registry().get_table(hash, table)) { //No table for hash found, return error
+    if (!session.registry_find_table(hash, table)) { //No table for hash found, return error
         message::standard::send(client_conn, message::standard::ERROR);
         return;
     }
@@ -162,17 +157,11 @@ static void handle_register(Session& session, std::unique_ptr<ClientConnection>&
     std::string hash((char*) msg+message::tracker::bytesize(), hashlength);
     uint16_t port_to_register = *(uint16_t*)(msg+message::tracker::bytesize()+hashlength);
     std::cout << "Got a Register request (hash=" << hash << ", port="<< port_to_register<<")" << std::endl;
-    
-    const auto& registry = session.get_registry();
-    if (!registry.has_table(hash)) { // Table does not exist yet, insert new table.
+
+    if (!session.registry_add_peer(hash, {client_conn->get_type(), client_conn->getAddress(), port_to_register})) { // Table does not exist yet, insert new table.
         std::cerr << "Could not find table for hash " << hash << "\n";
         message::standard::send(client_conn, message::standard::ERROR);
-    } else { // Table already exists. Add this peer to the list.
-        if (session.add_peer(hash, {client_conn->get_type(), client_conn->getAddress(), port_to_register})) {
-            std::cout << "Table with hash " << hash << " has "<< registry.size() << " entries (added 1 new entry: " << client_conn->getAddress() << ':' << port_to_register << ")\n";
-        } else {
-            std::cout << "Table with hash " << hash << " has "<< registry.size() << " entries (added 0 new entries)\n";
-        }
+    } else { // Table already exists, and we just inserted this peer in the table.
         message::standard::send(client_conn, message::standard::OK);
     }
 }
@@ -187,8 +176,17 @@ static bool run(uint16_t port) {
     Session session;
     std::cout << "Session initialized\n";
     bool discovery_stop = false;
-    // std::future<void> result(std::async(handle_discovery, &session, &discovery_stop));
-    std::cout << "Discovery thread initialized\n";
+
+
+    std::thread discoverythread = std::thread([&session, &discovery_stop]() {
+        rnd::RandomGenerator<size_t> rand(std::move(std::random_device()));
+        std::cout << "Discovery thread started\n";
+        while (!discovery_stop) {
+            handle_discovery(session, rand);
+            std::this_thread::sleep_for(tracker::torrent::defaults::discovery_tick_time);
+        }
+    });
+
     std::cout << "Listening started on port " << port << std::endl;
 
     while (true) {
@@ -217,6 +215,8 @@ static bool run(uint16_t port) {
             default: std::cout << "Got unknown header tag: " << (uint16_t) header.tag << std::endl; break;
         }
     }
+    discovery_stop = true;
+    discoverythread.join();
     return 0;
 }
 

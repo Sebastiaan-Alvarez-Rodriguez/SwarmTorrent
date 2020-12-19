@@ -87,9 +87,11 @@ namespace peer::torrent {
         }
 
         inline void mark_fragment(size_t fragment_nr) {
+            std::unique_lock fragment_lock(fragments_completed_mutex);
             if (!fragments_completed[fragment_nr]) {
                 fragments_completed[fragment_nr] = true;
                 ++num_fragments_completed;
+                std::unique_lock request_lock(request_registry_mutex);
                 request_registry.remove(fragment_nr); // Remove requests for collected fragment
             }
         }
@@ -103,7 +105,7 @@ namespace peer::torrent {
             return fragments_completed[fragment_nr];
         }
 
-        inline const auto& get_fragments_completed() { return fragments_completed; }
+        inline const auto& get_fragments_completed_unsafe() { return fragments_completed; }
 
         // Returns a valid copy of the fragments vector to operate on
         inline const auto get_fragments_completed_copy() {
@@ -138,20 +140,20 @@ namespace peer::torrent {
          */
         inline const auto& get_address() const { return own_address; }
 
-        inline const auto& get_peer_registry() const { return peer_registry; }
+        inline const auto& get_peer_registry_unsafe() const { return peer_registry; }
 
         // Returns a copy of the peer registry, thread-safe
         inline const auto get_peer_registry_copy() const {
             return peer_registry.copy();
         }
 
-        inline const auto& get_request_registry() const { return request_registry; }
+        inline const auto& get_request_registry_unsafe() const { return request_registry; }
 
         inline const auto get_request_registry_copy() const {
             return request_registry.copy();
         }
 
-        inline const auto& get_peertable() const { return ptable; }
+        inline const auto& get_peertable_unsafe() const { return ptable; }
 
         inline const auto get_peertable_copy() const {
             std::shared_lock lock(ptable_mutex);
@@ -175,6 +177,11 @@ namespace peer::torrent {
         inline void add_peers(const IPTable& peertable) {
             std::unique_lock lock(ptable_mutex);
             ptable.merge(peertable); 
+        }
+
+        inline auto get_peer_address(std::string ip, uint16_t port) {
+            std::shared_lock lock(ptable_mutex);
+            return ptable.get(ip, port);
         }
 
         inline void set_peers(IPTable&& peertable) {
