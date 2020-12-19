@@ -451,14 +451,12 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
     // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
     // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
     // For now we make 1. Adaption to 2 is simple enough to not be a waste of time.
-    size_t known_peers = session.num_known_peers();
+    volatile size_t known_peers = session.num_known_peers();
     if (known_peers == 0) { // We have 0 peers. Ask tracker to provide us peers
-        std::this_thread::sleep_for(::peer::torrent::defaults::dead_torrent_poke_time);
         std::cerr << "We now have 0 peers! We must ask the trackers for a peertable\n";
-        session.set_peers(compose_peertable(session, false));
+        session.add_peers(compose_peertable(session, false));
+        std::this_thread::sleep_for(::peer::torrent::defaults::dead_torrent_poke_time);
         return;
-    } else {
-        std::cerr << print::RED << "We have now " << known_peers << " known peers.\n" << print::CLEAR;
     }
     // We have at least 1 peer. Get some data!
     // 1. while small peertable -> LOCAL_DISCOVERY_REQ
@@ -487,23 +485,13 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
     const bool message_type_peer = standard.formatType == message::peer::id;
     const bool message_type_standard = standard.formatType == message::standard::id;
 
-    //TODO: Remove after test:
-    size_t s = session.num_known_peers();
-    std::cerr << "A: In RECV thread, we have "<<s<<" items in our known peers\n"; 
-
 
     if (message_type_peer) {
         uint8_t* const data = (uint8_t*) malloc(standard.size);
         connection->recvmsg(data, standard.size);
         message::peer::Header* header = (message::peer::Header*) data;
         switch (header->tag) {
-            case message::peer::JOIN: {
-                peer::pipeline::join(session, connection, data, standard.size);
-                //TODO: Remove after test:
-                size_t s = session.num_known_peers();
-                std::cerr << "A: In RECV thread, we have "<<s<<" items in our known peers\n";
-                break;
-            }
+            case message::peer::JOIN: peer::pipeline::join(session, connection, data, standard.size); break;
             case message::peer::LEAVE: peer::pipeline::leave(session, connection, data, standard.size); break;
             case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, handler, data, standard.size); break;
             case message::peer::DATA_REPLY: {
@@ -577,10 +565,9 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     std::thread receivethread([&session, &receive_stop, &logfile](auto&& hostconnection) {
         auto starttime = std::chrono::high_resolution_clock::now();
         FragmentHandler fragmentHandler(session.metadata, session.workpath + session.metadata.name);
-        while (!receive_stop) {
+        while (!receive_stop)
             requests_receive(session, hostconnection, fragmentHandler, logfile, starttime);
-            std::this_thread::sleep_for(std::chrono::milliseconds(6000));
-        }
+
     }, std::move(hostconnection));
     // std::thread gcthread([&session, &gc_stop]() {
     //     while (!gc_stop) {
@@ -596,10 +583,8 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     rnd::RandomGenerator<size_t> rand(std::move(std::random_device()));
 
     std::cerr << "Start main program loop.\n";
-    while (!stop) {
+    while (!stop)
         requests_send(session, rand);
-        std::this_thread::sleep_for(std::chrono::milliseconds(6000));
-    }
 
     // availability_stop = true;
     // if (use_availabilitythread)
