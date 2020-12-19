@@ -1,7 +1,6 @@
 #ifndef PEER_SESSION_PEERS_REGISTRY_H
 #define PEER_SESSION_PEERS_REGISTRY_H
 
-#include <shared_mutex>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -33,11 +32,6 @@ namespace peer::torrent {
         std::unordered_map<Address, Element> peers;
 
     public:
-        PeerRegistry() = default;
-        PeerRegistry(const PeerRegistry& other) {
-            this->peers = other.peers;
-        }
-
         // Adds request for given fragment number to given address
         inline void add(Address&& address, std::vector<bool>&& fragments_completed) {
             peers.insert({std::move(address), std::move(fragments_completed)});
@@ -83,7 +77,14 @@ namespace peer::torrent {
         // Returns amount of peers in our group
         inline size_t size() const { return peers.size(); }
 
-        inline PeerRegistry copy() const { return PeerRegistry(*this); }
+        inline void set(const std::unordered_map<Address, Element>& peers) {
+            this->peers = peers;
+        }
+        inline PeerRegistry copy() const {
+            PeerRegistry p;
+            p.set(this->peers);
+            return p;
+        }
     };
 }
 

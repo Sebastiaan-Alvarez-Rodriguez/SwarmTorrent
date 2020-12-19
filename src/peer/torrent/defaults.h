@@ -5,6 +5,7 @@
 #include <cstdint>
 
 namespace peer::torrent::defaults {
+    constexpr const uint8_t discovery_retries = 2; // amount of local discoveries to attempt before giving up for this round.
     constexpr const uint16_t outgoing_requests = 200; // prefered number of active requests for data
     constexpr const auto request_stale_after_time = std::chrono::milliseconds(1500); // amount of ms before a request is considered stale
     constexpr const uint16_t prefered_group_size = 16; //amount of peers we would like to have in our group

@@ -33,8 +33,10 @@ void peer::pipeline::join(peer::torrent::Session& session, const std::unique_ptr
     const auto addr = Address(connection->get_type(), connection->getAddress(), req_port);
 
     // Register peer as an existing peer
-    session.add_peer(Address(connection->get_type(), connection->getAddress(), req_port));
-
+    if (session.add_peer({connection->get_type(), connection->getAddress(), req_port}))
+        std::cerr << print::CYAN << "We added a peer to the table because of a JOIN. " << connection->getAddress() << ':' << req_port << print::CLEAR << '\n';
+    else
+        std::cerr << print::RED << "Could not add peer to the table (JOIN): " << connection->getAddress() << ':' << req_port << print::CLEAR << '\n';
     if (session.get_metadata().content_hash != hash) { // Torrent mismatch, Reject
         std::cerr << "Above hash mismatched with our own (" << session.get_metadata().content_hash <<"), rejected.\n";
         message::standard::send(connection, message::standard::REJECT);

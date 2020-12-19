@@ -85,10 +85,8 @@ static IPTable compose_peertable(peer::torrent::Session& session, bool force_reg
             continue;
         }
 
-        if (session.get_address().port == 0) {
-            std::cerr << print::CYAN << "own address: " << own_address.ip << ':' << own_address.port << print::CLEAR << '\n';
+        if (session.get_address().port == 0)
             session.set_address(own_address);
-        }
         std::cerr<<"Received a peertable from tracker ";tracker_conn->print(std::cerr);std::cerr<<". It has "<< table.size() << " peers\n";
         for (auto it = table.cbegin(); it != table.cend(); ++it)
             std::cerr << it->ip << ':' << it->port << '\n';
@@ -121,12 +119,14 @@ static void requests_send_local_discovery(peer::torrent::Session& session, rnd::
     size_t diff = peer::torrent::defaults::prefered_known_peers_size - peertable_size;
 
     IPTable extrapeertable;
-    while (extrapeertable.size() < diff) {
+    uint16_t tries = 0;
+    while (extrapeertable.size() < diff && tries < peer::torrent::defaults::discovery_retries) {
         // 1. Pick a peer to ask more info from
         // 2. Send local discovery request
         // 3. Receive peers
         // 4. Merge with current
 
+        ++tries;
         const auto peer_idx = rand.generate(0, registry.size()-1);
         auto it = registry.cbegin();
         std::advance(it, peer_idx);
@@ -166,6 +166,7 @@ static void requests_send_local_discovery(peer::torrent::Session& session, rnd::
         }
         extrapeertable.merge(recvtable);
     }
+    extrapeertable.remove(session.get_address());
     session.add_peers(extrapeertable);
 }
 
@@ -199,6 +200,7 @@ static void requests_send_join(peer::torrent::Session& session) {
         }
         addresses.insert(address);
     }
+
     peertable_lock.unlock();
 
     for (const auto& address : addresses) {
@@ -222,7 +224,7 @@ static void requests_send_join(peer::torrent::Session& session) {
         }
         message::standard::Header header = message::standard::recv(conn);
         if (header.tag == message::standard::OK) {
-            std::cerr << print::CYAN << "[TEST] We got an OK for our JOIN request from peer: " << print::CLEAR; conn->print(std::cerr);
+            std::cerr << print::CYAN << "[TEST] We got an OK for our JOIN request from peer: " << print::CLEAR; conn->print(std::cerr); std::cerr << '\n';
             std::string recv_hash;
             std::vector<bool> remote_available;
 
@@ -449,12 +451,14 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
     // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
     // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
     // For now we make 1. Adaption to 2 is simple enough to not be a waste of time.
-
-    if (session.num_known_peers() == 0) { // We have 0 peers. Ask tracker to provide us peers
+    size_t known_peers = session.num_known_peers();
+    if (known_peers == 0) { // We have 0 peers. Ask tracker to provide us peers
         std::this_thread::sleep_for(::peer::torrent::defaults::dead_torrent_poke_time);
         std::cerr << "We now have 0 peers! We must ask the trackers for a peertable\n";
         session.set_peers(compose_peertable(session, false));
         return;
+    } else {
+        std::cerr << print::RED << "We have now " << known_peers << " known peers.\n" << print::CLEAR;
     }
     // We have at least 1 peer. Get some data!
     // 1. while small peertable -> LOCAL_DISCOVERY_REQ
@@ -462,7 +466,7 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
     // 3. while large jointable -> LEAVE
     // 4. while #requests < max -> DATA_REQ
 
-    requests_send_local_discovery(session, rand);
+    // requests_send_local_discovery(session, rand);
 
     const size_t num_registered_peers = session.num_registered_peers();
     if (num_registered_peers < peer::torrent::defaults::prefered_group_size)
@@ -483,12 +487,23 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
     const bool message_type_peer = standard.formatType == message::peer::id;
     const bool message_type_standard = standard.formatType == message::standard::id;
 
+    //TODO: Remove after test:
+    size_t s = session.num_known_peers();
+    std::cerr << "A: In RECV thread, we have "<<s<<" items in our known peers\n"; 
+
+
     if (message_type_peer) {
         uint8_t* const data = (uint8_t*) malloc(standard.size);
         connection->recvmsg(data, standard.size);
         message::peer::Header* header = (message::peer::Header*) data;
         switch (header->tag) {
-            case message::peer::JOIN: peer::pipeline::join(session, connection, data, standard.size); break;
+            case message::peer::JOIN: {
+                peer::pipeline::join(session, connection, data, standard.size);
+                //TODO: Remove after test:
+                size_t s = session.num_known_peers();
+                std::cerr << "A: In RECV thread, we have "<<s<<" items in our known peers\n";
+                break;
+            }
             case message::peer::LEAVE: peer::pipeline::leave(session, connection, data, standard.size); break;
             case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, handler, data, standard.size); break;
             case message::peer::DATA_REPLY: {
@@ -533,10 +548,6 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     // 4. Construct torrent session (to maintain received fragments, maintain receive connection etc)
     // 5. Continually send and receive data
 
-    if (!fs::is_file(logfile)) {
-        std::cerr << print::RED << "[ERROR] log file '" << logfile << "' does not exist" << print::CLEAR << std::endl;
-        return false;
-    }
     if (!fs::is_dir(workpath) && !fs::mkdir(workpath)) {
         std::cerr << print::RED << "[ERROR] Could not construct path '" << workpath << "'" << print::CLEAR << std::endl;
         return false;
@@ -545,7 +556,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
 
     auto hostconnection = TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).create();
 
-    peer::torrent::Session session = peer::torrent::Session(tf, workpath, sourcePort);
+    peer::torrent::Session session(tf, workpath, sourcePort);
     session.set_peers(compose_peertable(session, force_register));
     
     std::cerr << "Before booting receivethread: " << session.get_address().ip<< ':' << session.get_address().port << '\n';
@@ -554,29 +565,30 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     bool receive_stop = false;
     bool gc_stop = false;
 
-    std::thread availabilitythread;
-    const bool use_availabilitythread = session.download_completed();
-    if (use_availabilitythread) // Periodically send our availability, and ask for availability of others
-        availabilitythread = std::thread([&session, &availability_stop]() {
-            while (!availability_stop && !session.download_completed()) {
-                requests_send_availability(session);
-                std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
-            }
-        });
+    // std::thread availabilitythread;
+    // const bool use_availabilitythread = session.download_completed();
+    // if (use_availabilitythread) // Periodically send our availability, and ask for availability of others
+    //     availabilitythread = std::thread([&session, &availability_stop]() {
+    //         while (!availability_stop && !session.download_completed()) {
+    //             requests_send_availability(session);
+    //             std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
+    //         }
+    //     });
     std::thread receivethread([&session, &receive_stop, &logfile](auto&& hostconnection) {
         auto starttime = std::chrono::high_resolution_clock::now();
+        FragmentHandler fragmentHandler(session.metadata, session.workpath + session.metadata.name);
         while (!receive_stop) {
-            FragmentHandler fragmentHandler(session.metadata, session.workpath + session.metadata.name);
             requests_receive(session, hostconnection, fragmentHandler, logfile, starttime);
-        }
-    }, std::move(hostconnection));
-    std::thread gcthread([&session, &gc_stop]() {
-        while (!gc_stop) {
-            session.peer_registry_gc();
-            session.request_registry_gc();
             std::this_thread::sleep_for(std::chrono::milliseconds(6000));
         }
-    });
+    }, std::move(hostconnection));
+    // std::thread gcthread([&session, &gc_stop]() {
+    //     while (!gc_stop) {
+    //         session.peer_registry_gc();
+    //         session.request_registry_gc();
+    //         std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+    //     }
+    // });
 
 
     // Simple random number generator to use during this session.
@@ -584,17 +596,19 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     rnd::RandomGenerator<size_t> rand(std::move(std::random_device()));
 
     std::cerr << "Start main program loop.\n";
-    while (!stop)
+    while (!stop) {
         requests_send(session, rand);
+        std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+    }
 
-    availability_stop = true;
-    if (use_availabilitythread)
-        availabilitythread.join();
+    // availability_stop = true;
+    // if (use_availabilitythread)
+    //     availabilitythread.join();
 
     receive_stop = true;
     receivethread.join();
     
-    gc_stop = true;
-    gcthread.join();
+    // gc_stop = true;
+    // gcthread.join();
     return true;
 }

@@ -18,6 +18,7 @@
 #include "registry/request/registry.h"
 
 #include "shared/util/hash/hasher.h"
+#include "shared/util/print.h"
 #include "shared/util/fs/fs.h"
 
 namespace peer::torrent {
@@ -59,31 +60,32 @@ namespace peer::torrent {
          * '''Note:''' Ownership of `recv_conn` is passed to this session upon construction.
          *             Connection is closed when the session is deconstructed.
          */
-        inline explicit Session(const TorrentFile& tf, const std::string& workpath, uint16_t registered_port) : fragments_completed(tf.getMetadata().get_num_fragments(), false), hashtable(tf.getHashTable()), metadata(tf.getMetadata()), trackertable(tf.getTrackerTable()), num_fragments(metadata.get_num_fragments()), registered_port(registered_port) {
-            // if (fs::is_file(workpath+metadata.name)) {
-            std::cerr << "Checking out " << fragments_completed.size() << " fragments...\n";
-            // We check if the hash is correct for each fragment of the file.
-            // For all matches, we set the corresponding completed-bit to true
-            const auto filesize = fs::file_size(workpath + metadata.name);
-            if (filesize == metadata.size) {
-                FragmentHandler fragmentHandler(metadata, workpath + metadata.name);
-                for (size_t x = 0; x < fragments_completed.size(); ++x) {
-                    unsigned size;
-                    uint8_t* data = fragmentHandler.read(x, size);
-                    if (data != nullptr) {
-                        std::string fragment_hash;
-                        hash::sha256(fragment_hash, data, size);
-                        if (!hashtable.check_hash(x, fragment_hash)) {// Hash mismatch, wrong data
-                            continue;
-                        } else {
-                            fragments_completed[x] = true; 
-                            ++num_fragments_completed;      
+        inline explicit Session(const TorrentFile& tf, const std::string& workpath, uint16_t registered_port) : fragments_completed(tf.getMetadata().get_num_fragments(), false), hashtable(tf.getHashTable()), metadata(tf.getMetadata()), trackertable(tf.getTrackerTable()), workpath(workpath), num_fragments(metadata.get_num_fragments()), registered_port(registered_port) {
+            std::cerr << print::RED << "Constructing a session..." << print::CLEAR << std::endl;
+            if (fs::is_file(workpath+metadata.name)) {
+                std::cerr << "Checking out " << fragments_completed.size() << " fragments...\n";
+                // We check if the hash is correct for each fragment of the file.
+                // For all matches, we set the corresponding completed-bit to true
+                const auto filesize = fs::file_size(workpath + metadata.name);
+                if (filesize == metadata.size) {
+                    FragmentHandler fragmentHandler(metadata, workpath + metadata.name);
+                    for (size_t x = 0; x < fragments_completed.size(); ++x) {
+                        unsigned size;
+                        uint8_t* data = fragmentHandler.read(x, size);
+                        if (data != nullptr) {
+                            std::string fragment_hash;
+                            hash::sha256(fragment_hash, data, size);
+                            if (!hashtable.check_hash(x, fragment_hash)) {// Hash mismatch, wrong data
+                                continue;
+                            } else {
+                                fragments_completed[x] = true; 
+                                ++num_fragments_completed;      
+                            }
                         }
                     }
                 }
+                std::cerr << "Reading complete. " << num_fragments_completed << '/' << num_fragments << " OK." << (num_fragments_completed == num_fragments ? " Download completed.\n" : "\n");
             }
-            std::cerr << "Reading complete. " << num_fragments_completed << '/' << num_fragments << " OK." << (num_fragments_completed == num_fragments ? " Download completed.\n" : "\n");
-            // }
         }
 
         inline void mark_fragment(size_t fragment_nr) {
@@ -172,7 +174,7 @@ namespace peer::torrent {
 
         inline bool add_peer(const Address& a) {
             std::unique_lock lock(ptable_mutex);
-            return ptable.add(a); 
+            return ptable.add(a);
         }
         inline void add_peers(const IPTable& peertable) {
             std::unique_lock lock(ptable_mutex);
