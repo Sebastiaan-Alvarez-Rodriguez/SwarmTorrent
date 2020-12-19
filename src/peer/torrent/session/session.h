@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <random>
+#include <shared_mutex>
 
 #include "shared/connection/connection.h"
 #include "shared/torrent/file/torrentFile.h"
@@ -22,21 +23,23 @@
 namespace peer::torrent {
     class Session {
     protected:
-        const HashTable htable;
-        const TorrentMetadata metadata;
-        FragmentHandler fragmentHandler;
 
         Address own_address;
+        mutable std::shared_mutex own_address_mutex;
 
         peer::torrent::PeerRegistry peer_registry;
         peer::torrent::RequestRegistry request_registry;
         IPTable ptable; // table containing peers we might join. For joined peers, see [[peer_registry]]
-        const IPTable ttable; // table containing trackers, as specified by the TorrentFile
 
         size_t num_fragments_completed = 0;
         std::vector<bool> fragments_completed;
 
     public:
+        const HashTable hashtable;
+        const TorrentMetadata metadata;
+        const IPTable trackertable; // table containing trackers, as specified by the TorrentFile
+        
+        const std::string workpath;
         const size_t num_fragments;
 
         // The port on which this peer is listening
@@ -56,20 +59,21 @@ namespace peer::torrent {
          * '''Note:''' Ownership of `recv_conn` is passed to this session upon construction.
          *             Connection is closed when the session is deconstructed.
          */
-        inline explicit Session(const TorrentFile& tf, const std::string& workpath, uint16_t registered_port) : htable(tf.getHashTable()), metadata(tf.getMetadata()), fragmentHandler(metadata, workpath + metadata.name), ttable(tf.getTrackerTable()), fragments_completed(metadata.get_num_fragments(), false), num_fragments(metadata.get_num_fragments()), registered_port(registered_port), rand(std::move(std::random_device())) {
+        inline explicit Session(const TorrentFile& tf, const std::string& workpath, uint16_t registered_port) : fragments_completed(tf.getMetadata().get_num_fragments(), false), hashtable(tf.getHashTable()), metadata(tf.getMetadata()), trackertable(tf.getTrackerTable()), num_fragments(metadata.get_num_fragments()), registered_port(registered_port), rand(std::move(std::random_device())) {
             // if (fs::is_file(workpath+metadata.name)) {
             std::cerr << "Checking out " << fragments_completed.size() << " fragments...\n";
             // We check if the hash is correct for each fragment of the file.
             // For all matches, we set the corresponding completed-bit to true
             const auto filesize = fs::file_size(workpath + metadata.name);
             if (filesize == metadata.size) {
+                FragmentHandler fragmentHandler(metadata, workpath + metadata.name);
                 for (size_t x = 0; x < fragments_completed.size(); ++x) {
                     unsigned size;
                     uint8_t* data = fragmentHandler.read(x, size);
                     if (data != nullptr) {
                         std::string fragment_hash;
                         hash::sha256(fragment_hash, data, size);
-                        if (!htable.check_hash(x, fragment_hash)) {// Hash mismatch, wrong data
+                        if (!hashtable.check_hash(x, fragment_hash)) {// Hash mismatch, wrong data
                             continue;
                         } else {
                             fragments_completed[x] = true; 
@@ -108,26 +112,32 @@ namespace peer::torrent {
 
 
 
-        // const member access methods //
+        // basic member access methods //
 
-        inline const auto& get_hashtable() const volatile { return htable; }
+        inline const auto& get_hashtable() const { return hashtable; }
 
-        inline const auto& get_metadata() const volatile { return metadata; }
+        inline const auto& get_metadata() const { return metadata; }
 
-        inline auto& get_handler() {
-            return fragmentHandler;
+        inline void set_address(Address& address) {
+            std::unique_lock lock(own_address_mutex);
+            own_address = address;
         }
 
-        inline void set_address(Address& address) { own_address = address; }
-
-        inline const auto& get_address() const { return own_address; }
+        /**
+         * Gets address of ourselves. Undefined behaviour if [[set_address()]] is not called first.
+         *
+         * '''Warning:''' We do not use thread-safety here, because we assume we call [[set_address()]] before getting this in separate threads.
+         */
+        inline const auto& get_address() const {
+            return own_address;
+        }
 
         inline const auto& get_peer_registry() const { return peer_registry; }
         inline const auto& get_request_registry() const { return request_registry; }
 
         inline const auto& get_peertable() const { return ptable; }
 
-        inline const auto& get_trackertable() const { return ttable; }
+        inline const auto& get_trackertable() const { return trackertable; }
 
 
         // Peertable-related forwarding functions //

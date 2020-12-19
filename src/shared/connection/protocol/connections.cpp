@@ -41,7 +41,7 @@ bool connections::shared::send::discovery_reply(const std::unique_ptr<ClientConn
     writer += sizeof(size_t);
 
     // Write hash
-    memcpy(writer, hash.data(), hash.size());
+    memcpy(writer, hash.c_str(), hash.size());
     writer += hash.size();
 
     // Write own address

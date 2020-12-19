@@ -74,7 +74,7 @@ void peer::pipeline::leave(peer::torrent::Session& session, const std::unique_pt
 }
 
 // Handles DATA_REQs. Closes incoming connection, reads fragment from storage, sends data to registered port for given ip.
-void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, FragmentHandler& handler, uint8_t* const data, size_t size) {
     const auto connected_ip = connection->getAddress();
     
     uint16_t req_port;
@@ -102,7 +102,6 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
 
     std::cerr << print::CYAN << "We accepted the DATA_REQ request!\n" << print::CLEAR << std::endl;
 
-    auto& handler = session.get_handler();
     unsigned data_size;
     uint8_t* diskdata = handler.read_with_leading(fragment_nr, data_size, message::peer::bytesize()+sizeof(size_t));
     if (diskdata == nullptr) {
@@ -132,7 +131,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
     }
 }
 
-void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, FragmentHandler& handler, uint8_t* const data, size_t size) {
     // 1. Check if in session
     // 2. Maybe (send on other side and) check if content hash equals our content hash?
     // 3. Check if we already own the data
@@ -167,7 +166,6 @@ void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr
         return;
     }
 
-    auto& handler = session.get_handler();
     if (!handler.write(fragment_nr, fragment_data, fragment_size)) { // Could not write data?
         std::cerr << "There was a problem writing fragment " << fragment_nr << " to disk\n";
         return;
