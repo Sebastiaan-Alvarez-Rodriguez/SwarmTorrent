@@ -2,6 +2,7 @@
 #define TRACKER_SESSION_H
 
 #include <chrono>
+#include <optional>
 #include <random>
 #include <shared_mutex>
 #include <vector>
@@ -46,9 +47,11 @@ public:
         return registry.remove_table(hash);
     }
 
-    inline bool registry_find_table(const std::string& hash, IPTable& table) const {
+    // Returns table for given hash as an optional. If no such table exists, optional is empty.
+    inline std::optional<IPTable> registry_find_table(const std::string& hash) const {
         std::shared_lock lock(mutex);
-        return registry.find_table(hash, table);
+        IPTable table;
+        return registry.find_table(hash, table) ? std::optional<IPTable>{table} : std::nullopt;
     }
 
     inline bool registry_contains(const std::string& hash) const { 

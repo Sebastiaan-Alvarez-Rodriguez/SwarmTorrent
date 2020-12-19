@@ -133,7 +133,7 @@ namespace peer::torrent {
          *
          * '''Warning:''' We do not use thread-safety here. We assume you call this before booting threads.
          */
-        inline void set_address(Address& address) { own_address = address; }
+        inline void set_address(const Address& address) { own_address = address; }
 
         /**
          * Gets address of ourselves. Undefined behaviour if [[set_address()]] is not called first.

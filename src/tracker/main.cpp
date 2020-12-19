@@ -115,11 +115,12 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
     std::string hash((char*) msg+message::tracker::bytesize(), bufsize-message::tracker::bytesize());
     std::cout << "Got a Receive request (hash=" << hash << ")" << std::endl;
 
-    IPTable table;
-    if (!session.registry_find_table(hash, table)) { //No table for hash found, return error
+    auto table_option = session.registry_find_table(hash);
+    if (!table_option) { //No table for hash found, return error
         message::standard::send(client_conn, message::standard::ERROR);
         return;
     }
+    auto table = *table_option;
 
     size_t table_size = table.size() * Address::size();
     //Message contains: header, peeraddress (Address), table 
@@ -143,7 +144,7 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
 
     std::cerr << "Sent table containing " << table.size() << " entries:\n";
     for (auto it = table.cbegin(); it != table.cend(); ++it) {
-        std::cerr << it->ip << ':' << it->port << '\n';
+        std::cerr << it->type << ':' << it->ip << ':' << it->port << '\n';
     }
     free(data);
 }

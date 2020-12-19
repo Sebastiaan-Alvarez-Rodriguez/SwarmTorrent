@@ -11,14 +11,16 @@ PEEREXEC    = peer
 TRACKEREXEC = tracker
 
 
-WARNINGS   = -Wall -Wextra -pedantic -g
-NOWARNINGS = -w
+WARNINGS     = -Wall -Wextra -pedantic
+NOWARNINGS   = -w
+DEBUG = -g
+
 IDIRS      = -I$(SRC) -I$(INCLUDEDIR)
 LIBS       = -lrt -pthread -lstdc++fs
 LDIRS      = -L$(LIB)
 
 CXXFLAGS     = $(IDIRS) -std=c++17 $(WARNINGS) $(DEBUG)
-CXXFASTFLAGS = $(IDIRS) -std=c++17 \
+CXXFASTFLAGS = $(IDIRS) -std=c++17 $(WARNINGS) \
 	-Ofast \
 	-march=native \
 	-ffast-math \
@@ -47,9 +49,13 @@ MAKEFLAGS = -j
 
 xoutofy = $(or $(eval PROCESSED := $(PROCESSED) .),$(info $(WHITE)[$(YELLOW)$(words $(PROCESSED))$(WHITE)] $1$(CLEAR)))
 
-.PHONY: tracker peer git
+.PHONY: tracker peer git fast
 
 all: tracker peer
+
+fast: FAST=yes
+fast: tracker peer
+
 
 tracker: $(TRACKEROBJECTS)
 	@$(call xoutofy,$(GREEN)Linking $(if $(FAST),fast,debug) $(TRACKEREXEC))
