@@ -57,9 +57,9 @@ bool connections::shared::send::discovery_reply(const std::unique_ptr<ClientConn
         return false;
     }
     std::cerr << "Sent table containing " << (table.size()+1) << " entries:\n";
-    std::cerr << addr.ip << ':' << addr.port << '\n';
+    std::cerr << addr.type << ':' << addr.ip << ':' << addr.port << '\n';
     for (auto it = table.cbegin(); it != table.cend(); ++it) {
-        std::cerr << it->ip << ':' << it->port << '\n';
+        std::cerr << it->type << ':' << it->ip << ':' << it->port << '\n';
     }
     free(data);
     return true;

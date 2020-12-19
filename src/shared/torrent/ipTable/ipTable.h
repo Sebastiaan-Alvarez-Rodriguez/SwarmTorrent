@@ -14,6 +14,7 @@
 class IPTable : public Streamable {
 public:
     IPTable() = default;
+
     explicit IPTable(std::unordered_set<Address>&& ips) : ips(std::move(ips)) {};
     
     // Constructs an IPTable using a vector of strings
@@ -51,6 +52,10 @@ public:
         stream << "IPTable: \n";
         for (auto it = cbegin(); it != cend(); ++it)
             stream << "\tentry: " << it->type << ", " << it->ip << ':' << it->port << '\n';
+    }
+
+    inline IPTable copy() const {
+        return IPTable(*this);
     }
 protected:
     // a set of addresses

@@ -87,8 +87,6 @@ static IPTable compose_peertable(peer::torrent::Session& session, bool force_reg
         if (session.get_address().port == 0) {
             std::cerr << print::CYAN << "own address: " << own_address.ip << ':' << own_address.port << print::CLEAR << '\n';
             session.set_address(own_address);
-        } else {
-            std::cerr << "own address already set: "<< own_address.ip << ':' << own_address.port << '\n';
         }
         std::cerr<<"Received a peertable from tracker ";tracker_conn->print(std::cerr);std::cerr<<". It has "<< table.size() << " peers\n";
         for (auto it = table.cbegin(); it != table.cend(); ++it)
@@ -109,22 +107,30 @@ static IPTable compose_peertable(peer::torrent::Session& session, bool force_reg
     return maintable;
 }
 
-// Request any peer in our peertable to provide us with the peers they know
-static void requests_send_local_discovery(peer::torrent::Session& session) {
-    while (session.get_peertable().size() < peer::torrent::defaults::prefered_known_peers_size) {
+// Request any peer in our group to provide us with the peers they know
+static void requests_send_local_discovery(peer::torrent::Session& session, rnd::RandomGenerator<size_t>& rand) {
+    const auto registry = session.get_peer_registry_copy();
+    if (registry.size() == 0) // Cannot discover on an empty registry. First need to join some peers.
+        return;
+
+    const size_t peertable_size = session.num_known_peers();
+    if (peertable_size >= peer::torrent::defaults::prefered_known_peers_size) // have enough peers
+        return;
+
+    size_t diff = peer::torrent::defaults::prefered_known_peers_size - peertable_size;
+
+    IPTable extrapeertable;
+    while (extrapeertable.size() < diff) {
         // 1. Pick a peer to ask more info from
         // 2. Send local discovery request
         // 3. Receive peers
         // 4. Merge with current
 
-
-        const auto& registry = session.get_peer_registry();
-        if (registry.size() == 0) // Cannot discover on an empty registry. First need to join some peers.
-            return;
-        const auto peer_idx = session.rand.generate(0, session.get_peer_registry().size()-1);
+        const auto peer_idx = rand.generate(0, registry.size()-1);
         auto it = registry.cbegin();
         std::advance(it, peer_idx);
         const auto& address = it->first;
+
         std::cerr << "Sending a LOCAL_DISCOVERY_REQ to " << address.type << ", " << address.ip << ':'<<address.port<<'\n';
         auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
         if (!connection->doConnect()) {
@@ -141,22 +147,22 @@ static void requests_send_local_discovery(peer::torrent::Session& session) {
         uint8_t* const data = (uint8_t*) malloc(standard.size);
         connection->recvmsg(data, standard.size);
 
-        IPTable extrapeertable;
+        IPTable recvtable;
         std::string recv_hash;
-        if (!connections::shared::recv::discovery_reply(data, standard.size, extrapeertable, recv_hash)) {
+        if (!connections::shared::recv::discovery_reply(data, standard.size, recvtable, recv_hash)) {
             std::cerr << "Could not recv local_discovery reply from fellow peer ";connection->print(std::cerr); std::cerr << '\n';
             free(data);
             continue;
         }
-        std::cerr << "Interpreted reply: Received " << extrapeertable.size() << " peers.\n";
+        free(data);
+        std::cerr << "Interpreted reply: Received " << recvtable.size() << " peers.\n";
         if (recv_hash != session.get_metadata().content_hash) {
             std::cerr << "Received hash mismatching our own. (Ours="<<session.get_metadata().content_hash<<", theirs="<<recv_hash<<")\n";
-            free(data);
             continue;
         }
-        session.add_peers(extrapeertable);
-        free(data);
+        extrapeertable.merge(recvtable);
     }
+    session.add_peers(extrapeertable);
 }
 
 // Send join requests to a number of peers. 
@@ -168,18 +174,30 @@ static void requests_send_join(peer::torrent::Session& session) {
     // Maybe make a random generator in util to generate some random number in a given range?
         // Initialize the random generator with something that is different for every peer... Hostname string? Hostname+ip?
         // Note that initializing with time is maybe/probably not good enough, so only do that if the above option won't work
+    
+    const auto registry = session.get_peer_registry_copy(); // we just use copies instead of locks. The registry is not that large anyway.
+    if (registry.size() >= peer::torrent::defaults::prefered_group_size) // our group is large enough
+        return;
+    size_t diff = peer::torrent::defaults::prefered_group_size - registry.size();
 
-    auto options = session.get_peertable();
-    for (auto it = options.cbegin(); it != options.cend() && session.get_peer_registry().size() < peer::torrent::defaults::prefered_group_size; ++it) {
+
+    auto peertable_lock = session.get_peertable_lock_read();
+    const auto& peertable = session.get_peertable();
+
+    std::unordered_set<Address> addresses;
+    for (auto it = peertable.cbegin(); it != peertable.cend() && addresses.size() < diff; ++it) {
         const auto& address = *it;
-        if (session.get_peer_registry().contains(address)) // skip if we are already connected to this peer
+        if (registry.contains(address)) // skip if we are already connected to this peer
             continue;
-
         if (address.type.t_type != TransportType::TCP) {
             std::cerr << print::YELLOW << "[WARN] Only implemented support for TCP connections, skipping: " << address.type << ": " << address.ip << ':' << address.port << '\n';
             continue;
         }
+        addresses.insert(address);
+    }
+    peertable_lock.unlock();
 
+    for (const auto& address : addresses) {
         auto conn = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
         if (conn->get_state() != ClientConnection::READY) {
             std::cerr << print::YELLOW << "[WARN] Could not initialize connection to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
@@ -189,20 +207,13 @@ static void requests_send_join(peer::torrent::Session& session) {
             std::cerr << "Could not connect to peer ";conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
-        // TODO: Remove below code after debug:
-        size_t x = 0;
-        for (const auto y : session.get_fragments_completed())
-            if (y)
-                ++x;
-        // end TODO
-        std::cerr << "Sending a JOIN request. We own " << x << '/' << session.get_fragments_completed().size() << " fragments\n";
+        
+        std::cerr << "Sending a JOIN request\n";
         if (!connections::peer::send::join(conn, session.registered_port, torrent_hash, session.get_fragments_completed())) {
             std::cerr << print::YELLOW << "[WARN] Could not send send_exchange request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
         message::standard::Header header = message::standard::recv(conn);
-        // std::cerr <<print::YELLOW << "[WARN] Could not receive send_exchange request response from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
-        // continue;
         if (header.tag == message::standard::OK) {
             std::cerr << print::CYAN << "[TEST] We got an OK for our JOIN request from peer: " << print::CLEAR; conn->print(std::cerr);
             std::string recv_hash;
@@ -226,15 +237,23 @@ static void requests_send_join(peer::torrent::Session& session) {
 // Send leave requests to a number of peers. 
 // We stop when enough leaves have been sent.
 static void requests_send_leave(peer::torrent::Session& session) {
-    auto torrent_hash = session.get_metadata().content_hash;
+    const auto torrent_hash = session.get_metadata().content_hash;
 
-    auto registry = session.get_peer_registry();
-    for (auto it = registry.cbegin(); it != registry.cend() && registry.size() > 4 * peer::torrent::defaults::prefered_group_size; ++it) {
+    const auto registry = session.get_peer_registry_copy();
+    if (registry.size() <= 4 * peer::torrent::defaults::prefered_group_size) // not too many peers in our group
+        return;
+
+    size_t diff = 4 * peer::torrent::defaults::prefered_group_size - registry.size();
+
+    std::unordered_set<Address> addresses;
+    for (auto it = registry.cbegin(); it != registry.cend() && addresses.size() < diff; ++it)
+        addresses.insert(it->first);
+
+
+    for (const auto& address : addresses) {
         // 1. Pick a peer of our group
         // 2. Send LEAVE
         // 3. Remove peer from registry
-
-        const auto& address = it->first;
 
         if (address.type.t_type != TransportType::TCP) {
             std::cerr << print::YELLOW << "[WARN] Only implemented support for TCP connections, skipping: " << address.type << ": " << address.ip << ':' << address.port << '\n';
@@ -267,35 +286,54 @@ static void requests_send_leave(peer::torrent::Session& session) {
  * In case of OK, the remote peer will send us the fragment to our registered port on the receive thread.
  * That message will have tag DATA_REPLY.
  */
-static void requests_send_data_req(peer::torrent::Session& session) {
+static void requests_send_data_req(peer::torrent::Session& session, rnd::RandomGenerator<size_t>& rand) {
+    // 1. Pick a fragment to request
+    // 2. Pick a peer to request from
+    // 3. Request picked fragment at picked peer
+
     if (session.download_completed()) // We are not asking for data if we already have all data
         return;
-    const auto peer_registry = session.get_peer_registry();
+    const auto peer_registry = session.get_peer_registry_copy();
     if (peer_registry.size() == 0) // We have nobody to request data from
         return;
 
-    while (session.get_request_registry().size() < peer::torrent::defaults::outgoing_requests) { // Let's send a request
-        // 1. Pick a fragment to request
-        // 2. Pick a peer to request from
-        // 3. Request picked fragment at picked peer
+    const size_t request_registry_size = session.num_requests();
+    if (request_registry_size >= peer::torrent::defaults::outgoing_requests) // already have max connections out
+        return;
 
-        const auto fragment_nr = rnd::random_from(session.rand, session.get_fragments_completed(), false);
+    const size_t diff = peer::torrent::defaults::outgoing_requests - request_registry_size;
+
+
+    // pick fragments
+    std::unordered_set<size_t> picked_fragments;
+    const auto completed_vector = session.get_fragments_completed_copy();
+    for (size_t x = 0; x < diff; ++x) {
+        const auto fragment_nr = rnd::random_from(rand, completed_vector, false);
         if (fragment_nr >= session.num_fragments) // We get here only if all fragments are completed
-            return; // No need to ask for fragment data if we already have all
+            break; // No need to ask for fragment data if we already have all
+        picked_fragments.insert(fragment_nr);
+    }
 
+    std::unordered_map<size_t, Address> addresses;
+    // pick an address for each fragment 
+    for (const auto& fragment_nr : picked_fragments) {
         const auto containmentvector = peer_registry.get_peers_for(fragment_nr);
 
-        Address address;
         if (containmentvector.size() == 0) { // If nobody owns the fragment we seek, pick a random peer
-            const auto peer_idx = session.rand.generate(0, peer_registry.size()-1);
+            const auto peer_idx = rand.generate(0, peer_registry.size()-1);
             auto it = peer_registry.cbegin();
             std::advance(it, peer_idx);
-            address = it->first;
+            addresses.insert({fragment_nr, it->first});
         } else { // Randomly pick a peer that owns the fragment we want 
-            const auto peer_idx = session.rand.generate(0, containmentvector.size()-1);
-            address = containmentvector[peer_idx];
+            const auto peer_idx = rand.generate(0, containmentvector.size()-1);
+            addresses.insert({fragment_nr, containmentvector[peer_idx]});
         }
+    }
 
+    // send a request, process the response
+    for (const auto& [key, val] : addresses) {
+        const auto& address = val;
+        const auto& fragment_nr = key;
         auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
         if (!connection->doConnect()) {
             std::cerr << "Could not connect to fellow peer ";connection->print(std::cerr); std::cerr << '\n';
@@ -344,13 +382,13 @@ static void requests_send_data_req(peer::torrent::Session& session) {
  * In case of OK, the message body contains the byte array telling us which fragments it owns.
  * '''Note:''' Due to amount of communication, it is recommended to call this function from a separate thread.
  */
-// TODO: To increase efficiency but reduce accuracy, could cache request message and send the cached version multiple times.
 static void requests_send_availability(peer::torrent::Session& session) {
     // 1. For every peer in our group, send an availability request
     // 2. get reply back, store new availability
-    auto torrent_hash = session.get_metadata().content_hash;
-    auto peers = session.get_peer_registry();
-    for (auto it = peers.cbegin(); it != peers.cend(); ++it) {
+    const auto torrent_hash = session.get_metadata().content_hash;
+    const auto peer_registry = session.get_peer_registry_copy();
+
+    for (auto it = peer_registry.cbegin(); it != peer_registry.cend(); ++it) {
         const auto& address = it->first;
 
         if (address.type.t_type != TransportType::TCP) {
@@ -367,7 +405,7 @@ static void requests_send_availability(peer::torrent::Session& session) {
             std::cerr << "Could not connect to peer ";conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
-        if (!connections::peer::send::availability(conn, session.registered_port, torrent_hash, session.get_fragments_completed())) {
+        if (!connections::peer::send::availability(conn, session.registered_port, torrent_hash, session.get_fragments_completed_copy())) {
             std::cerr << print::YELLOW << "[WARN] Could not send AVAILABILITY request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
         }
@@ -393,13 +431,13 @@ static void requests_send_availability(peer::torrent::Session& session) {
 }
 
 // Send request to peers in our local network
-static void requests_send(peer::torrent::Session& session) {
+static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<size_t>& rand) {
     //TODO: 2 options for sending
     // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
     // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
     // For now we make 1. Adaption to 2 is simple enough to not be a waste of time.
 
-    if (session.get_peertable().size() == 0) { // We have 0 peers. Ask tracker to provide us peers
+    if (session.num_known_peers() == 0) { // We have 0 peers. Ask tracker to provide us peers
         std::this_thread::sleep_for(::peer::torrent::defaults::dead_torrent_poke_time);
         std::cerr << "We now have 0 peers! We must ask the trackers for a peertable\n";
         session.set_peers(compose_peertable(session, false));
@@ -411,14 +449,15 @@ static void requests_send(peer::torrent::Session& session) {
     // 3. while large jointable -> LEAVE
     // 4. while #requests < max -> DATA_REQ
 
-    requests_send_local_discovery(session);
+    requests_send_local_discovery(session, rand);
 
-    if (session.get_peer_registry().size() < peer::torrent::defaults::prefered_group_size)
+    const size_t num_registered_peers = session.num_registered_peers();
+    if (num_registered_peers < peer::torrent::defaults::prefered_group_size)
         requests_send_join(session);
-    else if (session.get_peer_registry().size() > 4 * peer::torrent::defaults::prefered_group_size)
+    else if (num_registered_peers > 4 * peer::torrent::defaults::prefered_group_size)
         requests_send_leave(session);
 
-    requests_send_data_req(session);
+    requests_send_data_req(session, rand);
 }
 
 
@@ -451,15 +490,7 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
         uint8_t* const data = (uint8_t*) malloc(standard.size);
         connection->recvmsg(data, standard.size);
         switch (standard.tag) {
-            case message::standard::LOCAL_DISCOVERY_REQ: {
-                if (session.get_address().port == 0) { //TODO: remove after debugging
-                    std::cerr << "OWN Address incorrect: " << session.get_address().ip << ':' << session.get_address().port << '\n';
-                    exit(1);
-                } else {
-                peer::pipeline::local_discovery(session, connection, data, standard.size);
-                }
-                break;
-            }
+            case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(session, connection, data, standard.size); break;
             default: // We get here when we receive some other or corrupt tag
                 std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
                 break;
@@ -483,7 +514,6 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
         return false;
     }
     TorrentFile tf = TorrentFile::from(torrentfile);
-    const IPTable& tracker_table = tf.getTrackerTable();
 
     auto hostconnection = TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).create();
 
@@ -496,14 +526,14 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     bool receive_stop = false;
     bool gc_stop = false;
 
-    // std::thread availability;
-    // if (!session.download_completed()) // Periodically send our availability, and ask for availability of others
-    //     availability = std::thread([&session, &availability_stop]() {
-    //         while (!availability_stop && !session.download_completed()) {
-    //             requests_send_availability(session);
-    //             std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
-    //         }
-    //     });
+    std::thread availability;
+    if (!session.download_completed()) // Periodically send our availability, and ask for availability of others
+        availability = std::thread([&session, &availability_stop]() {
+            while (!availability_stop && !session.download_completed()) {
+                requests_send_availability(session);
+                std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
+            }
+        });
     std::thread receivethread([&session, &receive_stop](auto&& hostconnection) {
         while (!receive_stop) {
             FragmentHandler fragmentHandler(session.metadata, session.workpath + session.metadata.name);
@@ -512,16 +542,22 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
             std::this_thread::sleep_for(std::chrono::milliseconds(6000));
         }
     }, std::move(hostconnection));
-    // std::thread gc([&session, &gc_stop]() {
-    //     while (!gc_stop) {
-    //         session.peer_registry_gc();
-    //         session.request_registry_gc();
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(6000));
-    //     }
-    // });
+    std::thread gc([&session, &gc_stop]() {
+        while (!gc_stop) {
+            session.peer_registry_gc();
+            session.request_registry_gc();
+            std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+        }
+    });
+
+
+    // Simple random number generator to use during this session.
+    // Initialized such that different peers generate different numbers
+    rnd::RandomGenerator<size_t> rand(std::move(std::random_device()));
+
     std::cerr << "Start main program loop.\n";
     while (!stop)
-        requests_send(session);
+        requests_send(session, rand);
 
     availability_stop = true;
     receive_stop = true;
