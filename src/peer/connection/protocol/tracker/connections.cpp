@@ -66,7 +66,6 @@ bool connections::tracker::send::register_self(std::unique_ptr<ClientConnection>
 
 
 bool connections::tracker::recv::receive(std::unique_ptr<ClientConnection>& connection, IPTable& peertable, Address& own_address, uint16_t sourcePort) {
-    std::cerr << "Trying to get RECV reply!\n";
     const auto& header = message::tracker::recv(connection);
 
     uint8_t* const data = (uint8_t*) malloc(header.size);

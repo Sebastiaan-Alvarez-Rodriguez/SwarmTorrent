@@ -62,6 +62,7 @@ namespace peer::torrent {
                 return;
             peers[address].data_owned = std::move(updated);
         }
+
         // Resets the inactiveCounter of the peer
         void mark(const Address& address);
         // Reports the peer as being unresponsive
@@ -74,8 +75,15 @@ namespace peer::torrent {
         inline auto cend() const { return peers.cend(); }
 
         // Returns amount of peers in our group
-        inline size_t size() const {
-            return peers.size();
+        inline size_t size() const { return peers.size(); }
+
+        inline void set(const std::unordered_map<Address, Element>& peers) {
+            this->peers = peers;
+        }
+        inline PeerRegistry copy() const {
+            PeerRegistry p;
+            p.set(this->peers);
+            return p;
         }
     };
 }

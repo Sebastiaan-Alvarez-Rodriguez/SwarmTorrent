@@ -30,30 +30,27 @@ void peer::pipeline::join(peer::torrent::Session& session, const std::unique_ptr
             ++x;
 
     std::cerr << "Got a JOIN (hash=" << hash << ", req_port=" << req_port << ", frags_completed="<<x<<'/'<<fragments_completed.size()<<", num_fragments="<<session.num_fragments<<")\n";
-    if (fragments_completed.size() != session.num_fragments) {
-        std::cerr << "ERRRRRRRRRRRROR: Remote did not do so well?\n";
-        exit(1);
-    }
     const auto addr = Address(connection->get_type(), connection->getAddress(), req_port);
 
     // Register peer as an existing peer
-    session.add_peer(Address(connection->get_type(), connection->getAddress(), req_port));
-
+    if (session.add_peer({connection->get_type(), connection->getAddress(), req_port}))
+        std::cerr << print::CYAN << "We added a peer to the table because of a JOIN. " << connection->getAddress() << ':' << req_port << print::CLEAR << '\n';
+    else
+        std::cerr << print::RED << "Could not add peer to the table (JOIN): " << connection->getAddress() << ':' << req_port << print::CLEAR << '\n';
     if (session.get_metadata().content_hash != hash) { // Torrent mismatch, Reject
         std::cerr << "Above hash mismatched with our own (" << session.get_metadata().content_hash <<"), rejected.\n";
         message::standard::send(connection, message::standard::REJECT);
         return;
     }
 
-    if (session.get_peer_registry().size() > 4 * peer::torrent::defaults::prefered_group_size) {// too many peers
+    if (session.num_registered_peers() > 4 * peer::torrent::defaults::prefered_group_size) {// too many peers
         std::cerr << "JOIN request rejected, too many group members already.\n";
         message::standard::send(connection, message::standard::REJECT);
         return;
     }
 
     // If we get here, we accept the JOIN request
-
-    if (!connections::peer::send::join_reply(connection, hash, session.get_fragments_completed())) {
+    if (!connections::peer::send::join_reply(connection, hash, session.get_fragments_completed_copy())) {
         std::cerr << "Could not send positive join reply to peer: "; connection->print(std::cerr); std::cerr << '\n';
         return;
     }
@@ -74,7 +71,7 @@ void peer::pipeline::leave(peer::torrent::Session& session, const std::unique_pt
 }
 
 // Handles DATA_REQs. Closes incoming connection, reads fragment from storage, sends data to registered port for given ip.
-void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, FragmentHandler& handler, uint8_t* const data, size_t size) {
     const auto connected_ip = connection->getAddress();
     
     uint16_t req_port;
@@ -87,14 +84,15 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
         return;
     }
 
-    if (fragment_nr > session.get_num_fragments()) {
-        std::cerr << "Cannot get fragment number " << fragment_nr << ", only " << session.get_num_fragments() << " fragments exist!\n";
-        connections::peer::send::data_rej(connection, session.get_fragments_completed());
+    const auto& fragments_completed = session.get_fragments_completed_copy();
+    if (fragment_nr > session.num_fragments) {
+        std::cerr << "Cannot get fragment number " << fragment_nr << ", only " << session.num_fragments << " fragments exist!\n";
+        connections::peer::send::data_rej(connection, fragments_completed);
         return;
     }
-    if (!session.get_fragments_completed()[fragment_nr]) {
+    if (!fragments_completed[fragment_nr]) {
         std::cerr << "Cannot get fragment number " << fragment_nr << ", because we do not have it.\n";
-        connections::peer::send::data_rej(connection, session.get_fragments_completed());
+        connections::peer::send::data_rej(connection, fragments_completed);
         return;
     }
     message::standard::send(connection, message::standard::OK);
@@ -102,7 +100,6 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
 
     std::cerr << print::CYAN << "We accepted the DATA_REQ request!\n" << print::CLEAR << std::endl;
 
-    auto& handler = session.get_handler();
     unsigned data_size;
     uint8_t* diskdata = handler.read_with_leading(fragment_nr, data_size, message::peer::bytesize()+sizeof(size_t));
     if (diskdata == nullptr) {
@@ -111,8 +108,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
         return;
     }
 
-    Address a;
-    session.get_peertable().get_addr(connected_ip, req_port, a);
+    const auto& a = session.get_peer_address(connected_ip, req_port);
     auto target_conn = TCPClientConnection::Factory::from(a.type.n_type).withAddress(a.ip).withDestinationPort(a.port).create();
     if (target_conn->get_state() != ClientConnection::READY) {
         std::cerr << print::YELLOW << "[WARN] Could not initialize connection to peer: " << print::CLEAR; target_conn->print(std::cerr);std::cerr << '\n';
@@ -132,7 +128,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
     }
 }
 
-void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, FragmentHandler& handler, uint8_t* const data, size_t size) {
     // 1. Check if in session
     // 2. Maybe (send on other side and) check if content hash equals our content hash?
     // 3. Check if we already own the data
@@ -167,7 +163,6 @@ void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr
         return;
     }
 
-    auto& handler = session.get_handler();
     if (!handler.write(fragment_nr, fragment_data, fragment_size)) { // Could not write data?
         std::cerr << "There was a problem writing fragment " << fragment_nr << " to disk\n";
         return;
@@ -180,10 +175,12 @@ void peer::pipeline::local_discovery(const peer::torrent::Session& session, cons
     std::string recv_hash;
     if (!connections::shared::recv::discovery_req(data, size, recv_hash))
         return;
+    std::cerr << "Received a LOCAL_DISCOVERY_REQ (recv_hash="<<recv_hash<<", our hash="<<session.get_metadata().content_hash<<'\n';
     if (recv_hash != session.get_metadata().content_hash) // Hash mismatch
         return;
 
-    connections::shared::send::discovery_reply(connection, session.get_peertable(), recv_hash, session.get_address());
+    std::cerr << "Sending LOCAL_DISCOVERY_REPLY. Note: We believe that our address="<<session.get_address().type<<':'<<session.get_address().ip<<':'<<session.get_address().port<<'\n';
+    connections::shared::send::discovery_reply(connection, session.get_peertable_copy(), recv_hash, session.get_address());
 }
 
 void peer::pipeline::availability(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
@@ -196,7 +193,7 @@ void peer::pipeline::availability(peer::torrent::Session& session, std::unique_p
         return;
     }
 
-    if (!session.get_peer_registry().contains({connection->getAddress(), port})) { // If not in group, reject
+    if (!session.has_registered_peer({connection->getAddress(), port})) { // If not in group, reject
         std::cerr << "Peer not in registry, rejected.\n";
         message::standard::send(connection, message::standard::REJECT);
         return;
@@ -206,6 +203,6 @@ void peer::pipeline::availability(peer::torrent::Session& session, std::unique_p
         std::cerr << "Hash mismatched with our own (ours=" << session.get_metadata().content_hash <<", theirs="<<recv_hash<<"), rejected.\n";
         return;
     }
-    if (!connections::peer::send::availability_reply(connection, session.get_fragments_completed()))
+    if (!connections::peer::send::availability_reply(connection, session.get_fragments_completed_copy()))
         std::cerr << "Could not send reply!\n";
 }

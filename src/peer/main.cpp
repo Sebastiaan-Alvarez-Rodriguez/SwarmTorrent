@@ -72,10 +72,11 @@ bool run_torrent(int argc, char const ** argv) {
     TCLAP::ValueArg<std::string> torrentfileArg("f","file","The torrentfile to open",true,"","FILE", cmd);
     TCLAP::ValueArg<std::string> workpathArg("w","workpath","The location to load/store the data",true,"","FILE", cmd);
     TCLAP::ValueArg<uint16_t> portArg("p","port","Port to receive torrent requests on",true,1042,"PORT", cmd);
-    TCLAP::SwitchArg registerArg("r","register","Explicitly register self at trackers (needed for torrents without peers, for peers with all data ('source peers'))", cmd);
+    TCLAP::SwitchArg seederArg("s","seeder","Peer is initial seeder, explicitly registers self at trackers (needed for torrents without peers, for peers with all data ('source peers')), and ignores logging", cmd);
+    TCLAP::ValueArg<std::string> logArg("l", "log-file", "File to log torrent-time in", true, "", "FILE", cmd);
 
     cmd.parse(argc, argv);
-    return torrent::run(torrentfileArg.getValue(), workpathArg.getValue(), portArg.getValue(), registerArg.getValue());
+    return torrent::run(torrentfileArg.getValue(), workpathArg.getValue(), portArg.getValue(), seederArg.getValue(), logArg.getValue());
 }
 
 // Parse arguments for torrent::make and execute

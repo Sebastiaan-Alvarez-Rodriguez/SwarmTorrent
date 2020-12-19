@@ -22,10 +22,15 @@ namespace peer::torrent {
         class Element;
         // a mapping from fragment nr to a deque containing the requests. In the deque, the oldest request is at the front, youngest at the back.
         std::unordered_map<size_t, std::deque<Element>> requests;
+
         size_t total_requests = 0;
 
         bool gc_internal(std::deque<Element>& elems, const std::chrono::steady_clock::time_point& bound);
     public:
+        RequestRegistry() = default;
+        RequestRegistry(const RequestRegistry& other) {
+            this->requests = other.requests;
+        }
 
         // Adds request for given fragment number to given address
         void add(size_t fragment_nr, const Address& address);
@@ -57,6 +62,10 @@ namespace peer::torrent {
         // To get only non-stale requests, first use [[gc()]] to clear stale requests.
         inline size_t size() const {
             return total_requests;
+        }
+
+        inline RequestRegistry copy() const {
+            return RequestRegistry(*this);
         }
     };
 
