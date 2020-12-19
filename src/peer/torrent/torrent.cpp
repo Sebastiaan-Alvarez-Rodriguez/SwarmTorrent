@@ -464,7 +464,7 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
     // 3. while large jointable -> LEAVE
     // 4. while #requests < max -> DATA_REQ
 
-    // requests_send_local_discovery(session, rand);
+    requests_send_local_discovery(session, rand);
 
     const size_t num_registered_peers = session.num_registered_peers();
     if (num_registered_peers < peer::torrent::defaults::prefered_group_size)

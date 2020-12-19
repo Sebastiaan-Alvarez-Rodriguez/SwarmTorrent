@@ -78,7 +78,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
     size_t fragment_nr;
     connections::peer::recv::data_req(data, size, req_port, fragment_nr);
     const auto addr = Address(connected_ip, req_port);
-    std::cerr << "Received a DATA_REQ (port=" << req_port << ", fragment_nr=" << fragment_nr << ") ("<<addr.ip<<':'<<addr.port<<")\n";
+    //std::cerr << "Received a DATA_REQ (port=" << req_port << ", fragment_nr=" << fragment_nr << ") ("<<addr.ip<<':'<<addr.port<<")\n";
     if (!session.has_registered_peer(addr)) { //Data requests from unknown entities produce only ERROR
         message::standard::send(connection, message::standard::ERROR);
         return;
@@ -98,7 +98,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
     message::standard::send(connection, message::standard::OK);
     connection.reset(); // Closes the connection
 
-    std::cerr << print::CYAN << "We accepted the DATA_REQ request!\n" << print::CLEAR << std::endl;
+    //std::cerr << print::CYAN << "We accepted the DATA_REQ request!\n" << print::CLEAR << std::endl;
 
     unsigned data_size;
     uint8_t* diskdata = handler.read_with_leading(fragment_nr, data_size, message::peer::bytesize()+sizeof(size_t));
@@ -120,7 +120,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
         free(diskdata);
         return;
     }
-    std::cerr << "sending data reply to "; target_conn->print(std::cerr); std::cerr << ": fragment_nr="<<fragment_nr<<", data_size="<<data_size<<'\n';
+    //std::cerr << "sending data reply to "; target_conn->print(std::cerr); std::cerr << ": fragment_nr="<<fragment_nr<<", data_size="<<data_size<<'\n';
     if (!connections::peer::send::data_reply_fast(target_conn, fragment_nr, diskdata, message::peer::bytesize()+sizeof(size_t)+data_size)) {
         std::cerr << "Could not send data to peer. Hangup? Some other problem?\n";
     } else {

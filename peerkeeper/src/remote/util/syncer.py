@@ -125,7 +125,7 @@ class Syncer(object):
     # Close network. Every node should call this to clean up
     def close(self):
         if self.prime:
-            self.trackersock.close()
+            self.serversock.close()
             # Quickly close connections and be done with it
             for conn in self.connections:
                 conn.close()

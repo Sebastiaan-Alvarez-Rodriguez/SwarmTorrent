@@ -49,7 +49,4 @@ def get_node_dir():
     return '/local/{}/'.format(st.ssh_user_name) 
 
 def get_initial_file(index):
-    return fs.join(get_node_dir(), 'initial{}.out'.format(index))
-
-def get_output_loc():
-    return fs.join(get_node_dir(), 'file.out')
+    return fs.join(get_node_dir(), 'file{}.out'.format(index))

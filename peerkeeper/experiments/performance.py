@@ -48,7 +48,8 @@ class PerformanceExperiment(ExperimentInterface):
 
     def file_sizes(self):
         '''File sizes in MB'''
-        return [1, 50, 1024]
+        #return [1, 50, 1024]
+        return [1, 50]
 
     def tracker_port(self):
         return 2323
@@ -71,13 +72,13 @@ class PerformanceExperiment(ExperimentInterface):
 
     def process_logs(self, peerkeeper):
         durations = []
-        for log in fs.ls(loc.get_swarmtorrent_log_dir()):
+        for log in fs.ls(loc.get_swarmtorrent_log_dir(), full_paths=True):
             logfile = open(log, 'r')
-            duration.append(logfile.read())
+            durations.append(logfile.read())
 
         resultfile = open(self.get_result_file(), 'a')
         for x, duration in enumerate(durations):
-            resultfile.write('{} {} {} {}\n'.format(self.file_sizes(peerkeeper._index), peerkeeper.repeat, x, duration))
+            resultfile.write('{} {} {} {}\n'.format(self.file_sizes()[peerkeeper._index], peerkeeper.repeat, x, duration))
 
 
     def pre_experiment(self, peerkeeper):
@@ -111,9 +112,10 @@ class PerformanceExperiment(ExperimentInterface):
         if not fs.isfile(torrentfile):
             raise RuntimeError('{} does not exist'.format(torrentfile))
         peerloc = fs.join(loc.get_swarmtorrent_dir(), 'peer')
-        command = '{} torrent -p {} -w {} -f {}'.format(peerloc, port, workpath, torrentfile)
+        logfile = fs.join(loc.get_swarmtorrent_log_dir(), '.log{}'.format(peerkeeper.gid))
+        command = '{} torrent -p {} -w {} -f {} -l {}'.format(peerloc, port, workpath, torrentfile, logfile)
         if register:
-            command += ' -r'
+            command += ' -s'
         return command
 
     def get_tracker_run_command(self, peerkeeper):
@@ -125,7 +127,7 @@ class PerformanceExperiment(ExperimentInterface):
     def experiment_peer(self, peerkeeper):
         '''Execution occuring on ALL peer nodes'''
         while (True):
-            time.sleep(30)
+            time.sleep(10)
             if self.check_ready():
                 break
 
@@ -133,19 +135,14 @@ class PerformanceExperiment(ExperimentInterface):
         
         # cleanup files
         if peerkeeper.gid == 0:
-            process_logs()
-            fs.rm(loc.get_swarmtorrent_log_dir())
-            fs.rm(loc.get_swarmtorrent_torrentfile())
-            fs.rm(loc.get_initial_file_dir())
-        else: 
-            fs.rm(loc.get_output_loc()) 
+            self.process_logs(peerkeeper)
         return status
         
 
     def experiment_tracker(self, peerkeeper):
         '''Execution occuring on ALL tracker nodes'''
         while (True):
-            time.sleep(30)
+            time.sleep(10)
             if self.check_ready():
                 break
         return peerkeeper.executor.stop()

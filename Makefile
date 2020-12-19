@@ -11,7 +11,7 @@ PEEREXEC    = peer
 TRACKEREXEC = tracker
 
 
-WARNINGS   = -Wall -Wextra -pedantic -g
+WARNINGS   = -Wall -Wextra -pedantic 
 NOWARNINGS = -w
 IDIRS      = -I$(SRC) -I$(INCLUDEDIR)
 LIBS       = -lrt -pthread -lstdc++fs
