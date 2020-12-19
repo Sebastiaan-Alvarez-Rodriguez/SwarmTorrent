@@ -19,6 +19,6 @@ namespace torrent {
     bool make(const std::string& in, const std::string& out, std::vector<std::string>& trackers);
 
     // Torrent a torrentfile provided by torrentfile, with given workpath
-    bool run(const std::string& torrentfile, const std::string& workpath, uint16_t port, bool force_register, const std::string& logfile);
+    bool run(const std::string& torrentfile, const std::string& workpath, uint16_t port, bool initial_seeder, const std::string& logfile);
 }
 #endif

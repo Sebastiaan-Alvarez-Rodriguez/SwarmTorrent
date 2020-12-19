@@ -477,7 +477,7 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
 
 
 // Handle requests we receive
-static void requests_receive(peer::torrent::Session& session, std::unique_ptr<HostConnection>& hostconnection, FragmentHandler& handler, const std::string logfile, const std::chrono::high_resolution_clock::time_point starttime) {
+static void requests_receive(peer::torrent::Session& session, std::unique_ptr<HostConnection>& hostconnection, FragmentHandler& handler, bool ignore_log, const std::string logfile, const std::chrono::high_resolution_clock::time_point starttime) {
     auto connection = hostconnection->acceptConnection();
     message::standard::Header standard = message::standard::recv(connection);
     // std::cerr << "Unable to peek. System hangup?" << std::endl;
@@ -497,7 +497,7 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
             case message::peer::DATA_REPLY: {
                 peer::pipeline::data_reply(session, connection, handler, data, standard.size);
                 // If we received all fragments, log time
-                if (session.download_completed()) {
+                if (!ignore_log && session.download_completed()) {
                     auto t2 = std::chrono::high_resolution_clock::now();
                     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(t2-starttime).count();
                     std::ofstream logger(logfile);
@@ -528,7 +528,7 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
     }
 }
 
-bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort, bool force_register, const std::string& logfile) {
+bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort, bool initial_seeder, const std::string& logfile) {
     // 0. Prepare and check output location
     // 1. Load trackerlist from tf
     // 2. Get peertables from trackers
@@ -545,7 +545,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     auto hostconnection = TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).create();
 
     peer::torrent::Session session(tf, workpath, sourcePort);
-    session.set_peers(compose_peertable(session, force_register));
+    session.set_peers(compose_peertable(session, initial_seeder));
     
     std::cerr << "Before booting receivethread: " << session.get_address().ip<< ':' << session.get_address().port << '\n';
     bool stop = false;
@@ -562,11 +562,11 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
                 std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
             }
         });
-    std::thread receivethread([&session, &receive_stop, &logfile](auto&& hostconnection) {
+    std::thread receivethread([&session, &receive_stop, &initial_seeder, &logfile](auto&& hostconnection) {
         auto starttime = std::chrono::high_resolution_clock::now();
         FragmentHandler fragmentHandler(session.metadata, session.workpath + session.metadata.name);
         while (!receive_stop)
-            requests_receive(session, hostconnection, fragmentHandler, logfile, starttime);
+            requests_receive(session, hostconnection, fragmentHandler, initial_seeder, logfile, starttime);
 
     }, std::move(hostconnection));
     std::thread gcthread([&session, &gc_stop]() {
