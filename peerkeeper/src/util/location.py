@@ -20,7 +20,7 @@ def get_cfg():
 
 #################### SwarmTorrent directories ####################
 def get_swarmtorrent_dir():
-    return fs.dirname(fs.dirname(fs.abspath()))
+    return fs.join(fs.dirname(fs.dirname(fs.abspath())), 'SwarmTorrent')
 
 def get_swarmtorrent_test_dir():
     return fs.join(get_swarmtorrent_dir(), 'test')
@@ -35,8 +35,11 @@ def get_swarmtorrent_log_dir():
     return fs.join(get_swarmtorrent_test_dir(), 'logs')
 
 #################### Remote directories ####################
+def get_remote_swarmtorrent_parent_dir():
+    return st.remote_swarmtorrent_dir
+
 def get_remote_swarmtorrent_dir():
-    return fs.join(st.remote_swarmtorrent_dir, 'SwarmTorrent')
+    return fs.join(get_remote_swarmtorrent_parent_dir(), 'SwarmTorrent')
 
 def get_remote_peerkeeper_dir():
     return fs.join(get_remote_swarmtorrent_dir(), 'peerkeeper')

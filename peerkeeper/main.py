@@ -27,18 +27,23 @@ def is_compiled():
 # Handles clean commandline argument
 def clean():
     print('Cleaning...')
-    return True
-    swarmtorrent_loc = loc.get_remote_swarmtorrent_dir()
-    return os.system('ssh {} "cd {} && make c > /dev/null 2>&1"'.format(st.ssh_key_name, swarmtorrent_loc)) == 0
+    swarmtorrent_loc = loc.get_swarmtorrent_dir()
+    makefile = fs.join(swarmtorrent_loc, 'Makefile')
+    if not fs.isfile(makefile):
+        printw('No {} found'.format(makefile))
+        return True
+    return os.system('cd {} && make c > /dev/null 2>&1'.format(swarmtorrent_loc)) == 0
 
 # Handles compile commandline argument
 def compile():
     print('Compiling...')
-    return True
 
-    swarmtorrent_loc = loc.get_remote_swarmtorrent_dir()
-    printw('ssh {} "cd {} && make > /dev/null 2>&1"'.format(st.ssh_key_name, swarmtorrent_loc))
-    statuscode = os.system('ssh {} "cd {} && make > /dev/null 2>&1"'.format(st.ssh_key_name, swarmtorrent_loc))
+    swarmtorrent_loc = loc.get_swarmtorrent_dir()
+    makefile = fs.join(swarmtorrent_loc, 'Makefile')
+    if not fs.isfile(makefile):
+        printe('No {} found'.format(makefile))
+        return False
+    statuscode = os.system('cd {} && make > /dev/null 2>&1'.format(swarmtorrent_loc))
 
     if statuscode == 0:
         prints('Compilation completed!')
@@ -120,11 +125,9 @@ def export(full_exp=False):
         command = 'rsync -az {} {}:{} {} {} {}'.format(
             fs.dirname(fs.abspath()),
             st.ssh_key_name,
-            loc.get_remote_swarmtorrent_dir(),
+            loc.get_remote_swarmtorrent_parent_dir(),
             '--exclude .git',
-            '--exclude __pycache__',
-            '--exclude peer',
-            '--exclude tracker', 
+            '--exclude __pycache__', 
             '--exclude obj', 
             '--exclude test')
         if not clean():
@@ -135,11 +138,9 @@ def export(full_exp=False):
         command = 'rsync -az {} {}:{} {} {} {} {} {}'.format(
             fs.dirname(fs.abspath()),
             st.ssh_key_name,
-            loc.get_remote_swarmtorrent_dir(),
+            loc.get_remote_swarmtorrent_parent_dir(),
             '--exclude .git',
             '--exclude __pycache__',
-            '--exclude peer',
-            '--exclude tracker', 
             '--exclude obj', 
             '--exclude test',
             '--exclude thirdparty')
