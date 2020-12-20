@@ -9,11 +9,12 @@ import util.fs as fs
 # to use below import statement. This forces in-order printing. 
 from util.printer import *
 
+#TODO: more scalability experiments for different sizes networks
 def get_experiment():
     '''Pass your defined experiment class in this function so PeerKeeper can find it'''
-    return PerformanceExperiment
+    return ScalabilityExperiment
 
-class PerformanceExperiment(ExperimentInterface):
+class ScalabilityExperiment(ExperimentInterface):
     '''
     A most useful experiment.
     Check <root dir>/peerkeeper/experiments/example_simple/example.py 
@@ -22,9 +23,10 @@ class PerformanceExperiment(ExperimentInterface):
     to find out how peerkeeper variables work.
     '''
 
+    #TODO: higher numbers for trackers and peers
     def num_trackers(self):
         '''Get amount of tracker nodes to allocate'''
-        return 1
+        return 2
 
     def num_peers(self):
         '''get amount of peer nodes to allocate'''
@@ -46,9 +48,11 @@ class PerformanceExperiment(ExperimentInterface):
         '''Amount of peer processes which may be mapped on the same physical node'''
         return 2
 
+    # medium/ largest file size from performance
     def file_sizes(self):
         '''File sizes in MB'''
-        return [1, 50, 100]
+        #return [1, 50, 1024]
+        return [50]
 
     def tracker_port(self):
         return 2320
@@ -63,7 +67,7 @@ class PerformanceExperiment(ExperimentInterface):
         return len(self.file_sizes())
 
     def get_result_file(self):
-        return fs.join(loc.get_peerkeeper_results_dir(), 'performance_experiment.csv')
+        return fs.join(loc.get_peerkeeper_results_dir(), 'scalability3_experiment.csv')
 
     def check_ready(self):
         #TODO: via peerkeeper?

@@ -26,11 +26,11 @@ class ScalabilityExperiment(ExperimentInterface):
     #TODO: higher numbers for trackers and peers
     def num_trackers(self):
         '''Get amount of tracker nodes to allocate'''
-        return 2
+        return 5
 
     def num_peers(self):
         '''get amount of peer nodes to allocate'''
-        return 20
+        return 60
 
     def trackers_use_infiniband(self):
         '''True if trackers must communicate with eachother over infiniband, False otherwise'''
@@ -46,7 +46,7 @@ class ScalabilityExperiment(ExperimentInterface):
 
     def peers_core_affinity(self):
         '''Amount of peer processes which may be mapped on the same physical node'''
-        return 2
+        return 5
 
     # medium/ largest file size from performance
     def file_sizes(self):
@@ -67,7 +67,7 @@ class ScalabilityExperiment(ExperimentInterface):
         return len(self.file_sizes())
 
     def get_result_file(self):
-        return fs.join(loc.get_peerkeeper_results_dir(), 'performance_experiment.csv')
+        return fs.join(loc.get_peerkeeper_results_dir(), 'scalability1_experiment.csv')
 
     def check_ready(self):
         #TODO: via peerkeeper?
