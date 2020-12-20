@@ -16,6 +16,6 @@ def filetype_is_supported(extension):
     return str(extension).strip().lower() in supported_filetypes()
 
 # Stores given <plotlike> in dir <dirname>/<filename>.<filetype>, passing kwargs to <plotlike>.savefig()
-def store(dirname, filename, filetype, plotlike, **kwargs):
-    fs.mkdir(loc.get_metazoo_graphs_dir(), dirname, exist_ok=True)
-    plotlike.savefig(fs.join(loc.get_metazoo_graphs_dir(), dirname, '{}.{}'.format(filename, filetype)), **kwargs)
+def store(filename, filetype, plotlike, **kwargs):
+    fs.mkdir(loc.get_peerkeeper_graphs_dir(), exist_ok=True)
+    plotlike.savefig(fs.join(loc.get_peerkeeper_graphs_dir(), '{}.{}'.format(filename, filetype)), **kwargs)
