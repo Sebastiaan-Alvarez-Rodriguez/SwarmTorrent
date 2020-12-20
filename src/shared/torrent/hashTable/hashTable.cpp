@@ -18,7 +18,9 @@ HashTable HashTable::make_for(const std::string& path) {
     hashTable.hashes.reserve(nr_fragments);
     std::ifstream f(path, std::ios::in | std::ios::binary);
     for (uint64_t i = 0; i < nr_fragments; ++i) {
-        uint64_t size = (i != nr_fragments-1) ? fragment_size : (f_size % (fragment_size+1));
+        uint64_t size = (i != nr_fragments-1) ? fragment_size : (f_size % fragment_size);
+        if (f_size % fragment_size == 0)
+            size = fragment_size;
         const uint8_t* data = new uint8_t[size];
         f.read((char*) data, size);
         std::string hash;
