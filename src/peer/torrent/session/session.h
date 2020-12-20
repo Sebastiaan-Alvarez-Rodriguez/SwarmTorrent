@@ -229,13 +229,13 @@ namespace peer::torrent {
             peer_registry.report(address);
         }
 
-        inline void register_peer(Address&& address, const std::vector<bool>& fragments_completed) {
+        inline bool register_peer(Address&& address, const std::vector<bool>& fragments_completed) {
             std::unique_lock lock(peer_registry_mutex);
-            peer_registry.add(address, fragments_completed);
+            return peer_registry.add(address, fragments_completed);
         }
-        inline void register_peer(const Address& address, const std::vector<bool>& fragments_completed) {
+        inline bool register_peer(const Address& address, const std::vector<bool>& fragments_completed) {
             std::unique_lock lock(peer_registry_mutex);
-            peer_registry.add(address, fragments_completed);
+            return peer_registry.add(address, fragments_completed);
         }
 
         inline void deregister_peer(const Address& address) {

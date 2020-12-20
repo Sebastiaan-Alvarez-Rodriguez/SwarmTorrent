@@ -71,9 +71,9 @@ void Poll::do_poll(const std::unique_ptr<HostConnection>& hostconnection, const 
     } else {
         for (size_t x = 0; x < 1+connections.size(); ++x) {
             int revents = pfds[x].revents;
-            if (revents == 0)
+            if (revents == 0) // not a triggered socket
                 continue;
-            if (revents != POLLIN) {
+            if (revents != POLLIN) { // We got a returnevent that is not POLLIN (posibly remote hangup. Error!)
                 std::cerr << print::RED << "Had an error for fd " << connections[x-1]->getfd() << print::CLEAR;
                 if (x == 0) {
                     hostconnection->print(std::cerr);

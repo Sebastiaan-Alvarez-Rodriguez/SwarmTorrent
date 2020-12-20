@@ -33,17 +33,17 @@ namespace peer::torrent {
 
     public:
         // Adds request for given fragment number to given address
-        inline void add(Address&& address, std::vector<bool>&& fragments_completed) {
-            peers.insert({std::move(address), std::move(fragments_completed)});
+        inline bool add(Address&& address, std::vector<bool>&& fragments_completed) {
+            return peers.insert({std::move(address), std::move(fragments_completed)}).second;
         }
-        inline void add(Address& address, std::vector<bool>&& fragments_completed) {
-            peers.insert({address, std::move(fragments_completed)});
+        inline bool add(Address& address, std::vector<bool>&& fragments_completed) {
+            return peers.insert({address, std::move(fragments_completed)}).second;
         }
-        inline void add(Address&& address, std::vector<bool>& fragments_completed) {
-            peers.insert({std::move(address), fragments_completed});
+        inline bool add(Address&& address, std::vector<bool>& fragments_completed) {
+            return peers.insert({std::move(address), fragments_completed}).second;
         }
-        inline void add(const Address& address, const std::vector<bool>& fragments_completed) {
-            peers.insert({address, peer::torrent::PeerRegistry::Element(fragments_completed)});
+        inline bool add(const Address& address, const std::vector<bool>& fragments_completed) {
+            return peers.insert({address, peer::torrent::PeerRegistry::Element(fragments_completed)}).second;
         }
 
         // Returns `true` if given key was found, `false` otherwise

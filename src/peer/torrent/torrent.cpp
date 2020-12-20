@@ -565,8 +565,9 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
             connection->recvmsg(data, standard.size);
             switch (standard.tag) {
                 case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(session, connection, data, standard.size); break;
+                case 0: /* we had an EWOULDBLOCK in the poll */ break;
                 default: // We get here when we receive some other or corrupt tag
-                    std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
+                    //std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
                     break;
             }
             free(data);
