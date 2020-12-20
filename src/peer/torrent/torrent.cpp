@@ -478,7 +478,7 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
 
 
 // Handle requests we receive
-static void requests_receive(peer::torrent::Session& session, std::unique_ptr<HostConnection>& hostconnection, FragmentHandler& handler, bool ignore_log, const std::string logfile, const std::chrono::high_resolution_clock::time_point starttime) {
+static void requests_receive(peer::torrent::Session& session, std::unique_ptr<HostConnection>& hostconnection, WriteFragmentHandler& writeHandler, ReadFragmentHandler& readHandler, bool ignore_log, const std::string logfile, const std::chrono::high_resolution_clock::time_point starttime) {
     auto connection = hostconnection->acceptConnection();
     if (connection == nullptr)
         exit(1);
@@ -496,9 +496,9 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
         switch (header->tag) {
             case message::peer::JOIN: peer::pipeline::join(session, connection, data, standard.size); break;
             case message::peer::LEAVE: peer::pipeline::leave(session, connection, data, standard.size); break;
-            case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, handler, data, standard.size); break;
+            case message::peer::DATA_REQ: peer::pipeline::data_req(session, connection, readHandler, data, standard.size); break;
             case message::peer::DATA_REPLY: {
-                peer::pipeline::data_reply(session, connection, handler, data, standard.size);
+                peer::pipeline::data_reply(session, connection, writeHandler, data, standard.size);
                 // If we received all fragments, log time
                 if (!ignore_log && session.download_completed()) {
                     auto t2 = std::chrono::high_resolution_clock::now();
@@ -567,9 +567,10 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
         });
     std::thread receivethread([&session, &receive_stop, &initial_seeder, &logfile](auto&& hostconnection) {
         auto starttime = std::chrono::high_resolution_clock::now();
-        FragmentHandler fragmentHandler(session.metadata, session.workpath + session.metadata.name);
+        ReadFragmentHandler readHandler(session.metadata, session.workpath + session.metadata.name);
+        WriteFragmentHandler writeHandler(session.metadata, session.workpath + session.metadata.name);
         while (!receive_stop)
-            requests_receive(session, hostconnection, fragmentHandler, initial_seeder, logfile, starttime);
+            requests_receive(session, hostconnection, writeHandler, readHandler, initial_seeder, logfile, starttime);
 
     }, std::move(hostconnection));
     std::thread gcthread([&session, &gc_stop]() {

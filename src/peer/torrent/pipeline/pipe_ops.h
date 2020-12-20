@@ -15,10 +15,10 @@ namespace peer::pipeline {
     void leave(peer::torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size);
 
     // Handles DATA_REQs. Closes incoming connection, reads fragment from storage, sends data to registered port for given ip.
-    void data_req(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, FragmentHandler& handler, uint8_t* const data, size_t size);
+    void data_req(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, ReadFragmentHandler& handler, uint8_t* const data, size_t size);
 
     // Handles DATA_REPLYs. Closes incoming connection, reads fragment from data, writes it to disk, and finally updates request registry.
-    void data_reply(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, FragmentHandler& handler, uint8_t* const data, size_t size);
+    void data_reply(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, WriteFragmentHandler& handler, uint8_t* const data, size_t size);
 
     // Handles LOCAL_DISCOVERYs. Sends back currently owned peertable to incoming connection.
     void local_discovery(const peer::torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size);

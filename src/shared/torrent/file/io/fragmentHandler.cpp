@@ -3,14 +3,18 @@
 
 #include "fragmentHandler.h"
 
-FragmentHandler::~FragmentHandler() { 
+
+WriteFragmentHandler::~WriteFragmentHandler() { 
     if (write_head.is_open())
         write_head.close();
+}
+
+ReadFragmentHandler::~ReadFragmentHandler() { 
     if (read_head.is_open()) 
         read_head.close(); 
 }
 
-uint8_t* FragmentHandler::read_with_leading(unsigned index, unsigned& data_size, size_t leading_size) {
+uint8_t* ReadFragmentHandler::read_with_leading(unsigned index, unsigned& data_size, size_t leading_size) {
     if (!read_head.is_open())
         return nullptr;
 
@@ -32,7 +36,7 @@ uint8_t* FragmentHandler::read_with_leading(unsigned index, unsigned& data_size,
 }
 
 
-bool FragmentHandler::write(unsigned index, const uint8_t* data, unsigned data_size) {
+bool WriteFragmentHandler::write(unsigned index, const uint8_t* data, unsigned data_size) {
     if (!write_head.is_open())
         return false;
 

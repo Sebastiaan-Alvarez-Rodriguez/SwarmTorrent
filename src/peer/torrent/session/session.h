@@ -68,7 +68,7 @@ namespace peer::torrent {
                 // For all matches, we set the corresponding completed-bit to true
                 const auto filesize = fs::file_size(workpath + metadata.name);
                 if (filesize == metadata.size) {
-                    FragmentHandler fragmentHandler(metadata, workpath + metadata.name);
+                    ReadFragmentHandler fragmentHandler(metadata, workpath + metadata.name);
                     for (size_t x = 0; x < fragments_completed.size(); ++x) {
                         unsigned size;
                         uint8_t* data = fragmentHandler.read(x, size);

@@ -8,24 +8,44 @@
 #include "shared/torrent/metadata/metaData.h"
 
 // Object to read from and write to fragments for a single file
-class FragmentHandler {
+class WriteFragmentHandler {
 protected:
-
     std::ofstream write_head; // Current write_head position
-    std::ifstream read_head; // Curent read_head position
-    unsigned prev_read_index = 0; // Previous Fragment index to which was read
+    
 
 public:
     const uint64_t file_size;
     const uint64_t fragment_size;
     const uint64_t num_fragments;
-    FragmentHandler(uint64_t file_size, uint64_t fragment_size, uint64_t num_fragments, const std::string& path) : write_head(path, std::ios::out | std::ios::app | std::ios::binary), read_head(path, std::ios::in | std::ios::binary), file_size(file_size), fragment_size(fragment_size), num_fragments(num_fragments) {
-        std::cerr << "Reading path '"<<path<<"' (file_size="<<file_size<< " bytes)\n";
+    WriteFragmentHandler(uint64_t file_size, uint64_t fragment_size, uint64_t num_fragments, const std::string& path) : write_head(path, std::ios::out | std::ios::app | std::ios::binary), file_size(file_size), fragment_size(fragment_size), num_fragments(num_fragments) {
+        std::cerr << "Writing path '"<<path<<"' (file_size="<<file_size<< " bytes)\n";
         write_head.seekp(0, std::ios::beg);
+    }
+    WriteFragmentHandler(const TorrentMetadata& meta, const std::string& path) : WriteFragmentHandler(meta.size, meta.get_fragment_size(), meta.get_num_fragments(), path) {}
+    ~WriteFragmentHandler();
+
+
+    /**
+     * Writes a fragment to file.
+     * @return whether the fragment is written to disk.
+     */
+    bool write(unsigned index, const uint8_t* data, unsigned data_size);
+};
+
+class ReadFragmentHandler {
+protected: 
+    std::ifstream read_head; // Curent read_head position
+    unsigned prev_read_index = 0; // Previous Fragment index to which was read
+public:
+    const uint64_t file_size;
+    const uint64_t fragment_size;
+    const uint64_t num_fragments;
+    ReadFragmentHandler(uint64_t file_size, uint64_t fragment_size, uint64_t num_fragments, const std::string& path) : read_head(path, std::ios::in | std::ios::binary), file_size(file_size), fragment_size(fragment_size), num_fragments(num_fragments) {
+        std::cerr << "Reading path '"<<path<<"' (file_size="<<file_size<< " bytes)\n";
         read_head.seekg(0, std::ios::beg);
     }
-    FragmentHandler(const TorrentMetadata& meta, const std::string& path) : FragmentHandler(meta.size, meta.get_fragment_size(), meta.get_num_fragments(), path) {}
-    ~FragmentHandler();
+    ReadFragmentHandler(const TorrentMetadata& meta, const std::string& path) : ReadFragmentHandler(meta.size, meta.get_fragment_size(), meta.get_num_fragments(), path) {}
+    ~ReadFragmentHandler();
 
     /**
      * Reads fragment from file, saves it in data.
@@ -47,12 +67,7 @@ public:
      * @return `false` if read_head is invalid
      */
     uint8_t* read_with_leading(unsigned index, unsigned& data_size, size_t leading_size);
-
-    /**
-     * Writes a fragment to file.
-     * @return whether the fragment is written to disk.
-     */
-    bool write(unsigned index, const uint8_t* data, unsigned data_size);
+    
 };
 
 #endif

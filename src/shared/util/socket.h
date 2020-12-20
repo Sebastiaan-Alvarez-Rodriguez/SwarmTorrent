@@ -42,6 +42,14 @@ namespace sock {
         return setsockopt(fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, (char*) &opt, sizeof(opt)) >= 0;
     }
 
+
+    inline bool set_linger(int fd) {
+        struct linger sl;
+        sl.l_onoff = 1;     /* non-zero value enables linger option in kernel */
+        sl.l_linger = 0;    /* timeout interval in seconds */
+        return setsockopt(fd, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl)) >= 0;
+    }
+
     /**
      * Sets a send timeout for given socket.
      *

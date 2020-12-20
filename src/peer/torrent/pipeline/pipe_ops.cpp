@@ -62,7 +62,7 @@ void peer::pipeline::leave(peer::torrent::Session& session, const std::unique_pt
 }
 
 // Handles DATA_REQs. Closes incoming connection, reads fragment from storage, sends data to registered port for given ip.
-void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, FragmentHandler& handler, uint8_t* const data, size_t size) {
+void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, ReadFragmentHandler& handler, uint8_t* const data, size_t size) {
     const auto connected_ip = connection->getAddress();
     
     uint16_t req_port;
@@ -119,7 +119,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
     }
 }
 
-void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, FragmentHandler& handler, uint8_t* const data, size_t size) {
+void peer::pipeline::data_reply(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, WriteFragmentHandler& handler, uint8_t* const data, size_t size) {
     // 1. Check if in session
     // 2. Maybe (send on other side and) check if content hash equals our content hash?
     // 3. Check if we already own the data

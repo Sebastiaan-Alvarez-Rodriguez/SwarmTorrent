@@ -28,7 +28,7 @@ public:
     explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t  sourcePort, uint16_t destinationPort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout) : ClientConnection::ClientConnection(type, address, sourcePort, destinationPort, blockmode, reusemode, sendTimeout, recvTimeout) {
         this->state = ClientConnection::ERROR;
         if ((this->sockfd = sock::make(type)) < 0) {
-            std::cerr << "Could not build socket!" << std::endl;
+            std::cerr << "Could not build socket!" << std::strerror(errno) << std::endl;
             return;
         }
 
@@ -49,6 +49,11 @@ public:
 
         if (recvTimeout != 0 && !sock::set_timeout_recv(this->sockfd, 0, recvTimeout)) {
             std::cerr << "Could not set sendTimeout\n"; 
+            return;
+        }
+
+        if (!sock::set_linger(this->sockfd)) {
+            std::cerr << "Could not set linger\n";
             return;
         }
 
@@ -126,7 +131,7 @@ public:
     explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout, unsigned backlogSize) : HostConnection(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout, backlogSize) {
         this->state = ClientConnection::ERROR;
         if ((sockfd = sock::make(type)) < 0) {
-            std::cerr << "Could not build socket!" << std::endl;
+            std::cerr << "Could not build socket!" << std::strerror(errno) << std::endl;
             return;
         }
 
