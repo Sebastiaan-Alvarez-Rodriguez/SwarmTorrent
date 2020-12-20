@@ -132,7 +132,7 @@ static void requests_send_local_discovery(peer::torrent::Session& session, rnd::
         std::advance(it, peer_idx);
         const auto& address = it->first;
 
-        std::cerr << "Sending a LOCAL_DISCOVERY_REQ to " << address.type << ", " << address.ip << ':'<<address.port<<'\n';
+        //std::cerr << "Sending a LOCAL_DISCOVERY_REQ to " << address.type << ", " << address.ip << ':'<<address.port<<'\n';
         auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
         if (!connection->doConnect()) {
             session.report_registered_peer(address);
@@ -159,7 +159,7 @@ static void requests_send_local_discovery(peer::torrent::Session& session, rnd::
             continue;
         }
         free(data);
-        std::cerr << "Interpreted reply: Received " << recvtable.size() << " peers.\n";
+        //std::cerr << "Interpreted reply: Received " << recvtable.size() << " peers.\n";
         if (recv_hash != session.get_metadata().content_hash) {
             std::cerr << "Received hash mismatching our own. (Ours="<<session.get_metadata().content_hash<<", theirs="<<recv_hash<<")\n";
             continue;
@@ -217,7 +217,7 @@ static void requests_send_join(peer::torrent::Session& session) {
         }
         session.mark_registered_peer(address);
         
-        std::cerr << "Sending a JOIN request\n";
+        //std::cerr << "Sending a JOIN request\n";
         if (!connections::peer::send::join(conn, session.registered_port, torrent_hash, session.get_fragments_completed_copy())) {
             std::cerr << print::YELLOW << "[WARN] Could not send send_exchange request to peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
             continue;
@@ -464,7 +464,7 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
     // 3. while large jointable -> LEAVE
     // 4. while #requests < max -> DATA_REQ
 
-    requests_send_local_discovery(session, rand);
+    // requests_send_local_discovery(session, rand);
 
     const size_t num_registered_peers = session.num_registered_peers();
     if (num_registered_peers < peer::torrent::defaults::prefered_group_size)
@@ -477,7 +477,7 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
 
 
 // Handle requests we receive
-static void requests_receive(peer::torrent::Session& session, std::unique_ptr<HostConnection>& hostconnection, FragmentHandler& handler, bool ignore_log, const std::string logfile, const std::chrono::high_resolution_clock::time_point starttime) {
+static void requests_receive(peer::torrent::Session& session, std::unique_ptr<HostConnection>& hostconnection, FragmentHandler& handler, bool& ignore_log, const std::string logfile, const std::chrono::high_resolution_clock::time_point starttime) {
     auto connection = hostconnection->acceptConnection();
     message::standard::Header standard = message::standard::recv(connection);
     // std::cerr << "Unable to peek. System hangup?" << std::endl;
@@ -503,6 +503,7 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
                     std::ofstream logger(logfile);
                     logger << duration; 
                     logger.close();
+                    ignore_log = true;
                 }
                 break;
             }
@@ -585,7 +586,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     std::cerr << "Start main program loop.\n";
     while (!stop) {
         requests_send(session, rand);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     // availability_stop = true;

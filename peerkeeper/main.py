@@ -63,6 +63,8 @@ def _exec_internal_tracker(debug_mode=False):
 
 # Handles execution on the remote main node, before booting the cluster
 def exec(repeats, force_comp=False, debug_mode=False):
+    print('Cleaning...')
+    clean()
     print('Connected!')
     if (force_comp or not is_compiled()):
         if not compile():

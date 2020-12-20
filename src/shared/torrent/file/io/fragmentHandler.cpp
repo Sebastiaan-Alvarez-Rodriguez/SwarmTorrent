@@ -37,7 +37,7 @@ bool FragmentHandler::write(unsigned index, const uint8_t* data, unsigned data_s
         return false;
 
     //displacement with respect to previous write
-    const int64_t displ = (int64_t)(index*fragment_size) - (int64_t) prev_read_index; 
+    const int64_t displ = (int64_t)(index*fragment_size) - (int64_t) prev_write_index; 
     prev_write_index = index*fragment_size + data_size; // After writing, writehead is at end of fragment we just read
 
     write_head.seekp(displ, std::ios_base::cur);

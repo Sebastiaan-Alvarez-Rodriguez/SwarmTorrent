@@ -24,11 +24,11 @@ class PerformanceExperiment(ExperimentInterface):
 
     def num_trackers(self):
         '''Get amount of tracker nodes to allocate'''
-        return 1
+        return 2
 
     def num_peers(self):
         '''get amount of peer nodes to allocate'''
-        return 2
+        return 20
 
     def trackers_use_infiniband(self):
         '''True if trackers must communicate with eachother over infiniband, False otherwise'''
@@ -44,21 +44,21 @@ class PerformanceExperiment(ExperimentInterface):
 
     def peers_core_affinity(self):
         '''Amount of peer processes which may be mapped on the same physical node'''
-        return 1
+        return 2
 
     def file_sizes(self):
         '''File sizes in MB'''
         #return [1, 50, 1024]
-        return [1, 50]
+        return [50]
 
     def tracker_port(self):
-        return 2323
+        return 2320
 
     def seeder_port(self):
-        return 2322
+        return 2321
 
     def peer_port(self):
-        return 2321
+        return 2322
 
     def num_files(self):
         return len(self.file_sizes())
@@ -94,7 +94,7 @@ class PerformanceExperiment(ExperimentInterface):
 
     def get_seeder_make_command(self, peerkeeper):
         outfile = loc.get_swarmtorrent_torrentfile()
-        infile = loc.get_initial_file(peerkeeper._index)
+        infile = loc.get_initial_file(peerkeeper.index)
         peerloc = fs.join(loc.get_swarmtorrent_dir(), 'peer')
         command = '{} make -i {} -o {}'.format(peerloc, infile, outfile)
         for tracker in peerkeeper._trackers:
@@ -106,8 +106,11 @@ class PerformanceExperiment(ExperimentInterface):
         '''Get peer run command, executed in All peer nodes'''
         register = peerkeeper.gid == 0
         port = self.seeder_port() if register else self.peer_port()
+        port += peerkeeper.lid
         # workpath = loc.get_initial_file(peerkeeper._index) if register else loc.get_output_loc()
-        workpath = loc.get_node_dir()
+        workpath = fs.join(loc.get_node_dir(), peerkeeper.lid) if not register else loc.get_node_dir()
+        if not register:
+            fs.mkdir(workpath, exist_ok=True)
         torrentfile = loc.get_swarmtorrent_torrentfile()
         if not fs.isfile(torrentfile):
             raise RuntimeError('{} does not exist'.format(torrentfile))
@@ -127,7 +130,7 @@ class PerformanceExperiment(ExperimentInterface):
     def experiment_peer(self, peerkeeper):
         '''Execution occuring on ALL peer nodes'''
         while (True):
-            time.sleep(10)
+            time.sleep(1)
             if self.check_ready():
                 break
 
@@ -142,7 +145,7 @@ class PerformanceExperiment(ExperimentInterface):
     def experiment_tracker(self, peerkeeper):
         '''Execution occuring on ALL tracker nodes'''
         while (True):
-            time.sleep(10)
+            time.sleep(3)
             if self.check_ready():
                 break
         return peerkeeper.executor.stop()

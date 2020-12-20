@@ -77,7 +77,9 @@ class Syncer(object):
             if self.designation == 'peer':
                 addr = (config.trackers[0].split(':')[3], self.port)
             else:
-                addr = ('node{:03d}'.format(config.trackers[3]), self.port)
+                nodenr = config.nodes[0]
+                ipstring = ip.node_to_infiniband_ip(nodenr) if experiment.peers_use_infiniband else ip.node_to_ip(nodenr)
+                addr = (ipstring, self.port)
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             if self.debug_mode: print('{}.{} CONNECTING TO addr: {}'.format(self.designation, self.gid, addr), flush=True)
             for x in range(retries):

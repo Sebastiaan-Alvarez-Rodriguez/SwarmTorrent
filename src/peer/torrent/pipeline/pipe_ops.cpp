@@ -23,11 +23,11 @@ void peer::pipeline::join(peer::torrent::Session& session, const std::unique_ptr
     std::vector<bool> fragments_completed;
     connections::peer::recv::join(data, size, hash, req_port, fragments_completed);
 
-    //TODO: Remove below after testing
-    size_t x = 0;
-    for (const auto y : fragments_completed)
-        if (y)
-            ++x;
+    // //TODO: Remove below after testing
+    // size_t x = 0;
+    // for (const auto y : fragments_completed)
+    //     if (y)
+    //         ++x;
 
     //std::cerr << "Got a JOIN (hash=" << hash << ", req_port=" << req_port << ", frags_completed="<<x<<'/'<<fragments_completed.size()<<", num_fragments="<<session.num_fragments<<")\n";
     const auto addr = Address(connection->get_type(), connection->getAddress(), req_port);
@@ -64,7 +64,7 @@ void peer::pipeline::leave(peer::torrent::Session& session, const std::unique_pt
     uint16_t req_port;
     std::string hash;
     connections::peer::recv::leave(data, size, hash, req_port);
-    //std::cerr << "Got a lEAVE (hash=" << hash << ", req_port=" << req_port << ")\n";
+    std::cerr << "Got a lEAVE (hash=" << hash << ", req_port=" << req_port << ")\n";
     if (session.get_metadata().content_hash != hash) // Torrent mismatch, ignore
         return;
     session.remove_peer(connection->getAddress(), req_port); // Can call this safely: No effect if caller is not in our group
@@ -91,7 +91,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::unique_ptr<C
         return;
     }
     if (!fragments_completed[fragment_nr]) {
-        std::cerr << "Cannot get fragment number " << fragment_nr << ", because we do not have it.\n";
+        std::cerr << session.get_address().ip << " Cannot get fragment number " << fragment_nr << ", because we do not have it.\n";
         connections::peer::send::data_rej(connection, fragments_completed);
         return;
     }
@@ -184,7 +184,7 @@ void peer::pipeline::local_discovery(const peer::torrent::Session& session, cons
 }
 
 void peer::pipeline::availability(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
-    //std::cerr << "Got an AVAILABILITY request\n";
+    std::cerr << "Got an AVAILABILITY request\n";
     uint16_t port;
     std::string recv_hash;
     std::vector<bool> state;

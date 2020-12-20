@@ -73,7 +73,7 @@ static void handle_discovery(Session& session, rnd::RandomGenerator<size_t> rand
                     continue;
                 }
 
-                connections::shared::send::discovery_req(connection, address.ip);
+                connections::shared::send::discovery_req(connection, hash);
 
                 message::standard::Header standard = message::standard::recv(connection);
                 // std::cout << "Unable to peek. System hangup?" << std::endl;
@@ -141,10 +141,10 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
         return;
     }
 
-    std::cerr << "Sent table containing " << table.size() << " entries:\n";
-    for (auto it = table.cbegin(); it != table.cend(); ++it) {
-        std::cerr << it->ip << ':' << it->port << '\n';
-    }
+    // std::cerr << "Sent table containing " << table.size() << " entries:\n";
+    // for (auto it = table.cbegin(); it != table.cend(); ++it) {
+    //     std::cerr << it->ip << ':' << it->port << '\n';
+    // }
     free(data);
 }
 

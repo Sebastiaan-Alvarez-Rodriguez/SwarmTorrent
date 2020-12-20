@@ -42,7 +42,8 @@ def run_tracker(debug_mode):
             prints('Tracker iteration {}/{} complete'.format(repeat+1, repeats))
 
     syncer.close()
-    fs.rm(loc.get_cfg())
+    if config.gid == 0:
+        fs.rm(loc.get_cfg())
 
     return global_status
 
@@ -87,6 +88,8 @@ def run_peer(debug_mode):
             else:
                 if debug_mode: print('Peer {} is not seeder'.format(idr.identifier_global()))
                 syncer.sync()
+                time.sleep(5)
+                printw('Booting peer')
                 executor = peer.boot_torrent(experiment, config , repeat)
 
             status = experiment.experiment_peer(config, executor, repeat)
@@ -97,5 +100,6 @@ def run_peer(debug_mode):
 
 
     syncer.close()
-    fs.rm(loc.get_node_dir())
+    if idr.identifier_local() == 0:
+        fs.rm(loc.get_node_dir())
     return global_status
