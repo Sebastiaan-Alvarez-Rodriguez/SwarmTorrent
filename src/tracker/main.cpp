@@ -66,7 +66,7 @@ static void handle_discovery(Session& session, rnd::RandomGenerator<size_t> rand
                 auto table_it = table.cbegin();
                 std::advance(table_it, x);
                 const auto address = *table_it;
-                auto connection = TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create();
+                std::shared_ptr<ClientConnection> connection = std::move(TCPClientConnection::Factory::from(address.type.n_type).withAddress(address.ip).withDestinationPort(address.port).create());
 
                 if (!connection->doConnect()) {
                     std::cerr << print::RED << "[ERROR] Could not connect to remote peer!" << print::CLEAR << std::endl;

@@ -34,7 +34,7 @@ void peer::torrent::PeerRegistry::gc() {
             continue;
         const auto& address = it->first;
         auto peer_conn = TCPClientConnection::Factory::from(address.type).withAddress(address.ip).withDestinationPort(address.port).create();
-        if (!connections::peer::send::inquire(peer_conn))
+        if (!connections::peer::send::inquire(std::move(peer_conn)))
             to_remove.push_back(address);
         else 
             it->second.inactiveCounter = 0;

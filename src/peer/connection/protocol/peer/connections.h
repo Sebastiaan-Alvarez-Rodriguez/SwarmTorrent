@@ -10,7 +10,7 @@
 
 namespace connections::peer {
     // Send a simple test message to peer
-    bool test(std::unique_ptr<ClientConnection> &connection);
+    bool test(std::shared_ptr<ClientConnection> &connection);
 
     namespace send {
         /**
@@ -19,19 +19,19 @@ namespace connections::peer {
          * We deliver our list of completed fragments.
          * '''Note:''' other end will first send an accept/reject using current established connection.
          */
-        bool join(std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& torrent_hash, const std::vector<bool>& fragments_completed);
+        bool join(std::shared_ptr<ClientConnection>& connection, uint16_t port, const std::string& torrent_hash, const std::vector<bool>& fragments_completed);
 
         // Sends positive answer to join request
-        bool join_reply(const std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, const std::vector<bool>& fragments_completed);
+        bool join_reply(const std::shared_ptr<ClientConnection>& connection, const std::string& torrent_hash, const std::vector<bool>& fragments_completed);
         
         // Tell peer that we no longer cooperate with them
-        bool leave(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port);
+        bool leave(std::shared_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port);
 
         // Request peer to send us fragment with given fragment number
-        bool data_req(std::unique_ptr<ClientConnection>& connection, uint16_t port, size_t fragment_nr);
+        bool data_req(std::shared_ptr<ClientConnection>& connection, uint16_t port, size_t fragment_nr);
 
         // Reply to peer with a REJECT, and a bool vector of currently owned fragments
-        bool data_rej(std::unique_ptr<ClientConnection>& connection, const std::vector<bool>& fragments_completed);
+        bool data_rej(std::shared_ptr<ClientConnection>& connection, const std::vector<bool>& fragments_completed);
 
         /** 
          * Reply to peer with a data fragment. Call this function only for positive replies to a DATA_REQ
@@ -40,7 +40,7 @@ namespace connections::peer {
          *                leading bytes of free space
          * '''Note:''' This function frees the data after transmission.
          */
-        bool data_reply_fast(const std::unique_ptr<ClientConnection>& connection, size_t fragment_nr, uint8_t* data, unsigned size);
+        bool data_reply_fast(const std::shared_ptr<ClientConnection>& connection, size_t fragment_nr, uint8_t* data, unsigned size);
 
         /**
          * Returns whether peer is dead or not
@@ -48,13 +48,13 @@ namespace connections::peer {
          * '''Warning:''' assumes that the connection has a timeout set, or is nonblocking,
          *                otherwise it may not return in a finite time
          */
-        bool inquire(const std::unique_ptr<ClientConnection>& connection);
+        bool inquire(const std::shared_ptr<ClientConnection>& connection);
 
         // Send an AVAILABILITY request to a fellow peer
-        bool availability(const std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& hash, const std::vector<bool>& fragments_completed);
+        bool availability(const std::shared_ptr<ClientConnection>& connection, uint16_t port, const std::string& hash, const std::vector<bool>& fragments_completed);
     
         // Reply to an AVAILABILITY request from a fellow peer
-        bool availability_reply(const std::unique_ptr<ClientConnection>& connection, const std::vector<bool>& fragments_completed);
+        bool availability_reply(const std::shared_ptr<ClientConnection>& connection, const std::vector<bool>& fragments_completed);
     }
 
     namespace recv {

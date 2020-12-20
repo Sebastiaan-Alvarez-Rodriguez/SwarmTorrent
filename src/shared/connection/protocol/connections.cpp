@@ -16,7 +16,7 @@ static inline uint8_t* prepare_standard_message(size_t datasize, message::standa
 
 // Sends a LOCAL_DISCOVERY_REQ to remote.
 // hash (string)
-bool connections::shared::send::discovery_req(const std::unique_ptr<ClientConnection>& connection, const std::string& hash) {
+bool connections::shared::send::discovery_req(const std::shared_ptr<ClientConnection>& connection, const std::string& hash) {
     const auto m_size = hash.size();
     uint8_t* const data = prepare_standard_message(m_size, message::standard::LOCAL_DISCOVERY_REQ);
     uint8_t* writer = data + message::standard::bytesize();
@@ -31,7 +31,7 @@ bool connections::shared::send::discovery_req(const std::unique_ptr<ClientConnec
 // hash_size (size_t)
 // hash (string)
 // table (array of const-sized Address)
-bool connections::shared::send::discovery_reply(const std::unique_ptr<ClientConnection>& connection, const IPTable& table, const std::string& hash, const Address& addr) {
+bool connections::shared::send::discovery_reply(const std::shared_ptr<ClientConnection>& connection, const IPTable& table, const std::string& hash, const Address& addr) {
     size_t table_size = sizeof(size_t) + hash.size() + (1+table.size()) * Address::size();
     uint8_t* const data = prepare_standard_message(table_size, message::standard::LOCAL_DISCOVERY_REPLY);
     uint8_t* writer = data + message::standard::bytesize();

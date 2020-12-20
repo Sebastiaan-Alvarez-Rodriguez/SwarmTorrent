@@ -79,6 +79,7 @@ public:
     }
 
      ~TCPClientConnection() {
+        std::cerr << "Closed connection for object: "; this->print(std::cerr); std::cerr << '\n';
         close(sockfd);
     }
 
@@ -112,6 +113,10 @@ public:
 
     inline void print(std::ostream& stream) const override {
         stream << "Client ("<<type<<" type) src 127.0.0.1:"<<sourcePort<<", dst " << address << ':' << destinationPort;
+    }
+
+    inline int getfd() const override {
+        return sockfd;
     }
 
 protected:
@@ -197,6 +202,11 @@ public:
 
     inline void print(std::ostream& stream) const override {
         stream << "Server ("<<type<<" type) src 127.0.0.1:"<<sourcePort;
+    }
+
+
+    inline int getfd() const override {
+        return sockfd;
     }
 
 protected:

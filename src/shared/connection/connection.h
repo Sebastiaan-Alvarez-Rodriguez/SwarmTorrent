@@ -12,17 +12,7 @@
 //  https://www.geeksforgeeks.org/socket-programming-cc/
 //  https://www.tutorialspoint.com/cplusplus/cpp_interfaces.htm
 
-// Next step: Make connections/sends/recvs with a timeout, or maybe even non-blocking?
-//  https://stackoverflow.com/questions/4181784/
-// Quick post about using non-blocking connections sensibly:
-//  https://jameshfisher.com/2017/04/05/set_socket_nonblocking/
-// Next next step: polling system for accepting connections?
-//  https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_71/rzab6/poll.htm
-// Doing stuff in a very hard way with select:
-//  https://www.geeksforgeeks.org/socket-programming-in-cc-handling-multiple-clients-on-server-without-multi-threading/
-// Both polling and selecting are very hardcore things to implement, and neither is pretty.
 #include "shared/connection/meta/type.h"
-
 
 
 class Connection {
@@ -55,6 +45,8 @@ public:
     inline virtual unsigned getRecvTimeout() const {
         return recvTimeout;
     } 
+
+    inline virtual int getfd() const = 0;
 
     enum State {
         DISCONNECTED,

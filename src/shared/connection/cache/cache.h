@@ -26,7 +26,7 @@ public:
 
     inline auto get_optional(const Address& address) {
         auto it = cache.find(address);
-        return it == cache.end() ? std::nullopt : std::optional<std::reference_wrapper<std::shared_ptr<ClientConnection>>>{it->second};
+        return it == cache.end() ? std::nullopt : std::optional<std::shared_ptr<ClientConnection>>{it->second};
     }
 
     inline bool contains(const Address& address) {
@@ -37,8 +37,28 @@ public:
         return cache.insert({address, std::move(conn)}).second;
     }
 
+    inline bool insert(const Address& address, std::shared_ptr<ClientConnection>& conn) {
+        return cache.insert({address, conn}).second;
+    }
+
     inline void erase(const Address& address) {
         cache.erase(address);
+    }
+
+    inline auto keys() {
+        std::vector<Address> ans;
+        ans.reserve(cache.size());
+        for (const auto&[key, val] : cache)
+            ans.push_back(key);
+        return ans;
+    }
+
+    inline auto values() {
+        std::vector<std::shared_ptr<ClientConnection>> ans;
+        ans.reserve(cache.size());
+        for (const auto&[key, val] : cache)
+            ans.push_back(val);
+        return ans;
     }
 };
 #endif

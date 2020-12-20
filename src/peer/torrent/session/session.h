@@ -41,9 +41,6 @@ namespace peer::torrent {
         std::vector<bool> fragments_completed;
         mutable std::shared_mutex fragments_completed_mutex;
 
-        ConnectionCache cache;
-        mutable std::shared_mutex connection_cache_mutex;
-
     public:
         const HashTable hashtable;
         const TorrentMetadata metadata;
@@ -290,22 +287,22 @@ namespace peer::torrent {
 
 
 
-        // Cache-related forwarding functions //
+        // // Cache-related forwarding functions //
 
-        bool cache_insert(const Address& address, std::unique_ptr<ClientConnection>&& conn) {
-            std::unique_lock lock(connection_cache_mutex);
-            return cache.insert(address, std::move(conn));
-        }
+        // bool cache_insert(const Address& address, std::unique_ptr<ClientConnection>&& conn) {
+        //     std::unique_lock lock(connection_cache_mutex);
+        //     return cache.insert(address, std::move(conn));
+        // }
 
-        void cache_erase(const Address& address) {
-            std::shared_lock lock(connection_cache_mutex);
-            cache.erase(address);
-        }
+        // void cache_erase(const Address& address) {
+        //     std::shared_lock lock(connection_cache_mutex);
+        //     cache.erase(address);
+        // }
 
-        auto cache_get(const Address& address) {
-            std::shared_lock lock(connection_cache_mutex);
-            return cache.get_optional(address);
-        }
+        // auto cache_get(const Address& address) {
+        //     std::shared_lock lock(connection_cache_mutex);
+        //     return cache.get_optional(address);
+        // }
     };
 }
 #endif

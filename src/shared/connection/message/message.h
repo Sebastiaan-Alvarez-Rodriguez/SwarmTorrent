@@ -2,6 +2,7 @@
 #define CONNECTION_FORMAT_STANDARD_H
 
 #include <cstdlib>
+#include <memory>
 
 #include "shared/connection/connection.h"
 
@@ -70,10 +71,21 @@ namespace message::standard {
         return h;
     }
 
+    inline Header recv(const std::shared_ptr<ClientConnection>& conn) {
+        uint8_t data[bytesize()];
+        conn->peekmsg(data, bytesize());
+        return Header::read(data);
+    }
+
     inline Header recv(const std::unique_ptr<ClientConnection>& conn) {
         uint8_t data[bytesize()];
         conn->peekmsg(data, bytesize());
         return Header::read(data);
+    }
+
+    inline bool send(const std::shared_ptr<ClientConnection>& conn, Tag t) {
+        Header h = {bytesize(), id, t};
+        return conn->sendmsg((uint8_t*) &h, bytesize());
     }
 
     inline bool send(const std::unique_ptr<ClientConnection>& conn, Tag t) {

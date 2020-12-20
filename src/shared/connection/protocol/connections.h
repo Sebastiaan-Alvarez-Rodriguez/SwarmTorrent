@@ -11,11 +11,11 @@ namespace connections::shared {
     namespace send {
         // Send a discovery request to other end, with given hash.
         // In shared namespace, as both a tracker and any peer can issue local discoveries.
-        bool discovery_req(const std::unique_ptr<ClientConnection>& connection, const std::string& hash);
+        bool discovery_req(const std::shared_ptr<ClientConnection>& connection, const std::string& hash);
 
         // Send a peertable to other end in response to a LOCAL_DISCOVERY request.
         // '''Note:''' Also sends own address
-        bool discovery_reply(const std::unique_ptr<ClientConnection>& connection, const IPTable& peertable, const std::string& hash, const Address& addr);
+        bool discovery_reply(const std::shared_ptr<ClientConnection>& connection, const IPTable& peertable, const std::string& hash, const Address& addr);
     }
 
     namespace recv {

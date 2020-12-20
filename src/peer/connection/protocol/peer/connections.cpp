@@ -29,7 +29,7 @@ static inline uint8_t* prepare_standard_message(size_t datasize, message::standa
     return data;
 }
 
-bool connections::peer::test(__attribute__ ((unused)) std::unique_ptr<ClientConnection>& connection) {
+bool connections::peer::test(__attribute__ ((unused)) std::shared_ptr<ClientConnection>& connection) {
     std::cerr << "P2P testing function ready for implementation\n";
     return false;
 }
@@ -40,7 +40,7 @@ bool connections::peer::test(__attribute__ ((unused)) std::unique_ptr<ClientConn
 // size of hash (size_t)
 // hash (string)
 // fragment vector (raw bool array, byte-aligned)
-bool connections::peer::send::join(std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& torrent_hash, const std::vector<bool>& fragments_completed) {
+bool connections::peer::send::join(std::shared_ptr<ClientConnection>& connection, uint16_t port, const std::string& torrent_hash, const std::vector<bool>& fragments_completed) {
     const auto datasize = sizeof(uint16_t)+sizeof(size_t)+torrent_hash.size()+fragments_completed.size();
     uint8_t* const data = prepare_peer_message(datasize, message::peer::JOIN);
     uint8_t* writer = data + message::peer::bytesize();
@@ -71,7 +71,7 @@ bool connections::peer::send::join(std::unique_ptr<ClientConnection>& connection
 // size of hash (size_t)
 // hash (string)
 // fragment vector (raw bool array, byte-aligned)
-bool connections::peer::send::join_reply(const std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, const std::vector<bool>& fragments_completed) {
+bool connections::peer::send::join_reply(const std::shared_ptr<ClientConnection>& connection, const std::string& torrent_hash, const std::vector<bool>& fragments_completed) {
     // vector of bools is internally packed. However, getting the data like that is impossible in a clean way.
     // Have to use byte-wise sending instead of packed
     const auto datasize = sizeof(size_t) + torrent_hash.size() + fragments_completed.size();
@@ -98,7 +98,7 @@ bool connections::peer::send::join_reply(const std::unique_ptr<ClientConnection>
     return true;
 }
 
-bool connections::peer::send::leave(std::unique_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port) {
+bool connections::peer::send::leave(std::shared_ptr<ClientConnection>& connection, const std::string& torrent_hash, uint16_t port) {
     auto datasize = sizeof(uint16_t)+torrent_hash.size();
     uint8_t* const data = prepare_peer_message(datasize, message::peer::LEAVE);
     uint8_t* writer = data + message::peer::bytesize();
@@ -117,7 +117,7 @@ bool connections::peer::send::leave(std::unique_ptr<ClientConnection>& connectio
 // peer header (tag DATA_REQ)
 // port (uint16_t)
 // fragment nr (size_t)
-bool connections::peer::send::data_req(std::unique_ptr<ClientConnection>& connection, uint16_t port, size_t fragment_nr) {
+bool connections::peer::send::data_req(std::shared_ptr<ClientConnection>& connection, uint16_t port, size_t fragment_nr) {
     const auto datasize = sizeof(uint16_t) + sizeof(size_t);
     uint8_t* const data = prepare_peer_message(datasize, message::peer::DATA_REQ);
     uint8_t* writer = data + message::peer::bytesize();
@@ -131,7 +131,7 @@ bool connections::peer::send::data_req(std::unique_ptr<ClientConnection>& connec
     return val;
 }
 
-bool connections::peer::send::data_rej(std::unique_ptr<ClientConnection> &connection, const std::vector<bool>& fragments_completed) {
+bool connections::peer::send::data_rej(std::shared_ptr<ClientConnection> &connection, const std::vector<bool>& fragments_completed) {
     const auto datasize = fragments_completed.size();
     uint8_t* const data = (uint8_t*) prepare_standard_message(datasize, message::standard::REJECT);
     uint8_t* writer = data + message::standard::bytesize();
@@ -148,7 +148,7 @@ bool connections::peer::send::data_rej(std::unique_ptr<ClientConnection> &connec
     return val;
 }
 
-bool connections::peer::send::data_reply_fast(const std::unique_ptr<ClientConnection>& connection, size_t fragment_nr, uint8_t* data, unsigned size) {
+bool connections::peer::send::data_reply_fast(const std::shared_ptr<ClientConnection>& connection, size_t fragment_nr, uint8_t* data, unsigned size) {
     message::peer::from_r(size, message::peer::DATA_REPLY).write(data);
     *((size_t*) (data+message::peer::bytesize())) = fragment_nr;
     bool val = connection->sendmsg(data, size);
@@ -156,7 +156,7 @@ bool connections::peer::send::data_reply_fast(const std::unique_ptr<ClientConnec
     return val;
 }
 
-bool connections::peer::send::inquire(const std::unique_ptr<ClientConnection>& connection) {
+bool connections::peer::send::inquire(const std::shared_ptr<ClientConnection>& connection) {
     uint8_t* const data = prepare_peer_message(0, message::peer::INQUIRE);
     return connection->sendmsg(data, message::peer::bytesize());
 }
@@ -167,7 +167,7 @@ bool connections::peer::send::inquire(const std::unique_ptr<ClientConnection>& c
 // size of hash (size_t)
 // hash (string)
 // fragment vector (raw bool array, byte-aligned)
-bool connections::peer::send::availability(const std::unique_ptr<ClientConnection>& connection, uint16_t port, const std::string& hash, const std::vector<bool>& fragments_completed) {
+bool connections::peer::send::availability(const std::shared_ptr<ClientConnection>& connection, uint16_t port, const std::string& hash, const std::vector<bool>& fragments_completed) {
     const size_t datasize = sizeof(uint16_t) + sizeof(size_t) + hash.size() + fragments_completed.size();
     uint8_t* const buf = prepare_peer_message(datasize, message::peer::AVAILABILITY);
     uint8_t* writer = buf + message::standard::bytesize();
@@ -203,7 +203,7 @@ bool connections::peer::send::availability(const std::unique_ptr<ClientConnectio
 // Message:
 // Peer message header (tag=AVAILABILITY)
 // fragment vector (raw bool array, byte-aligned)
-bool connections::peer::send::availability_reply(const std::unique_ptr<ClientConnection>& connection, const std::vector<bool>& fragments_completed) {
+bool connections::peer::send::availability_reply(const std::shared_ptr<ClientConnection>& connection, const std::vector<bool>& fragments_completed) {
     const size_t datasize = fragments_completed.size();
     uint8_t* const buf = prepare_standard_message(datasize, message::standard::OK);
     uint8_t* writer = buf+ message::standard::bytesize();

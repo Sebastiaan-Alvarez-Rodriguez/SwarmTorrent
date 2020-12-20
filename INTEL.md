@@ -4,6 +4,11 @@ To quickly construct a 96MB testfile:
 python3 -c 'print("A"*100000000, end="")' > test/dl_src/a.out
 ```
 
+To get a 96MB testfile containing varying characters:
+```bash
+head -c 1024MB /dev/urandom > test/dl_src/a.out
+```
+
 Launch a tracker:
 ```bash
 valgrind --leak-check=full --track-origins=yes ./tracker -p 2323
