@@ -14,10 +14,10 @@
 #include "shared/util/hash/hasher.h"
 #include "shared/util/print.h"
 #include "peer/torrent/defaults.h"
-
+#include "shared/connection/cache/cache.h"
 #include "pipe_ops.h"
 
-void peer::pipeline::join(peer::torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
+void peer::pipeline::join(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
     uint16_t req_port;
     std::string hash;
     std::vector<bool> fragments_completed;
@@ -47,8 +47,10 @@ void peer::pipeline::join(peer::torrent::Session& session, const std::unique_ptr
     }
 
     std::cerr << print::CYAN << "We accepted the join request! " << print::CLEAR << std::endl;
+    const Address accepted_address = {connection->get_type(), connection->getAddress(), req_port};
     // Register peer to our group!
-    session.register_peer({connection->get_type(), connection->getAddress(), req_port}, fragments_completed);
+    session.register_peer(accepted_address, fragments_completed);
+    session.cache_insert(accepted_address, std::move(connection));
 }
 
 void peer::pipeline::leave(peer::torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size) {
@@ -59,6 +61,7 @@ void peer::pipeline::leave(peer::torrent::Session& session, const std::unique_pt
     if (session.get_metadata().content_hash != hash) // Torrent mismatch, ignore
         return;
     session.remove_peer(connection->getAddress(), req_port); // Can call this safely: No effect if caller is not in our group
+    session.cache_erase({connection->get_type(), connection->getAddress(), req_port});
 }
 
 // Handles DATA_REQs. Closes incoming connection, reads fragment from storage, sends data to registered port for given ip.

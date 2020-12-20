@@ -9,7 +9,7 @@
 
 namespace peer::pipeline {
     // Handles JOIN requests
-    void join(peer::torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size);
+    void join(peer::torrent::Session& session, std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size);
 
     // Handles LEAVE notifications. Remotes must send LEAVE requests from their own IPs, and must specify the registered port.
     void leave(peer::torrent::Session& session, const std::unique_ptr<ClientConnection>& connection, uint8_t* const data, size_t size);

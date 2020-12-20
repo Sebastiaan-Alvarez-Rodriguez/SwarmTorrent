@@ -35,7 +35,10 @@ uint8_t* FragmentHandler::read_with_leading(unsigned index, unsigned& data_size,
 bool FragmentHandler::write(unsigned index, const uint8_t* data, unsigned data_size) {
     if (!write_head.is_open())
         return false;
-
+    if (index > num_fragments) {
+        std::cerr << "Error: cannot write fragment " << index << ", only " << num_fragments << " exist\n";
+        exit(1);
+    }
     write_head.seekp(index*fragment_size, std::ios::beg);
     write_head.write((char*)data, data_size);
 

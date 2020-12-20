@@ -12,6 +12,7 @@
 #include "peer/connection/protocol/tracker/connections.h"
 #include "peer/torrent/pipeline/pipe_ops.h"
 #include "peer/torrent/session/session.h"
+#include "shared/connection/cache/cache.h"
 #include "shared/connection/impl/TCP/TCPConnection.h"
 #include "shared/connection/message/message.h"
 #include "shared/connection/meta/type.h"
@@ -234,7 +235,10 @@ static void requests_send_join(peer::torrent::Session& session) {
             connections::peer::recv::join_reply(data, header.size, recv_hash, remote_available);
             free(data);
 
-            session.register_peer({conn->get_type(), address.ip, address.port}, remote_available);
+            const Address accepted_address = {conn->get_type(), address.ip, address.port};
+            session.cache_insert(accepted_address, std::move(conn));
+
+            session.register_peer(accepted_address, remote_available);
         } else if (header.tag == message::standard::REJECT) {
             std::cerr << print::CYAN << "[TEST] We got a REJECT for our send_exchange request from peer: " << print::CLEAR; conn->print(std::cerr);std::cerr << '\n';
         } else {
@@ -286,6 +290,7 @@ static void requests_send_leave(peer::torrent::Session& session) {
             continue;
         }
         session.deregister_peer(address);
+        session.cache_erase(address);
     }
 }
 
@@ -591,14 +596,14 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    // availability_stop = true;
-    // if (use_availabilitythread)
-    //     availabilitythread.join();
+    availability_stop = true;
+    if (use_availabilitythread)
+        availabilitythread.join();
 
     receive_stop = true;
     receivethread.join();
     
-    // gc_stop = true;
-    // gcthread.join();
+    gc_stop = true;
+    gcthread.join();
     return true;
 }

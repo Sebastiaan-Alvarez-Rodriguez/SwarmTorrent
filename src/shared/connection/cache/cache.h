@@ -2,31 +2,43 @@
 #define SHARED_CONNECTION_CACHE_H
 
 #include <memory>
-#include <vector>
+#include <optional>
+#include <unordered_map>
 
-#include "shared/connection.h"
+#include "shared/connection/connection.h"
+#include "shared/torrent/ipTable/address.h"
 
 class ConnectionCache {
 protected:
     // Mapping from address to cached connection
     // Note: It might be faster to use a vector
-    struct CacheEntry {
-        Address address;
-        std::unique_ptr<ClientConnection> conn;
-    };
-    std::vector<CacheEntry> cache;
+    // struct CacheEntry {
+    //     Address address;
+    //     std::unique_ptr<ClientConnection> conn;
+    // };
+    std::unordered_map<Address, std::shared_ptr<ClientConnection>> cache;
 public:
-    ConnectionCache();
-    
-    inline auto get(const std::string& ip) {
-        return cache[ip];
+    ConnectionCache() = default;
+
+    inline auto& get(const Address& address) {
+        return cache[address];
     }
 
-    // inline auto get_or_create(const std::string& ip) {
-    //     auto it = cache.find(ip);
-    //     if (it != cache.end())
-    //         return it->second;
-    //     // Create connection
-    // }
+    inline auto get_optional(const Address& address) {
+        auto it = cache.find(address);
+        return it == cache.end() ? std::nullopt : std::optional<std::reference_wrapper<std::shared_ptr<ClientConnection>>>{it->second};
+    }
+
+    inline bool contains(const Address& address) {
+        return cache.find(address) != cache.end();
+    }
+
+    inline bool insert(const Address& address, std::unique_ptr<ClientConnection>&& conn) {
+        return cache.insert({address, std::move(conn)}).second;
+    }
+
+    inline void erase(const Address& address) {
+        cache.erase(address);
+    }
 };
 #endif

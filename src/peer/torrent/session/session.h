@@ -4,9 +4,11 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <random>
 #include <shared_mutex>
 
+#include "shared/connection/cache/cache.h"
 #include "shared/connection/connection.h"
 #include "shared/torrent/file/torrentFile.h"
 #include "shared/torrent/ipTable/ipTable.h"
@@ -38,6 +40,9 @@ namespace peer::torrent {
         size_t num_fragments_completed = 0;
         std::vector<bool> fragments_completed;
         mutable std::shared_mutex fragments_completed_mutex;
+
+        ConnectionCache cache;
+        mutable std::shared_mutex connection_cache_mutex;
 
     public:
         const HashTable hashtable;
@@ -266,6 +271,8 @@ namespace peer::torrent {
             return peer_registry.size();
         }
 
+
+
         // Request Registry-related forwarding functions //
 
         inline void register_request(size_t fragment_nr, const Address& address) {
@@ -279,6 +286,25 @@ namespace peer::torrent {
         inline size_t num_requests() {
             std::shared_lock lock(request_registry_mutex);
             return request_registry.size();
+        }
+
+
+
+        // Cache-related forwarding functions //
+
+        bool cache_insert(const Address& address, std::unique_ptr<ClientConnection>&& conn) {
+            std::unique_lock lock(connection_cache_mutex);
+            return cache.insert(address, std::move(conn));
+        }
+
+        void cache_erase(const Address& address) {
+            std::shared_lock lock(connection_cache_mutex);
+            cache.erase(address);
+        }
+
+        auto cache_get(const Address& address) {
+            std::shared_lock lock(connection_cache_mutex);
+            return cache.get_optional(address);
         }
     };
 }
