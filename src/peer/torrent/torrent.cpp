@@ -446,8 +446,7 @@ static void requests_send_availability(peer::torrent::Session& session) {
     }
 }
 
-// Send request to peers in our local network
-static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<size_t>& rand) {
+static void requests_send_data(peer::torrent::Session& session, rnd::RandomGenerator<size_t>& rand) {
     //TODO: 2 options for sending
     // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
     // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
@@ -459,11 +458,17 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
         std::this_thread::sleep_for(::peer::torrent::defaults::dead_torrent_poke_time);
         return;
     }
+
     // We have at least 1 peer. Get some data!
+    // while #requests < max -> DATA_REQ
+    requests_send_data_req(session, rand);
+
+}
+
+static void requests_send_peers(peer::torrent::Session& session, rnd::RandomGenerator<size_t>& rand) {
     // 1. while small peertable -> LOCAL_DISCOVERY_REQ
     // 2. while small jointable -> JOIN
     // 3. while large jointable -> LEAVE
-    // 4. while #requests < max -> DATA_REQ
 
     // requests_send_local_discovery(session, rand);
 
@@ -472,9 +477,12 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
         requests_send_join(session);
     else if (num_registered_peers > 4 * peer::torrent::defaults::prefered_group_size)
         requests_send_leave(session);
-
-    requests_send_data_req(session, rand);
 }
+
+// // Send request to peers in our local network
+// static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<size_t>& rand) {
+    
+// }
 
 
 // Handle requests we receive
@@ -555,6 +563,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     bool availability_stop = false;
     bool receive_stop = false;
     bool gc_stop = false;
+    bool peer_stop = false;
 
     std::thread availabilitythread;
     const bool use_availabilitythread = session.download_completed();
@@ -586,11 +595,21 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     // Initialized such that different peers generate different numbers
     rnd::RandomGenerator<size_t> rand(std::move(std::random_device()));
 
+    std::thread peerthread([&session, &rand, &peer_stop]() {
+        while (!peer_stop) {
+            requests_send_peers(session, rand);
+            std::this_thread::sleep_for(::peer::torrent::defaults::peer_requests_time);
+        }
+    });
+
     std::cerr << "Start main program loop.\n";
     while (!stop) {
-        requests_send(session, rand);
+        requests_send_data(session, rand);
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+
+    peer_stop = true;
+    peerthread.join();
 
     // availability_stop = true;
     // if (use_availabilitythread)

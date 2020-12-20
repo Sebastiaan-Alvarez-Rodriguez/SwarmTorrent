@@ -1,7 +1,7 @@
 # Intel
 To quickly construct a 96MB testfile: 
 ```bash
-python3 -c 'print("A"*100000000, end="")' > test/dl_src/a.out
+python3 -c 'print("A"*1000000, end="")' > test/dl_src/a.out
 ```
 
 Launch a tracker:

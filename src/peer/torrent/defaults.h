@@ -13,5 +13,6 @@ namespace peer::torrent::defaults {
     constexpr const uint16_t inactive_threshold = 10; // allowed number of unresponsiveness to requests from a peer, before it is set inactive
     constexpr const auto availability_update_time = std::chrono::milliseconds(10000); // amount of ms before a request is considered stale
     constexpr const auto dead_torrent_poke_time = std::chrono::milliseconds(10000); // amount of ms to wait between poking tracker when peer seems to be dead & we have no peers.
+    constexpr const auto peer_requests_time = std::chrono::seconds(6); // amount of time between 'peer-requests'
 }
 #endif
