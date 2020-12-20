@@ -26,7 +26,7 @@ void Poll::do_poll(const std::vector<std::shared_ptr<ClientConnection>>& connect
 
     prepare_pollfds(pfds, connections);
 
-    std::cerr << "Polling for " << (connections.size()) << " connections (no HostConnection)\n";
+    // std::cerr << "Polling for " << (connections.size()) << " connections (no HostConnection)\n";
     int poll_ans = poll(pfds, connections.size(), timeout_ms);
 
     if (poll_ans < 0) {
@@ -43,7 +43,7 @@ void Poll::do_poll(const std::vector<std::shared_ptr<ClientConnection>>& connect
                 std::cerr << print::RED << "Had an error for fd " << connections[x]->getfd() << " (location " << x << " in vector)\n" << print::CLEAR;
                 continue;
             }
-            std::cerr << print::CYAN << "fd " << connections[x] << " is readable now!\n" << print::CLEAR;
+            // std::cerr << print::CYAN << "fd " << connections[x] << " is readable now!\n" << print::CLEAR;
 
             if (!cache_func(connections[x])) {//TODO: remove this from cached cache
             }

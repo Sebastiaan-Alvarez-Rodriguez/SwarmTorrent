@@ -396,32 +396,41 @@ static void requests_send_data_req(peer::torrent::Session& session, ConnectionCa
             continue;
         }
 
-        message::standard::Header standard = message::standard::recv(connection);
-        // std::cout << "Unable to peek. System hangup?" << std::endl;
-        // continue;
+        connection->setBlocking(false);
+        Poll p;
 
-        switch(standard.tag) {
-            case message::standard::OK: session.register_request(fragment_nr, address); break; // All is good, message in progress.
-            case message::standard::REJECT: { // Remote does not have that data available
-                uint8_t* const data = (uint8_t*) malloc(standard.size);
-                connection->recvmsg(data, standard.size);
+        auto l = [&session, &fragment_nr, &address](std::shared_ptr<ClientConnection> conn) {
+            conn->setBlocking(true);
+            message::standard::Header standard = message::standard::recv(conn);
+            switch(standard.tag) {
+                case message::standard::OK: session.register_request(fragment_nr, address); break; // All is good, message in progress.
+                case message::standard::REJECT: { // Remote does not have that data available
+                    uint8_t* const data = (uint8_t*) malloc(standard.size);
+                    conn->recvmsg(data, standard.size);
 
-                uint8_t* reader = data;
-                size_t remaining_size = standard.size - message::peer::bytesize();
-                std::vector<bool> completed_update(remaining_size);
-                for (size_t x = 0; x < remaining_size; ++x) {
-                    completed_update[x] = *(bool*) reader;
-                    reader += sizeof(bool);
+                    uint8_t* reader = data;
+                    size_t remaining_size = standard.size - message::peer::bytesize();
+                    std::vector<bool> completed_update(remaining_size);
+                    for (size_t x = 0; x < remaining_size; ++x) {
+                        completed_update[x] = *(bool*) reader;
+                        reader += sizeof(bool);
+                    }
+                    session.update_registered_peer_fragments(address, std::move(completed_update));
+                    break;
                 }
-                session.update_registered_peer_fragments(address, std::move(completed_update));
-                break;
+                case message::standard::ERROR: // Somehow, we are no longer part of the group of remote peer
+                    session.deregister_peer(address);
+                    break;
+                default:
+                    std::cerr << "Received non-standard-conforming message from remote peer: "; conn->print(std::cerr); std::cerr << '\n';
             }
-            case message::standard::ERROR: // Somehow, we are no longer part of the group of remote peer
-                session.deregister_peer(address);
-                break;
-            default:
-                std::cerr << "Received non-standard-conforming message from remote peer: "; connection->print(std::cerr); std::cerr << '\n';
-        }
+            return true;
+
+        };
+        std::vector<std::shared_ptr<ClientConnection>> conns;
+        conns.push_back(connection);
+        p.do_poll(conns, 300, l);
+        connection->setBlocking(true);
     }
 }
 
@@ -603,9 +612,9 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     
     std::cerr << "Before booting receivethread: " << session.get_address().ip<< ':' << session.get_address().port << '\n';
     bool stop = false;
-    bool availability_stop = false;
-    bool receive_stop = false;
-    bool gc_stop = false;
+    volatile bool availability_stop = false;
+    volatile bool receive_stop = false;
+    volatile bool gc_stop = false;
 
 
     ConnectionCache c_shared;
@@ -639,8 +648,14 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     // Initialized such that different peers generate different numbers
     rnd::RandomGenerator<size_t> rand(std::move(std::random_device()));
 
+    bool download_completed = false;
+
     std::cerr << "Start main program loop.\n";
     while (!stop) {
+        if (!download_completed && session.download_completed()) {
+            std::cerr << print::CYAN << "Download complete!" << print::CLEAR << std::endl;
+            download_completed = true;
+        }
         requests_send(session, c_shared, rand);
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }

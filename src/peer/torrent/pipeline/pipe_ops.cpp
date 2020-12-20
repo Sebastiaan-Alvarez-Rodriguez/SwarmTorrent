@@ -49,6 +49,16 @@ void peer::pipeline::join(peer::torrent::Session& session, std::shared_ptr<Clien
 
     std::cerr << print::CYAN << "We accepted the join request! " << print::CLEAR;
 
+
+    const Address current_address = {connection->get_type(), connection->getAddress(), connection->getDestinationPort()};
+
+    // listen-only for future incoming comms from this remote
+    cache.insert(current_address, connection);
+    //Also already cache a connection to remote main port, so we can send our requests over that connection?
+    // cache.insert(remote_target_address, std::move(TCPClientConnection::Factory::from(remote_target_address.type.n_type).withAddress(remote_target_address.ip).withDestinationPort(remote_target_address.port).create()));
+    std::cerr << "... Cached connection to " << current_address.type << ':' << current_address.ip << ':'<<current_address.port;
+
+
     const Address remote_target_address = {connection->get_type(), connection->getAddress(), req_port};
 
     // Register peer to our group!
@@ -56,14 +66,6 @@ void peer::pipeline::join(peer::torrent::Session& session, std::shared_ptr<Clien
         std::cerr << print::YELLOW << "Remote already in our group, skipping...\n" << print::CLEAR;
         return;
     }
-    
-    const Address current_address = {connection->get_type(), connection->getAddress(), connection->getDestinationPort()};
-
-    // listen-only for future incoming comms from this remote
-    cache.insert(current_address, connection);
-    //Also already cache a connection to remote main port, so we can send our requests over that connection?
-    // cache.insert(remote_target_address, std::move(TCPClientConnection::Factory::from(remote_target_address.type.n_type).withAddress(remote_target_address.ip).withDestinationPort(remote_target_address.port).create()));
-    std::cerr << "Cached connections to " << current_address.type << ':' << current_address.ip << ':'<<current_address.port;
 }
 
 void peer::pipeline::leave(peer::torrent::Session& session, const std::shared_ptr<ClientConnection>& connection, ConnectionCache& cache, uint8_t* const data, size_t size) {
