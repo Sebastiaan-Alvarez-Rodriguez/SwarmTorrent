@@ -1,8 +1,8 @@
 # This file contains code to generate a small config file,
-# containing the only stateful data of MetaZoo.
+# containing the only stateful data of PeerKeeper.
 # 
 # The data stored here should be things we do not want to ask
-# the user every time they use MetaZoo
+# the user every time they use PeerKeeper
 
 
 import configparser

@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# The main file of MetaZoo.
+# The main file of PeerKeeper.
 # This file handles main argument parsing, 
 # initial command processing and command redirection
 

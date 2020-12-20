@@ -7,7 +7,7 @@ from experiments.interface import ExperimentInterface
 from util.printer import *
 
 def get_experiment():
-    '''Pass your defined experiment class in this function so MetaZoo can find it'''
+    '''Pass your defined experiment class in this function so PeerKeeper can find it'''
     return ExampleExperiment
 
 class ExampleExperiment(ExperimentInterface):
