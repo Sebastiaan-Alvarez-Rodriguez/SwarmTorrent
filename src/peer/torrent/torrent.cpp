@@ -230,7 +230,7 @@ static void requests_send_join(peer::torrent::Session& session, ConnectionCache&
                 std::cerr << "Could not connect to peer ";connection->print(std::cerr);std::cerr << '\n';
                 continue;
             }
-            cache.insert(address, connection);
+            cache.insert(address, connection); // Cache connection to remote main port
         }
         session.mark_registered_peer(address);
 
@@ -251,10 +251,10 @@ static void requests_send_join(peer::torrent::Session& session, ConnectionCache&
             connections::peer::recv::join_reply(data, header.size, recv_hash, remote_available);
             free(data);
 
-            const Address accepted_address = {connection->get_type(), address.ip, address.port};
-            cache.insert(accepted_address, connection);
+            // const Address accepted_address = {connection->get_type(), address.ip, address.port};
+            // cache.insert(accepted_address, connection);
 
-            session.register_peer(accepted_address, remote_available);
+            session.register_peer(address, remote_available);
         } else if (header.tag == message::standard::REJECT) {
             std::cerr << print::CYAN << "[TEST] We got a REJECT for our send_exchange request from peer: " << print::CLEAR; connection->print(std::cerr);std::cerr << '\n';
         } else {
@@ -569,6 +569,7 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
                     std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
                     break;
             }
+            free(data);
         } else {
             std::cerr << "Received invalid message! Not a Peer-message, nor a standard-message. Skipping..." << std::endl;
             return false;
@@ -576,7 +577,7 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
         return true;
     };
     Poll p;
-    p.do_poll(hostconnection, cache.values(), 100, l, l);    
+    p.do_poll(hostconnection, cache.values(), 10, l, l);    
 }
 
 
@@ -601,14 +602,14 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     
     std::cerr << "Before booting receivethread: " << session.get_address().ip<< ':' << session.get_address().port << '\n';
     bool stop = false;
-    bool availability_stop = false;
+    // bool availability_stop = false;
     bool receive_stop = false;
-    bool gc_stop = false;
+    // bool gc_stop = false;
 
 
     ConnectionCache c_shared;
 
-    std::thread availabilitythread;
+    // std::thread availabilitythread;
     // const bool use_availabilitythread = session.download_completed();
     // if (use_availabilitythread) // Periodically send our availability, and ask for availability of others
     //     availabilitythread = std::thread([&session, &availability_stop]() {
@@ -640,7 +641,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     std::cerr << "Start main program loop.\n";
     while (!stop) {
         requests_send(session, c_shared, rand);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     // availability_stop = true;

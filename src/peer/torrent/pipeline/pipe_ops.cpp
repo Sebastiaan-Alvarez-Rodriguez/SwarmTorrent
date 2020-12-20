@@ -46,11 +46,20 @@ void peer::pipeline::join(peer::torrent::Session& session, std::shared_ptr<Clien
         return;
     }
 
-    std::cerr << print::CYAN << "We accepted the join request! " << print::CLEAR << std::endl;
-    const Address accepted_address = {connection->get_type(), connection->getAddress(), req_port};
+    std::cerr << print::CYAN << "We accepted the join request! " << print::CLEAR;
+
+    const Address remote_target_address = {connection->get_type(), connection->getAddress(), req_port};
     // Register peer to our group!
-    session.register_peer(accepted_address, fragments_completed);
-    cache.insert(accepted_address, connection);
+    session.register_peer(remote_target_address, fragments_completed);
+    
+    const Address current_address = {connection->get_type(), connection->getAddress(), connection->getDestinationPort()};
+
+    // listen for future incoming comms on JOIN-utility port
+    cache.insert(current_address, connection);
+    //Also already created cached connection to remote main port, so we can send our requests over that connection?
+    cache.insert(remote_target_address, std::move(TCPClientConnection::Factory::from(remote_target_address.type.n_type).withAddress(remote_target_address.ip).withDestinationPort(remote_target_address.port).create()));
+    std::cerr << "Cached connections to " << current_address.type << ':' << current_address.ip << ':'<<current_address.port
+    << " and to " << remote_target_address.type << ':' << remote_target_address.ip << ':'<<remote_target_address.port;
 }
 
 void peer::pipeline::leave(peer::torrent::Session& session, const std::shared_ptr<ClientConnection>& connection, ConnectionCache& cache, uint8_t* const data, size_t size) {
@@ -104,7 +113,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::shared_ptr<C
 
     const auto& a = session.get_peer_address(connected_ip, req_port);
     
-    auto connection_optional = cache.get_optional(a);
+    auto connection_optional = cache.get_optional(a); // We need a connection to remote main port
     std::shared_ptr<ClientConnection> target_conn;
     if (connection_optional) {
         target_conn = *connection_optional;

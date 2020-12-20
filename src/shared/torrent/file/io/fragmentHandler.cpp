@@ -16,7 +16,7 @@ uint8_t* FragmentHandler::read_with_leading(unsigned index, unsigned& data_size,
 
     //receive data_size and allocate required memory
     const unsigned frag_size = fragment_size;
-    data_size = (index != num_fragments-1) ? frag_size : file_size % frag_size;
+    data_size = (index != num_fragments-1) ? frag_size : file_size % (frag_size+1);
     uint8_t* const data = (uint8_t*) malloc(data_size+leading_size);
 
     //move until after the packet header to allocate

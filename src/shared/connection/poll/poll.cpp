@@ -1,4 +1,5 @@
 #include <cstring>
+#include <cerrno>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -32,7 +33,7 @@ void Poll::do_poll(const std::vector<std::shared_ptr<ClientConnection>>& connect
         std::cerr << print::RED << "Poll: Error while trying to poll!\n" << print::CLEAR;
         exit(1);
     } else if (poll_ans == 0) {
-        std::cerr << print::YELLOW << "Poll: timeout reached. Continuing...\n" << print::CLEAR;
+        // std::cerr << print::YELLOW << "Poll: timeout reached. Continuing...\n" << print::CLEAR;
     } else {
         for (size_t x = 0; x < connections.size(); ++x) {
             int revents = pfds[x].revents;
@@ -66,14 +67,20 @@ void Poll::do_poll(const std::unique_ptr<HostConnection>& hostconnection, const 
         std::cerr << print::RED << "Poll: Error while trying to poll!\n" << print::CLEAR;
         exit(1);
     } else if (poll_ans == 0) {
-        std::cerr << print::YELLOW << "Poll: timeout reached. Continuing...\n"<< print::CLEAR;
+        // std::cerr << print::YELLOW << "Poll: timeout reached. Continuing...\n"<< print::CLEAR;
     } else {
         for (size_t x = 0; x < 1+connections.size(); ++x) {
             int revents = pfds[x].revents;
             if (revents == 0)
                 continue;
             if (revents != POLLIN) {
-                std::cerr << print::RED << "Had an error for fd " << connections[x]->getfd() << " (location " << x << " in vector)\n" << print::CLEAR;
+                std::cerr << print::RED << "Had an error for fd " << connections[x-1]->getfd() << print::CLEAR;
+                if (x == 0) {
+                    hostconnection->print(std::cerr);
+                } else {
+                    std::cerr << " (location " << (x-1) << " in vector) "; connections[x-1]->print(std::cerr);
+                }
+                std::cerr << ' ' << std::strerror(errno) << '\n';
                 continue;
             }
 
