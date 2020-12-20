@@ -73,7 +73,7 @@ static void handle_discovery(Session& session, rnd::RandomGenerator<size_t> rand
                     continue;
                 }
 
-                connections::shared::send::discovery_req(connection, address.ip);
+                connections::shared::send::discovery_req(connection, hash);
 
                 message::standard::Header standard = message::standard::recv(connection);
                 // std::cout << "Unable to peek. System hangup?" << std::endl;

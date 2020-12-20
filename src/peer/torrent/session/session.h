@@ -79,7 +79,7 @@ namespace peer::torrent {
                                 continue;
                             } else {
                                 fragments_completed[x] = true; 
-                                ++num_fragments_completed;      
+                                ++num_fragments_completed;
                             }
                         }
                     }

@@ -56,8 +56,8 @@ static IPTable compose_peertable(peer::torrent::Session& session, bool force_reg
         }
 
         if (force_register && !send_register(address.type, address.ip, address.port, hash, sourcePort)) {
-            std::cerr << "Could not register at a tracker\n";
-            continue;
+            std::cerr << print::RED << "Could not register at a tracker\n" << print::CLEAR;
+            exit(1);
         } else {
             std::cerr << "Registered at remote tracker!\n";
         }
@@ -310,9 +310,10 @@ static void requests_send_data_req(peer::torrent::Session& session, rnd::RandomG
         return;
 
     const size_t request_registry_size = session.num_requests();
-    if (request_registry_size >= peer::torrent::defaults::outgoing_requests) // already have max connections out
+    if (request_registry_size >= peer::torrent::defaults::outgoing_requests) {// already have max connections out
+        std::cerr << "Blocked by request registry\n";
         return;
-
+    }
     const size_t diff = peer::torrent::defaults::outgoing_requests - request_registry_size;
 
 
@@ -479,6 +480,8 @@ static void requests_send(peer::torrent::Session& session, rnd::RandomGenerator<
 // Handle requests we receive
 static void requests_receive(peer::torrent::Session& session, std::unique_ptr<HostConnection>& hostconnection, FragmentHandler& handler, bool ignore_log, const std::string logfile, const std::chrono::high_resolution_clock::time_point starttime) {
     auto connection = hostconnection->acceptConnection();
+    if (connection == nullptr)
+        exit(1);
     message::standard::Header standard = message::standard::recv(connection);
     // std::cerr << "Unable to peek. System hangup?" << std::endl;
     // continue;
@@ -585,7 +588,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     std::cerr << "Start main program loop.\n";
     while (!stop) {
         requests_send(session, rand);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     // availability_stop = true;

@@ -75,16 +75,19 @@ public:
     // Add a peer to the table with hash as identifier. 
     // Returns true on insertion, false when IPTable not found or peer already added.
     inline bool registry_add_peer(const std::string& hash, const Address& peer, bool exist_ok=true) {
+        std::unique_lock lock(mutex);
         return registry.add_peer(hash, peer, exist_ok);
     }
 
     // Remove peer from table with hash as identifier
     inline bool registry_remove_peer(const std::string& hash, const Address& peer) {
+        std::unique_lock lock(mutex);
         return registry.remove_peer(hash, peer);
     }
 
     // Remove peer from table with hash as identifier
     inline bool registry_remove_peer(const std::string& hash, const std::string& peer) {
+        std::unique_lock lock(mutex);
         return registry.remove_peer(hash, peer);
     }
 

@@ -12,7 +12,6 @@ class FragmentHandler {
 protected:
 
     std::ofstream write_head; // Current write_head position
-    unsigned prev_write_index = 0; // Previous Fragment index to which was written
     std::ifstream read_head; // Curent read_head position
     unsigned prev_read_index = 0; // Previous Fragment index to which was read
 
