@@ -603,23 +603,23 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     
     std::cerr << "Before booting receivethread: " << session.get_address().ip<< ':' << session.get_address().port << '\n';
     bool stop = false;
-    // bool availability_stop = false;
+    bool availability_stop = false;
     bool receive_stop = false;
-    // bool gc_stop = false;
+    bool gc_stop = false;
 
 
     ConnectionCache c_shared;
 
-    // std::thread availabilitythread;
-    // const bool use_availabilitythread = session.download_completed();
-    // if (use_availabilitythread) // Periodically send our availability, and ask for availability of others
-    //     availabilitythread = std::thread([&session, &availability_stop]() {
-    //         ConnectionCache c;
-    //         while (!availability_stop && !session.download_completed()) {
-    //             requests_send_availability(session, c);
-    //             std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
-    //         }
-    //     });
+    std::thread availabilitythread;
+    const bool use_availabilitythread = session.download_completed();
+    if (use_availabilitythread) // Periodically send our availability, and ask for availability of others
+        availabilitythread = std::thread([&session, &availability_stop]() {
+            ConnectionCache c;
+            while (!availability_stop && !session.download_completed()) {
+                requests_send_availability(session, c);
+                std::this_thread::sleep_for(::peer::torrent::defaults::availability_update_time);
+            }
+        });
     std::thread receivethread([&session, &c_shared, &receive_stop, &initial_seeder, &logfile](auto&& hostconnection) {
         auto starttime = std::chrono::high_resolution_clock::now();
         FragmentHandler fragmentHandler(session.metadata, session.workpath + session.metadata.name);
@@ -627,13 +627,13 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
             requests_receive(session, hostconnection, c_shared, fragmentHandler, initial_seeder, logfile, starttime);
 
     }, std::move(hostconnection));
-    // std::thread gcthread([&session, &gc_stop]() {
-    //     while (!gc_stop) {
-    //         session.peer_registry_gc();
-    //         session.request_registry_gc();
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(6000));
-    //     }
-    // });
+    std::thread gcthread([&session, &gc_stop]() {
+        while (!gc_stop) {
+            session.peer_registry_gc();
+            session.request_registry_gc();
+            std::this_thread::sleep_for(std::chrono::milliseconds(6000));
+        }
+    });
 
     // Simple random number generator to use during this session.
     // Initialized such that different peers generate different numbers
@@ -645,14 +645,14 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    // availability_stop = true;
-    // if (use_availabilitythread)
-    //     availabilitythread.join();
+    availability_stop = true;
+    if (use_availabilitythread)
+        availabilitythread.join();
 
     receive_stop = true;
     receivethread.join();
     
-    // gc_stop = true;
-    // gcthread.join();
+    gc_stop = true;
+    gcthread.join();
     return true;
 }
