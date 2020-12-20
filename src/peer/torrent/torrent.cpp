@@ -169,7 +169,7 @@ static void requests_send_local_discovery(peer::torrent::Session& session, Conne
             continue;
         }
         free(data);
-        std::cerr << "Interpreted reply: Received " << recvtable.size() << " peers.\n";
+        //std::cerr << "Interpreted reply: Received " << recvtable.size() << " peers.\n";
         if (recv_hash != session.get_metadata().content_hash) {
             std::cerr << "Received hash mismatching our own. (Ours="<<session.get_metadata().content_hash<<", theirs="<<recv_hash<<")\n";
             continue;
@@ -509,7 +509,7 @@ static void requests_send(peer::torrent::Session& session, ConnectionCache& cach
     // 3. while large jointable -> LEAVE
     // 4. while #requests < max -> DATA_REQ
 
-    requests_send_local_discovery(session, cache, rand);
+    // requests_send_local_discovery(session, cache, rand);
 
     const size_t num_registered_peers = session.num_registered_peers();
     if (num_registered_peers < peer::torrent::defaults::prefered_group_size)

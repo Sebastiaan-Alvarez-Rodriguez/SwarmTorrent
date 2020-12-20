@@ -65,6 +65,13 @@ public:
         registry.set_table(hash, std::move(peertable));
     }
 
+    // Merges a table for a hash
+    inline void registry_merge_table(const std::string& hash, IPTable&& peertable) {
+        std::unique_lock lock(mutex);
+        registry.merge_table(hash, std::move(peertable));
+    }
+
+
     inline const auto& registry_element_for_unsafe(const std::string& hash) { return registry.get(hash); } 
 
     inline const auto registry_element_for(const std::string& hash) {

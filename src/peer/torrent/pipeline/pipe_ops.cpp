@@ -24,6 +24,7 @@ void peer::pipeline::join(peer::torrent::Session& session, std::shared_ptr<Clien
     connections::peer::recv::join(data, size, hash, req_port, fragments_completed);
 
     std::cerr << "Got a JOIN (hash=" << hash << ", req_port=" << req_port << ")\n";
+
     const auto addr = Address(connection->get_type(), connection->getAddress(), req_port);
 
     // Register peer as an existing peer
@@ -49,6 +50,7 @@ void peer::pipeline::join(peer::torrent::Session& session, std::shared_ptr<Clien
     std::cerr << print::CYAN << "We accepted the join request! " << print::CLEAR;
 
     const Address remote_target_address = {connection->get_type(), connection->getAddress(), req_port};
+
     // Register peer to our group!
     if (!session.register_peer(remote_target_address, fragments_completed)) {// they are already in our group
         std::cerr << print::YELLOW << "Remote already in our group, skipping...\n" << print::CLEAR;
@@ -84,6 +86,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::shared_ptr<C
     connections::peer::recv::data_req(data, size, req_port, fragment_nr);
     const auto addr = Address(connected_ip, req_port);
     // std::cerr << "Received a DATA_REQ (port=" << req_port << ", fragment_nr=" << fragment_nr << ") ("<<addr.ip<<':'<<addr.port<<")";
+
     if (!session.has_registered_peer(addr)) { //Data requests from unknown entities produce only ERROR
         message::standard::send(connection, message::standard::ERROR);
         return;
@@ -97,6 +100,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::shared_ptr<C
     }
     if (!fragments_completed[fragment_nr]) {
         std::cerr << ". Cannot get fragment number " << fragment_nr << ", because we do not have it.\n";
+
         connections::peer::send::data_rej(connection, fragments_completed);
         return;
     }
@@ -133,7 +137,6 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::shared_ptr<C
         }
         cache.insert(a, target_conn);
     }
-
     if (!connections::peer::send::data_reply_fast(target_conn, fragment_nr, diskdata, message::peer::bytesize()+sizeof(size_t)+data_size)) {
         std::cerr << "Could not send data to peer. Hangup? Some other problem?\n";
     } else {
@@ -149,6 +152,7 @@ void peer::pipeline::data_reply(peer::torrent::Session& session, std::shared_ptr
     // 5. Check if data matches hash for that data
     // 6. Write to disk at right location.
     // 7. Mark object as completed when finished
+
     // std::cerr << "Received a DATA_REPLY ";
 
     const auto connected_ip = connection->getAddress();
@@ -194,7 +198,7 @@ void peer::pipeline::local_discovery(const peer::torrent::Session& session, cons
         return;
     }
 
-    std::cerr << "Sending LOCAL_DISCOVERY_REPLY. Note: We believe that our address="<<session.get_address().type<<':'<<session.get_address().ip<<':'<<session.get_address().port<<'\n';
+    //std::cerr << "Sending LOCAL_DISCOVERY_REPLY. Note: We believe that our address="<<session.get_address().type<<':'<<session.get_address().ip<<':'<<session.get_address().port<<'\n';
     connections::shared::send::discovery_reply(connection, session.get_peertable_copy(), recv_hash, session.get_address());
 }
 

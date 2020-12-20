@@ -96,7 +96,7 @@ static void handle_discovery(Session& session, rnd::RandomGenerator<size_t> rand
                 peertable.merge(tmptable);
                 free(data);
             }
-            session.registry_set_table(hash, std::move(peertable));
+            session.registry_merge_table(hash, std::move(peertable));
         }
     }
 }

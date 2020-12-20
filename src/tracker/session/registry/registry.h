@@ -49,6 +49,12 @@ namespace tracker::torrent {
         inline void set_table(const std::string& hash, IPTable&& peertable) {
             peertables[hash] = {std::move(peertable)};
         }
+
+        inline void merge_table(const std::string& hash, IPTable&& peertable) {
+            peertables[hash].table.merge(std::move(peertable));
+            peertables[hash].timestamp = std::chrono::steady_clock::now();
+        }
+
         // Add a peer to the table with hash as identifier. 
         // Returns true on insertion, false when IPTable not found or peer already added.
         bool add_peer(const std::string& hash, const Address& peer, bool exist_ok=true);
