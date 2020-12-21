@@ -75,7 +75,7 @@ class PerformanceExperiment(ExperimentInterface):
             logfile = open(log, 'r')
             durations.append(logfile.read())
 
-        resultfile = open(self.get_result_file(), 'a')
+        resultfile = open(self.get_result_file(peerkeeper.timestamp), 'a')
         for x, duration in enumerate(durations):
             resultfile.write('{} {} {} {}\n'.format(self.file_sizes()[peerkeeper._index], peerkeeper.repeat, x, duration))
 
@@ -86,7 +86,7 @@ class PerformanceExperiment(ExperimentInterface):
         peerkeeper._num_files = self.num_files()
         fs.mkdir(loc.get_swarmtorrent_log_dir(), exist_ok=True)
         fs.mkdir(loc.get_swarmtorrent_torrentfile_dir(), exist_ok=True)
-        resultfile = open(self.get_result_file(), 'w+')
+        resultfile = open(self.get_result_file(peerkeeper.timestamp), 'w+')
         resultfile.write('file_size iteration peer duration\n')
 
 

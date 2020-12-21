@@ -28,6 +28,7 @@ class PeerKeeper(object):
         hosts: A tuple of strings resembling '<ip_or_hostname>:<port>'
     '''
     def __init__(self):
+        self._timestamp = None
         self._register = dict()
         self._executor = None
         self._gid = None
@@ -113,6 +114,13 @@ class PeerKeeper(object):
     @num_files.setter
     def set_num_files(self):
         raise RuntimeError('You cannot set the num files yourself!')
+
+    @property 
+    def timestamp(self):
+        return self._timestamp
+    @timestamp.setter 
+    def set_timestamp(self):
+        raise RuntimeError('You cannot set the timestamp yourself')
 
 
     # Function to completely prohibit changing (i.e. writing, updating, deleting) PeerKeeper register

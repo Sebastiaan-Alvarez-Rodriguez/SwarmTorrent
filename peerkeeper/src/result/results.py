@@ -54,6 +54,9 @@ def results(parser, args):
     if args.performance:
         import result.performance.gen as kgen
         kgen.performance(*fargs)
+    # else:
+    #     import result.scalability.gen as kgen
+    #     kgen.scalability(*args.scalability, *fargs)
     # if args.faulttolerance:
     #     import result.faulttolerance.gen as kgen
     #     kgen.faulttolerance(args.faulttolerance[0], *fargs)

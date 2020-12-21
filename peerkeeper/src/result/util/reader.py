@@ -19,21 +19,21 @@ class Reader(object):
                 file_size = splitted[0]
                 peer_id = splitted[2]
                 duration = splitted[3]
-                if file_size not in result:
+                if file_size not in self.result:
                     self.result[file_size] = dict()
                 if peer_id not in self.result[file_size]:
                     self.result[file_size][peer_id] = []
-                self.result[file_size][peer_id].append(duration)
+                self.result[file_size][peer_id].append(int(duration)/1000000)
 
 
     def get_amount_file_sizes(self):
-        return len(self.results)
+        return len(self.result)
 
     def get_file_sizes(self):
-        return self.results.keys()
+        return self.result.keys()
 
     # Returns dictionary from peer_id to a list of durations
     def get_result(self, key):
-        return self.results[key]
+        return self.result[key]
 
 
