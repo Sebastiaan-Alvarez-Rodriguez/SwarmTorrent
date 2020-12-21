@@ -17,7 +17,7 @@ def subparser(registrar):
     # group.add_argument('-ft', '--fault-tolerance', nargs=1, metavar='timestamp', dest='faulttolerance', help='Build faulttolerance graph, reading from metazoo/results/<timestamp>')
     # group.add_argument('-tr', '--throughput', nargs=1, metavar='timestamp', dest='throughput', help='Build throughput graph, reading from metazoo/results/<timestamp>')
     group.add_argument('-pf', '--performance', dest='performance', help='Build Performance graph, ignores scalability results, reading from peerkeeper/results/performance_experiment.csv', action='store_true')
-    group.add_argument('-sc', '--scalability', nargs=1, dest='scalability', help='Build ScalabilityX graph, reading from peerkeeper/results/scalabilityX_experiment.csv', default=1)
+    group.add_argument('-sc', '--scalability', dest='scalability', help='Build Scalability graph, reading from peerkeeper/results/', action='store_true')
     resultparser.add_argument('-l', '--large', help='Forces to generate large graphs, with large text', action='store_true')
     resultparser.add_argument('-ns', '--no-show', dest='no_show', help='Do not show generated graph (useful on servers without xorg forwarding)', action='store_true')
     resultparser.add_argument('-s', '--store', help='Store generated graph (in /peerkeeper/graphs/<graph_name>.<type>)', action='store_true')
@@ -54,6 +54,9 @@ def results(parser, args):
     if args.performance:
         import result.performance.gen as kgen
         kgen.performance(*fargs)
+    if args.scalability:
+        import result.scalability.gen as kgen
+        kgen.scalability(*fargs)
     # else:
     #     import result.scalability.gen as kgen
     #     kgen.scalability(*args.scalability, *fargs)

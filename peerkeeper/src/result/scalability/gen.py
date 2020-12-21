@@ -11,25 +11,27 @@ def scalability(large, no_show, store_fig, filetype):
     s2 = []
     s3 = []
     s4 = []
-    for resultfile in fs.ls(loc.get_peerkeeper_results_dir()):
-        if resultfile.startswith('scalability'):
+    for resultfile in fs.ls(loc.get_peerkeeper_results_dir(), full_paths=True):
+        base = fs.basename(resultfile)
+        if base.startswith('scalability'):
             reader = Reader(resultfile)
-            file_size = reader.get_file_sizes()[0]
+            file_size = list(reader.get_file_sizes())[0]
             result = reader.get_result(file_size)
-            if resultfile.startswith('scalability1'):
+            if base.startswith('scalability1'):
                 for key in result:
                     s1.extend(result[key])
-            elif resultfile.startswith('scalability2'):
+            elif base.startswith('scalability2'):
                 for key in result:
                     s2.extend(result[key])
-            elif resultfile.startswith('scalability3'):
+            elif base.startswith('scalability3'):
                 for key in result:
                     s3.extend(result[key])
-            elif resultfile.startswith('scalability4'):
+            elif base.startswith('scalability4'):
                 for key in result:
                     s4.extend(result[key])
 
-    x_labels = ['1', '2', '3', '4']
+    ax = plt.subplot(111)
+    x_labels = ['2', '4', '8', '16']
     colors = ['steelblue', 'firebrick', 'darkgreen', 'mediumslateblue']
     medians = []
     highs = []
@@ -46,16 +48,22 @@ def scalability(large, no_show, store_fig, filetype):
     lows.append(np.percentile(s2, 1))
     lows.append(np.percentile(s3, 1))
     lows.append(np.percentile(s4, 1))
-    for x, med, low, high, color in zip(x_labels, medians, lows, highs, colors):
-        ax.scatter(x, median, color=color, label=x)
-        ax.vlines(x, low, high, alpha=0.6, color=color)
-
-    plt.legend()
+    flierprops = dict(marker='+', markerfacecolor='green', markersize=4,
+                  linestyle='none')
+    bplot = ax.boxplot([s1, s2, s3, s4], flierprops=flierprops, patch_artist=True)
+    plt.setp(bplot['boxes'], color='peachpuff')
+    plt.setp(bplot['boxes'], edgecolor='black')
+    plt.setp(bplot['medians'], color='darkred')
+    # for x, median, low, high, color in zip(x_labels, medians, lows, highs, colors):
+    #     ax.scatter(x, median, color=color, label=x)
+    #     ax.vlines(x, low, high, alpha=0.6, color=color)
+    ax.set_xticklabels(x_labels)
+    ax.set_xlabel('number of peers')
+    ax.set_ylabel('time in seconds')
+    ax.set_title('Scalability Results')
 
     if not no_show:
         plt.show()
-
-    # plt.legend()
 
     if large:
         plt.set_size_inches(10, 8)
@@ -63,7 +71,7 @@ def scalability(large, no_show, store_fig, filetype):
     plt.tight_layout()
 
     if store_fig:
-       storer.store('scalability{}'.format(X), filetype, plt)
+       storer.store('scalability', filetype, plt)
 
     if large:
         plt.rcdefaults()
