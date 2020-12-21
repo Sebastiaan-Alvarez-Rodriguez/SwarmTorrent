@@ -23,11 +23,17 @@ namespace tracker::torrent {
         // Find table with hash as identifier. Returns true on success, false if no such table exists.
         bool find_table(const std::string& hash, IPTable& peertable) const;
 
-        inline const auto& get(const std::string& hash) { return peertables[hash]; }
+        // Get peertable with given hash
+        inline const auto& get(const std::string& hash) { 
+            return peertables[hash]; 
+        }
 
-        inline bool contains(const std::string& hash) const { return peertables.find(hash) != peertables.end(); }
+        // Returns whether registry contains peertable with given hash
+        inline bool contains(const std::string& hash) const { 
+            return peertables.find(hash) != peertables.end(); 
+        }
 
-        // gets all keys of registry (all hashes with a registered table)
+        // Gets all keys of registry (all hashes with a registered table)
         inline const auto get_keys() const {
             std::vector<std::string> keys;
             keys.reserve(peertables.size());
@@ -35,6 +41,8 @@ namespace tracker::torrent {
                 keys.push_back(kv.first);
             return keys;
         }
+
+        // Returns whether registry contains peertable with given hash
         inline bool has_table(const std::string& hash) const {
             return peertables.find(hash) != peertables.end();
         }
@@ -50,6 +58,7 @@ namespace tracker::torrent {
             peertables[hash] = {std::move(peertable)};
         }
 
+        // Merges given peertable with the peertable in the registry identified by hash
         inline void merge_table(const std::string& hash, IPTable&& peertable) {
             peertables[hash].table.merge(std::move(peertable));
             peertables[hash].timestamp = std::chrono::steady_clock::now();
@@ -65,10 +74,21 @@ namespace tracker::torrent {
         // Remove peer from table with hash as identifier
         bool remove_peer(const std::string& hash, const std::string& peer);
 
-        inline size_t size() const { return peertables.size(); }
+        // Returns the number of peertables in the registry
+        inline size_t size() const { 
+            return peertables.size(); 
+        }
 
-        inline auto cbegin() const { return peertables.cbegin(); }
-        inline auto cend() const { return peertables.cend(); }
+        // Returns a constant iterator to the begin of peertables
+        inline auto cbegin() const { 
+            return peertables.cbegin(); 
+        }
+
+        // Returns a constant iterator to the end of peertables
+        inline auto cend() const { 
+            return peertables.cend(); 
+        }
+        
     protected:
         class Element {
         public:

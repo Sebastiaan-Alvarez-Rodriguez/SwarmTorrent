@@ -7,11 +7,13 @@
 
 #include "address.h"
 
+// Packs a ConnectionType into a byte
 static uint8_t pack(ConnectionType type) {
     uint8_t MASK2 = (type.n_type.t == NetType::IPv4) ? 0b00000000 : 0b00000001;
     return 0b00000000 | MASK2;
 }
 
+// Unpacks a byte to a ConnectionType
 static ConnectionType unpack(uint8_t byte) {
     NetType::Type t((byte == 0) ? NetType::IPv4 : NetType::IPv6); 
     return ConnectionType(TransportType(), NetType(t));
@@ -112,16 +114,20 @@ uint8_t* Address::write_buffer(uint8_t* const buf) const {
 const uint8_t* Address::read_buffer(const uint8_t* const buf) {
     const uint8_t* reader = buf;
 
+    // Connectiontype
     type = *((ConnectionType*) reader);
     reader += sizeof(ConnectionType);
 
+    // IP size
     size_t used_ip_size = (size_t) *reader;
     ++reader;
 
+    // IP
     ip.resize(used_ip_size);
     memcpy(ip.data(), reader, used_ip_size);
     reader += ip_size();
 
+    // Port
     port = *((uint16_t*) reader);
     reader += sizeof(uint16_t);
     return reader;

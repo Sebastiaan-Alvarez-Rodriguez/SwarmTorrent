@@ -19,12 +19,11 @@
 #include "shared/util/socket.h"
 #include "generic/generic.h"
 
-// If we want to explicitly bind to sourcePort for client connections:
-// https://www.geeksforgeeks.org/explicitly-assigning-port-number-client-socket/
 class TCPClientConnection : public ClientConnection {
 public:
     class Factory;
 
+    // Constructs a TCPClientConnection
     explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t  sourcePort, uint16_t destinationPort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout) : ClientConnection::ClientConnection(type, address, sourcePort, destinationPort, blockmode, reusemode, sendTimeout, recvTimeout) {
         this->state = ClientConnection::ERROR;
         if ((this->sockfd = sock::make(type)) < 0) {
@@ -74,15 +73,18 @@ public:
         this->state = READY;
     }
 
+    // Constructs a TCPCLientConnection
     explicit inline TCPClientConnection(ConnectionType type, const std::string& address, uint16_t sourcePort, uint16_t destinationPort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout, int sockfd, struct sockaddr sock_addr): ClientConnection::ClientConnection(type, address, sourcePort, destinationPort, blockmode, reusemode, sendTimeout, recvTimeout), sockfd(sockfd), sock_addr(sock_addr) {
         this->state = CONNECTED;
     }
 
+    // Closes the file descriptor associated with this connection
      ~TCPClientConnection() {
         std::cerr << "Closed connection for object: "; this->print(std::cerr); std::cerr << '\n';
         close(sockfd);
     }
 
+    // Returns if state is CONNECTED
     inline bool doConnect() override {
         if (connect(sockfd, &sock_addr, sizeof(sockaddr_in)) >= 0) {
             this->state = CONNECTED;
@@ -91,43 +93,51 @@ public:
         return false;
     }
 
+    // Sends a message with given length and flags over TCPConnection
     inline bool sendmsg(const uint8_t* const msg, unsigned length, int flags) const override {
         return tcp::sendmsg(sockfd, msg, length, flags);
     }
 
+    // Receives a message with given length and flags over TCPConnection 
     inline bool recvmsg(uint8_t* const msg, unsigned length, int flags) const override {
         return tcp::recvmsg(sockfd, msg, length, flags);
     }
 
+    // Peeks given length of a message with flags over TCPConnection
     inline bool peekmsg(uint8_t* const msg, unsigned length, int flags) const override {
         return tcp::peekmsg(sockfd, msg, length, flags);
     }
 
+    // Ignores received message
     inline virtual bool discardmsg(__attribute__ ((unused)) unsigned length) const {
         return recvmsg(nullptr, 0, MSG_TRUNC);
     };
 
+    // Sets connection to blocking
     inline virtual bool setBlocking(bool blockmode) {
         return blockmode == this->blockmode || sock::set_blocking(this->sockfd, blockmode);
     }
 
+    // Print connection info
     inline void print(std::ostream& stream) const override {
         stream << "Client ("<<type<<" type) src 127.0.0.1:"<<sourcePort<<", dst " << address << ':' << destinationPort;
     }
 
+    // Returns the socket file descriptor
     inline int getfd() const override {
         return sockfd;
     }
 
 protected:
-    int sockfd;
-    struct sockaddr sock_addr;
+    int sockfd; // Socket file descriptor
+    struct sockaddr sock_addr; // Associated sockaddr struct
 };
 
 class TCPHostConnection: public HostConnection {
 public:
     class Factory;
 
+    // Constructs a TCPHostConnection
     explicit inline TCPHostConnection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout, unsigned backlogSize) : HostConnection(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout, backlogSize) {
         this->state = ClientConnection::ERROR;
         if ((sockfd = sock::make(type)) < 0) {
@@ -175,10 +185,12 @@ public:
         this->state = ClientConnection::READY;
     }
 
+    // Closes the file descriptor
      ~TCPHostConnection() {
         close(sockfd);
     }
 
+    // Accepts a connection
     inline std::unique_ptr<ClientConnection> acceptConnection() override {
         struct sockaddr_in address;
         size_t addrlen = sizeof(address);
@@ -196,22 +208,25 @@ public:
         return ptr;
     }
 
+    // Sets connection to blocking
     inline virtual bool setBlocking(bool blockmode) {
         return blockmode == this->blockmode || sock::set_blocking(this->sockfd, blockmode);
     }
 
+    // Print connection info
     inline void print(std::ostream& stream) const override {
         stream << "Server ("<<type<<" type) src 127.0.0.1:"<<sourcePort;
     }
 
 
+    // Returns file descriptor
     inline int getfd() const override {
         return sockfd;
     }
 
 protected:
-    int sockfd;
-    struct sockaddr sock_addr;
+    int sockfd; // Socket file descriptor
+    struct sockaddr sock_addr; // Associated sockaddr struct
 };
 
 class TCPClientConnection::Factory : public ClientConnection::Factory {
@@ -225,6 +240,7 @@ public:
         return from({TransportType::TCP, n_type});
     }
 
+    // Creates TCPClientConnection from collected parameters
     inline std::unique_ptr<ClientConnection> create() const override {
         return std::make_unique<TCPClientConnection>(type, address, sourcePort, destinationPort, blockmode, reusemode, sendTimeout, recvTimeout);
     }
@@ -241,6 +257,7 @@ public:
         return from({TransportType::TCP, n_type});
     }
 
+    // Creates TCPHostConnection from collected parameters
     inline std::unique_ptr<HostConnection> create() const override {
         return std::make_unique<TCPHostConnection>(type, sourcePort, blockmode, reusemode, sendTimeout, recvTimeout, backlogSize);
     }

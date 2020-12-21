@@ -8,6 +8,8 @@
 #include "shared/util/print.h"
 #include "torrent/torrent.h"
 
+
+// Performs defined tests
 void do_test(int argc, char const ** argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Peer Test", ' ', "0.1");
     TCLAP::ValueArg<std::string> addrArg("a","address","Address of host",false,"127.0.0.1","ADDR", cmd);

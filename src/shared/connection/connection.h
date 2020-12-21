@@ -7,47 +7,50 @@
 #include <string>
 #include <utility>
 
-
-// Simple tutorial to get started
-//  https://www.geeksforgeeks.org/socket-programming-cc/
-//  https://www.tutorialspoint.com/cplusplus/cpp_interfaces.htm
-
 #include "shared/connection/meta/type.h"
-
 
 class Connection {
 public:
     Connection(ConnectionType type, uint16_t sourcePort, bool blockmode, bool reusemode, unsigned sendTimeout, unsigned recvTimeout) : type(type), sourcePort(sourcePort), blockmode(blockmode), reusemode(reusemode), sendTimeout(sendTimeout), recvTimeout(recvTimeout) {}
     ~Connection() = default;
 
-    /** Returns type of connection we use */
-    virtual const ConnectionType& get_type() const {return type;}
+    // Returns type of connection we use 
+    virtual const ConnectionType& get_type() const {
+        return type;
+    }
 
     inline virtual void print(std::ostream& stream) const = 0;
 
-    inline virtual uint16_t getSourcePort() const {return sourcePort;}
-
+    // Returns the port of the connections source
+    inline virtual uint16_t getSourcePort() const {
+        return sourcePort;
+    }
 
     inline virtual bool setBlocking(bool blockmode) = 0;
 
+    // Returns whether connection is blocking
     inline virtual bool isBlocking() const {
         return blockmode;
     }
 
+    // Returns whether reusmode is activated
     inline virtual bool isReuse() const {
         return reusemode;
     }
 
+    // Returns the send timeout, 0 is no timeout
     inline virtual unsigned getSendTimeout() const {
         return sendTimeout;
     }
 
+    // Returns the receive timeout, 0 is no timeout
     inline virtual unsigned getRecvTimeout() const {
         return recvTimeout;
     } 
 
     inline virtual int getfd() const = 0;
 
+    // Enum to maintain connection state
     enum State {
         DISCONNECTED,
         READY,
@@ -81,23 +84,37 @@ public:
 
     class Factory;
 
+    // Returns the address associated with the connection
     inline virtual const std::string& getAddress() const {
         return address;
     }
 
+    // Returns the port of the connections destination
     inline virtual uint16_t getDestinationPort() const {
         return destinationPort;
     }
 
     virtual bool doConnect() = 0;
     virtual bool sendmsg(const uint8_t* const msg, unsigned length, int flags) const = 0;
-    inline bool sendmsg(const uint8_t* const msg, unsigned length) const { return sendmsg(msg, length, 0); }
+
+    // Send a message with given length over this connection
+    inline bool sendmsg(const uint8_t* const msg, unsigned length) const { 
+        return sendmsg(msg, length, 0); 
+    }
 
     virtual bool recvmsg(uint8_t* const msg, unsigned length, int flags) const = 0;
-    inline bool recvmsg(uint8_t* const msg, unsigned length) const { return recvmsg(msg, length, MSG_WAITALL); }
+
+    // Receives a message with given length over this connection
+    inline bool recvmsg(uint8_t* const msg, unsigned length) const { 
+        return recvmsg(msg, length, MSG_WAITALL); 
+    }
 
     virtual bool peekmsg(uint8_t* const msg, unsigned length, int flags) const = 0;
-    inline bool peekmsg(uint8_t* const msg, unsigned length) const { return peekmsg(msg, length, MSG_WAITALL); }
+
+    // Peeks length bytes from the received message over this connection
+    inline bool peekmsg(uint8_t* const msg, unsigned length) const { 
+        return peekmsg(msg, length, MSG_WAITALL); 
+    }
 
     virtual bool discardmsg(unsigned length) const = 0;
 protected:
@@ -131,6 +148,9 @@ class ClientConnection::Factory {
 public:
     explicit Factory(ConnectionType type) : type(type) {}
 
+    /*
+     * Associates given address-string with this connection
+     */
     Factory& withAddress(std::string addr) {
         address = std::move(addr);
         return *this;
@@ -146,6 +166,9 @@ public:
         return *this;
     }
 
+    /**
+     * Sets the destination port to use for the connection
+     */
     Factory& withDestinationPort(uint16_t port) {
         destinationPort = port;
         return *this;

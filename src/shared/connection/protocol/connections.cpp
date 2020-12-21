@@ -15,7 +15,6 @@ static inline uint8_t* prepare_standard_message(size_t datasize, message::standa
 }
 
 // Sends a LOCAL_DISCOVERY_REQ to remote.
-// hash (string)
 bool connections::shared::send::discovery_req(const std::shared_ptr<ClientConnection>& connection, const std::string& hash) {
     const auto m_size = hash.size();
     uint8_t* const data = prepare_standard_message(m_size, message::standard::LOCAL_DISCOVERY_REQ);
@@ -28,9 +27,6 @@ bool connections::shared::send::discovery_req(const std::shared_ptr<ClientConnec
 }
 
 // Sends a LOCAL_DISCOVERY_REPLY to remote.
-// hash_size (size_t)
-// hash (string)
-// table (array of const-sized Address)
 bool connections::shared::send::discovery_reply(const std::shared_ptr<ClientConnection>& connection, const IPTable& table, const std::string& hash, const Address& addr) {
     size_t table_size = sizeof(size_t) + hash.size() + (1+table.size()) * Address::size();
     uint8_t* const data = prepare_standard_message(table_size, message::standard::LOCAL_DISCOVERY_REPLY);
@@ -56,11 +52,7 @@ bool connections::shared::send::discovery_reply(const std::shared_ptr<ClientConn
         free(data);
         return false;
     }
-    //std::cerr << "Sent table containing " << (table.size()+1) << " entries:\n";
-    // std::cerr << addr.type << ':' << addr.ip << ':' << addr.port << '\n';
-    // for (auto it = table.cbegin(); it != table.cend(); ++it) {
-    //     std::cerr << it->type << ':' << it->ip << ':' << it->port << '\n';
-    // }
+
     free(data);
     return true;
 }
@@ -71,16 +63,12 @@ bool connections::shared::send::discovery_reply(const std::shared_ptr<ClientConn
 
 
 // Receive information of a LOCAL_DISCOVERY_REQ from a raw buffer
-// hash (string)
 bool connections::shared::recv::discovery_req(const uint8_t* const data, size_t size, std::string& hash) {
     hash = std::string((char*)(data+message::standard::bytesize()), size-message::standard::bytesize());
     return true;
 }
 
 // Receive information of a LOCAL_DISCOVERY_REPLY from a raw buffer
-// hash_size (size_t)
-// hash (string)
-// table (array of const-sized Address)
 bool connections::shared::recv::discovery_reply(const uint8_t* const data, size_t size, IPTable& peertable, std::string& hash) {
     const uint8_t* ptr = data+message::standard::bytesize();
 

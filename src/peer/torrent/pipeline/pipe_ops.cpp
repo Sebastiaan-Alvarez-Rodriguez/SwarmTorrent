@@ -54,8 +54,6 @@ void peer::pipeline::join(peer::torrent::Session& session, std::shared_ptr<Clien
 
     // listen-only for future incoming comms from this remote
     cache.insert(current_address, connection);
-    //Also already cache a connection to remote main port, so we can send our requests over that connection?
-    // cache.insert(remote_target_address, std::move(TCPClientConnection::Factory::from(remote_target_address.type.n_type).withAddress(remote_target_address.ip).withDestinationPort(remote_target_address.port).create()));
     std::cerr << "... Cached connection to " << current_address.type << ':' << current_address.ip << ':'<<current_address.port;
 
 
@@ -87,7 +85,6 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::shared_ptr<C
     size_t fragment_nr;
     connections::peer::recv::data_req(data, size, req_port, fragment_nr);
     const auto addr = Address(connected_ip, req_port);
-    // std::cerr << "Received a DATA_REQ (port=" << req_port << ", fragment_nr=" << fragment_nr << ") ("<<addr.ip<<':'<<addr.port<<")";
 
     if (!session.has_registered_peer(addr)) { //Data requests from unknown entities produce only ERROR
         message::standard::send(connection, message::standard::ERROR);
@@ -107,9 +104,6 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::shared_ptr<C
         return;
     }
     message::standard::send(connection, message::standard::OK);
-    // connection.reset(); // Closes the connection
-
-    // std::cerr << print::CYAN << ". We accepted the DATA_REQ request!" << print::CLEAR << '\n';
 
     unsigned data_size;
     uint8_t* diskdata = handler.read_with_leading(fragment_nr, data_size, message::peer::bytesize()+sizeof(size_t));
@@ -141,9 +135,7 @@ void peer::pipeline::data_req(peer::torrent::Session& session, std::shared_ptr<C
     }
     if (!connections::peer::send::data_reply_fast(target_conn, fragment_nr, diskdata, message::peer::bytesize()+sizeof(size_t)+data_size)) {
         std::cerr << "Could not send data to peer. Hangup? Some other problem?\n";
-    } else {
-        // std::cerr << "Sent fragment nr=" << fragment_nr << ", size=" << data_size << " bytes to peer "; target_conn->print(std::cerr); std::cerr << '\n';
-    }
+    } 
 }
 
 void peer::pipeline::data_reply(peer::torrent::Session& session, std::shared_ptr<ClientConnection>& connection, FragmentHandler& handler, uint8_t* const data, size_t size) {
@@ -155,20 +147,15 @@ void peer::pipeline::data_reply(peer::torrent::Session& session, std::shared_ptr
     // 6. Write to disk at right location.
     // 7. Mark object as completed when finished
 
-    // std::cerr << "Received a DATA_REPLY ";
 
     const auto connected_ip = connection->getAddress();
     __attribute__ ((unused)) const uint16_t their_port = connection->getDestinationPort();
     // Note: Even if the address is not from our group, we still process the data.
     // After all: If the data matches the checksum, why would we not use it?
 
-    // connection.reset(); // Closes the connection
-
     size_t fragment_nr;
     uint8_t* fragment_data;
     connections::peer::recv::data_reply(data, size, fragment_nr, fragment_data);
-
-    // std::cerr << "(fragment_nr=" << fragment_nr << ") ("<<connected_ip<<':'<<their_port<<"). ";
 
     if (session.fragment_completed(fragment_nr)) // We already have this fragment
         return;
@@ -186,7 +173,6 @@ void peer::pipeline::data_reply(peer::torrent::Session& session, std::shared_ptr
         std::cerr << "There was a problem writing fragment " << fragment_nr << " to disk\n";
         return;
     }
-    // std::cerr << "Marked fragment "<<fragment_nr<<" as complete." << std::endl;
     session.mark_fragment(fragment_nr);
 }
 
@@ -200,7 +186,6 @@ void peer::pipeline::local_discovery(const peer::torrent::Session& session, cons
         return;
     }
 
-    //std::cerr << "Sending LOCAL_DISCOVERY_REPLY. Note: We believe that our address="<<session.get_address().type<<':'<<session.get_address().ip<<':'<<session.get_address().port<<'\n';
     connections::shared::send::discovery_reply(connection, session.get_peertable_copy(), recv_hash, session.get_address());
 }
 

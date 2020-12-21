@@ -23,6 +23,8 @@
 #include "shared/util/random/random.h"
 #include "shared/util/random/randomGenerator.h"
 #include "torrent.h"
+
+// Registers self at tracker
 static bool send_register(ConnectionType type, std::string address, uint16_t port, std::string hash, uint16_t sourcePort) {
     auto tracker_connection = TCPClientConnection::Factory::from(type.n_type).withAddress(address).withDestinationPort(port).create();
     if (tracker_connection->get_state() != ClientConnection::READY) {
@@ -99,18 +101,11 @@ static IPTable compose_peertable(peer::torrent::Session& session, bool force_reg
     IPTable maintable;
     for (const auto& t : peertables)
         maintable.merge(t);
-
-    //TODO @Sebastiaan: vectorize above for-loop, make parallel processing tasks?
-    // Maybe even the for-loop above that, so each process fetches its own table as well, and we simultaneously ask tables.
-    // Pro: We can use a mergesort tree structure to merge peertables, which is big fast!
-    // Con: This is nontrivial to implement, needs multiprocessing preferably. 
-    // That would mean: forking or popen syscalls... Or std::async!
-    //  First check: Is it needed? Depends on amount of trackers, and the peertable sizes they return
     return maintable;
 }
 
 // Request any peer in our group to provide us with the peers they know
-static void requests_send_local_discovery(peer::torrent::Session& session, ConnectionCache& cache, rnd::RandomGenerator<size_t>& rand) {
+__attribute__((unused)) static void requests_send_local_discovery(peer::torrent::Session& session, ConnectionCache& cache, rnd::RandomGenerator<size_t>& rand) {
     const auto registry = session.get_peer_registry_copy();
     if (registry.size() == 0) // Cannot discover on an empty registry. First need to join some peers.
         return;
@@ -169,7 +164,6 @@ static void requests_send_local_discovery(peer::torrent::Session& session, Conne
             continue;
         }
         free(data);
-        //std::cerr << "Interpreted reply: Received " << recvtable.size() << " peers.\n";
         if (recv_hash != session.get_metadata().content_hash) {
             std::cerr << "Received hash mismatching our own. (Ours="<<session.get_metadata().content_hash<<", theirs="<<recv_hash<<")\n";
             continue;
@@ -183,13 +177,7 @@ static void requests_send_local_discovery(peer::torrent::Session& session, Conne
 // Send join requests to a number of peers. 
 static void requests_send_join(peer::torrent::Session& session, ConnectionCache& cache) {
     auto torrent_hash = session.get_metadata().content_hash;
-    //TODO @Mariska: 
-    // Need something to balance load between peers. Now all peers will probably connect to same others first.
-    // Elements are unordered, but do the same values make the same hashmap? If not, no problems...
-    // Maybe make a random generator in util to generate some random number in a given range?
-        // Initialize the random generator with something that is different for every peer... Hostname string? Hostname+ip?
-        // Note that initializing with time is maybe/probably not good enough, so only do that if the above option won't work
-    
+   
     const auto registry = session.get_peer_registry_copy(); // we just use copies instead of locks. The registry is not that large anyway.
     if (registry.size() >= peer::torrent::defaults::prefered_group_size) // our group is large enough
         return;
@@ -250,9 +238,6 @@ static void requests_send_join(peer::torrent::Session& session, ConnectionCache&
 
             connections::peer::recv::join_reply(data, header.size, recv_hash, remote_available);
             free(data);
-
-            // const Address accepted_address = {connection->get_type(), address.ip, address.port};
-            // cache.insert(accepted_address, connection);
 
             session.register_peer(address, remote_available);
         } else if (header.tag == message::standard::REJECT) {
@@ -339,10 +324,9 @@ static void requests_send_data_req(peer::torrent::Session& session, ConnectionCa
         return;
 
     const size_t request_registry_size = session.num_requests();
-    if (request_registry_size >= peer::torrent::defaults::outgoing_requests) {// already have max connections out
-        // std::cerr << "Too many outgoing DATA_REQs, blocked sending more by request registry\n";
+    if (request_registry_size >= peer::torrent::defaults::outgoing_requests)// already have max connections out
         return;
-    }
+
     const size_t diff = peer::torrent::defaults::outgoing_requests - request_registry_size;
 
     // pick fragments
@@ -479,8 +463,7 @@ static void requests_send_availability(peer::torrent::Session& session, Connecti
             continue;
         }
         message::standard::Header header = message::standard::recv(connection);
-        // std::cerr <<print::YELLOW << "[WARN] Could not receive AVAILABILITY response from peer: " << print::CLEAR; connection->print(std::cerr);std::cerr << '\n';
-        // continue;
+
         if (header.tag == message::standard::OK) {
             std::cerr << print::CYAN << "[TEST] We got an OK for our AVAILABILITY request from peer: " << print::CLEAR; connection->print(std::cerr);std::cerr << '\n';
             uint8_t* const data = (uint8_t*) malloc(header.size);
@@ -501,10 +484,6 @@ static void requests_send_availability(peer::torrent::Session& session, Connecti
 
 // Send request to peers in our local network
 static void requests_send(peer::torrent::Session& session, ConnectionCache& cache, rnd::RandomGenerator<size_t>& rand) {
-    //TODO: 2 options for sending
-    // 1. Send using a timeout, 1 by 1. Pro is that we can use 1 port. Con is that 1-by-1 sending is slow.
-    // 2. Same as 1, but using multiple threads. Pro is big performance, con is that we use multiple ports.
-    // For now we make 1. Adaption to 2 is simple enough to not be a waste of time.
     volatile size_t known_peers = session.num_known_peers();
     if (known_peers == 0) { // We have 0 peers. Ask tracker to provide us peers
         std::cerr << "We now have 0 peers! We must ask the trackers for a peertable\n";
@@ -536,8 +515,6 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
         if (connection == nullptr)
             exit(1);
         message::standard::Header standard = message::standard::recv(connection);
-        // std::cerr << "Unable to peek. System hangup?" << std::endl;
-        // continue;
         const bool message_type_peer = standard.formatType == message::peer::id;
         const bool message_type_standard = standard.formatType == message::standard::id;
 
@@ -575,9 +552,7 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
             switch (standard.tag) {
                 case message::standard::LOCAL_DISCOVERY_REQ: peer::pipeline::local_discovery(session, connection, data, standard.size); break;
                 case 0: /* we had an EWOULDBLOCK in the poll */ break;
-                default: // We get here when we receive some other or corrupt tag
-                    //std::cerr << "Received an unimplemented standard tag: " << standard.tag << '\n';
-                    break;
+                default: /* We get here when we receive some other or corrupt tag */ break;
             }
             free(data);
         } else {
@@ -590,7 +565,7 @@ static void requests_receive(peer::torrent::Session& session, std::unique_ptr<Ho
     p.do_poll(hostconnection, cache.values(), 10, l, l);    
 }
 
-
+// Sets up all required to torrent a file, including but not limited to, all threads that handle receives and sends
 bool torrent::run(const std::string& torrentfile, const std::string& workpath, uint16_t sourcePort, bool initial_seeder, const std::string& logfile) {
     // 0. Prepare and check output location
     // 1. Load trackerlist from tf

@@ -7,6 +7,8 @@
 
 #include "torrentFile.h"
 
+// Returns generated hash-string from provided string
+// Returns an empty string if operation fails
 static std::string generate_hash(std::string tf) {
     std::ifstream reader(tf, std::ios::binary | std::ios::ate);
     std::streamsize size = reader.tellg();

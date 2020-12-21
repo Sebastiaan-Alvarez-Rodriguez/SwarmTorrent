@@ -5,6 +5,7 @@
 #include <string>
 
 namespace print {
+    // POSIX color codes
     enum color {
         CLEAR = 0,
         CYAN = 36, 
@@ -14,6 +15,7 @@ namespace print {
         WHITE = 37
     };
 
+    // Returns given stream with given color
     inline std::ostream& operator<<(std::ostream& stream, color val) {
         return stream << "\033[" << static_cast<int>(val) << "m";
     }

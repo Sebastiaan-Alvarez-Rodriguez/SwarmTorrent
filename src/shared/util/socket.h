@@ -7,6 +7,10 @@
 #include "shared/connection/meta/type.h"
 
 namespace sock {
+    /**
+     * Creates a socket with given type and binds this to a new file descriptor
+     * Returns the file descriptor
+     */
     inline int make(const ConnectionType& type) {
         int sockfd;
         if ((sockfd = socket(type.n_type.to_ctype(), type.t_type.to_ctype(), 0)) < 0)

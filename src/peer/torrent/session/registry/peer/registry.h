@@ -57,6 +57,7 @@ namespace peer::torrent {
         // Returns vector of addresses which own given fragment (and belong to our group of course)
         std::vector<Address> get_peers_for(size_t fragment_nr) const;
 
+        // Updates the peer fragments with given vector
         inline void update_peer_fragments(const Address& address, std::vector<bool>&& updated) {
             if (!contains(address))
                 return;
@@ -77,9 +78,12 @@ namespace peer::torrent {
         // Returns amount of peers in our group
         inline size_t size() const { return peers.size(); }
 
+        // Sets peers to given peers
         inline void set(const std::unordered_map<Address, Element>& peers) {
             this->peers = peers;
         }
+
+        // Creates new PeerRegistry by copying this PeerRegistry
         inline PeerRegistry copy() const {
             PeerRegistry p;
             p.set(this->peers);

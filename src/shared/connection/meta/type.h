@@ -5,11 +5,9 @@
 #include <ostream>
 #include <sys/socket.h> 
 
-// A simple start
-// https://www.geeksforgeeks.org/socket-programming-cc/
-
 class NetType {
 public:
+    // Enum for supported NetType
     enum Type : uint8_t {
         IPv4,
         IPv6
@@ -19,11 +17,16 @@ public:
     NetType() = default;
     NetType(Type t) : t(t) {}
 
-    inline bool operator==(const NetType& other) const { return this->t == other.t; }
+    inline bool operator==(const NetType& other) const { 
+        return this->t == other.t; 
+    }
 
     friend std::ostream& operator<<(std::ostream& stream, const NetType& t);
 
-    inline int to_ctype() const {return t == IPv4 ? AF_INET : AF_INET6;}
+    // Returns the ctype of the NetTypes type 
+    inline int to_ctype() const {
+        return t == IPv4 ? AF_INET : AF_INET6;
+    }
 
 };
 
@@ -38,6 +41,7 @@ inline std::ostream& operator<<(std::ostream& stream, const NetType& t) {
 
 class TransportType {
 public:
+    // Enum for supported TransportTypes
     enum Type {
         TCP
     };
@@ -46,12 +50,22 @@ public:
     TransportType() = default;
     TransportType(Type t) : t(t) {}
 
-    inline int to_ctype() const {return SOCK_STREAM;}
+    // Returns the ctype of the TransportTypes type
+    inline int to_ctype() const {
+        return SOCK_STREAM;
+    }
 
-    inline bool operator==(const TransportType& other) const { return this->t == other.t; }
+    inline bool operator==(const TransportType& other) const { 
+        return this->t == other.t; 
+    }
 
-    inline bool operator==(const Type& other) const { return this->t == other; }
-    inline bool operator!=(const Type& other) const { return !(*this == other); }
+    inline bool operator==(const Type& other) const { 
+        return this->t == other; 
+    }
+
+    inline bool operator!=(const Type& other) const { 
+        return !(*this == other); 
+    }
 
     friend std::ostream& operator<<(std::ostream& stream, const TransportType& t);
 
@@ -72,7 +86,9 @@ struct ConnectionType {
     ConnectionType(TransportType::Type t, NetType::Type n) : t_type(t), n_type(n) {}
     ConnectionType() = default;
 
-    inline bool operator==(const ConnectionType& other) { return this->t_type == other.t_type && this->n_type == other.n_type; }
+    inline bool operator==(const ConnectionType& other) { 
+        return this->t_type == other.t_type && this->n_type == other.n_type;
+    }
 
 };
 

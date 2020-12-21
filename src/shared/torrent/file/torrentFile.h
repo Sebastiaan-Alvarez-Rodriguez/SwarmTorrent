@@ -30,11 +30,19 @@ public:
     void save(const std::string& path) const;
 
     // Returns a constant reference to the trackertable
-    const IPTable& getTrackerTable() const { return trackertable; };
+    const IPTable& getTrackerTable() const { 
+        return trackertable; 
+    };
 
-    const HashTable& getHashTable() const { return hashtable; }
+    // Returns a constant reference to the hashtable
+    const HashTable& getHashTable() const { 
+        return hashtable; 
+    }
 
-    const TorrentMetadata& getMetadata() const { return metadata; }
+    // Returns a constant reference to the metadata
+    const TorrentMetadata& getMetadata() const { 
+        return metadata; 
+    }
 };
 
 #endif

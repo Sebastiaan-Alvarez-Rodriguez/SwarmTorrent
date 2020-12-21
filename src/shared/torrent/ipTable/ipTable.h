@@ -36,28 +36,46 @@ public:
 
     // Read and write to a SwarmTorrent file
     void write_stream(std::ostream& os) const override;
-    
     void read_stream(std::istream& is) override;
 
-    inline bool contains(const Address& a) const { return ips.find(a) != ips.end(); }
-    inline auto cbegin() const { return ips.begin(); }
-    inline auto cend() const { return ips.end(); }
+    // Returns if the IPTable contains given Address
+    inline bool contains(const Address& a) const { 
+        return ips.find(a) != ips.end(); 
+    }
 
+    // Returns a constant iterator to the table begin
+    inline auto cbegin() const { 
+        return ips.begin(); 
+    }
+
+    // Returns a constant iterator to the table end
+    inline auto cend() const { 
+        return ips.end(); 
+    }
+
+    // Merges two IPtables by performing an insert
     inline void merge(const IPTable& other) {
         ips.insert(other.cbegin(), other.cend());
     }
-    inline size_t size() const { return ips.size(); }
 
+    // Returns the number of IPs in the table
+    inline size_t size() const { 
+        return ips.size(); 
+    }
+
+    // Prints the IPTable
     inline void print(std::ostream& stream) {
         stream << "IPTable: \n";
         for (auto it = cbegin(); it != cend(); ++it)
             stream << "\tentry: " << it->type << ", " << it->ip << ':' << it->port << '\n';
     }
 
+    // Creates a new IPTable by copying this IPTable
     inline IPTable copy() const {
         return IPTable(*this);
     }
 
+    // Get the Address with given ip and port
     inline auto get(const std::string& ip, uint16_t port) {
         Address a;
         a.ip = ip;

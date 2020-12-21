@@ -11,6 +11,7 @@
 namespace message::tracker {
     static const inline uint8_t id = 32;
 
+    // Supported Tags for this message type
     enum Tag : uint8_t {
         TEST = 1,
         MAKE_TORRENT = 2,
@@ -20,10 +21,11 @@ namespace message::tracker {
     };
 
     struct Header {
-        size_t size;
-        uint8_t formatType = id;
-        Tag tag;
+        size_t size; // Size of the data
+        uint8_t formatType = id; // formatType id for this message type
+        Tag tag; // Tag for this message
 
+        // Write header to byte array
         inline void write(uint8_t* const ptr) const {
             uint8_t* writer = ptr;
             *(size_t*) writer = size;
@@ -35,6 +37,7 @@ namespace message::tracker {
             *writer = (uint8_t) tag;
         }
 
+        // Read header from byte array 
         inline static Header read(const uint8_t* const ptr) {
             const uint8_t* reader = ptr;
 
@@ -50,26 +53,26 @@ namespace message::tracker {
         }
     };
 
+    // Returns the size in bytes of a header
     constexpr inline static size_t bytesize() {
         return sizeof(size_t)+sizeof(uint8_t)+sizeof(Tag);
     }
 
+    // Writes a given header to a byte array
     inline void write(const Header& h, uint8_t* const ptr) {
         h.write(ptr);
     }
 
-    /** Initializes a Header */
+    // Initializes a Header 
     inline Header from(Tag t) {
         Header h;
         h.formatType = id;
         h.tag = t;
         return h;
     }
-
-    /**
-     * Initializes a Header.
-     * '''Note:''' provided size is assumed to be size of extra data. Header size is added.
-     */
+    
+    // Initializes a Header.
+    // '''Note:''' provided size is assumed to be size of extra data. Header size is added.
     inline Header from(size_t datasize, Tag t) {
         Header h;
         h.size = datasize+bytesize();
@@ -78,6 +81,7 @@ namespace message::tracker {
         return h;
     }
 
+    // Returns the header from a connection by peeking the received message
     inline Header recv(const std::unique_ptr<ClientConnection>& conn) {
         uint8_t data[bytesize()];
         conn->peekmsg(data, bytesize());

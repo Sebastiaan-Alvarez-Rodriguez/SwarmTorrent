@@ -64,6 +64,7 @@ namespace peer::torrent {
             return total_requests;
         }
 
+        // Creates a new RequestRegistry by copying this RequestRegistry
         inline RequestRegistry copy() const {
             return RequestRegistry(*this);
         }

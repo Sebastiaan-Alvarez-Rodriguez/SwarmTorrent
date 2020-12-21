@@ -17,8 +17,6 @@
 #include "tracker/session/session.h"
 #include "tracker/defaults.h"
 
-// Usage of std async: https://kholdstare.github.io/technical/2012/12/18/perfect-forwarding-to-async-1.html
-
 /**
  * Prepares a request, by allocating a buffer for given datasize, 
  * starting with a message::standard::Header of given type.
@@ -32,6 +30,9 @@ static inline uint8_t* prepare_standard_message(size_t datasize, message::standa
     return data;
 }
 
+
+
+// Finds new peers for the peertables by sending discovery requests to registered peers
 static void handle_discovery(Session& session, rnd::RandomGenerator<size_t> rand) {
     const auto& registry_hashes = session.get_registry_keys();
     IPTable peertable;
@@ -49,7 +50,6 @@ static void handle_discovery(Session& session, rnd::RandomGenerator<size_t> rand
             // 1. Pick a number of peers to discover from
             // 2. Send discovery requests
             // 3. Receive discovery requests, set new table
-
 
             const auto num_peers = std::min(table.size() < tracker::torrent::defaults::fast_update_size ? tracker::torrent::defaults::fast_update_pool_size :
                 (table.size() < tracker::torrent::defaults::medium_update_size ? tracker::torrent::defaults::medium_update_pool_size : tracker::torrent::defaults::slow_update_pool_size), table.size());
@@ -76,9 +76,6 @@ static void handle_discovery(Session& session, rnd::RandomGenerator<size_t> rand
                 connections::shared::send::discovery_req(connection, hash);
 
                 message::standard::Header standard = message::standard::recv(connection);
-                // std::cout << "Unable to peek. System hangup?" << std::endl;
-                // continue;
-            
 
                 if (standard.formatType != message::tracker::id) {
                     std::cerr << "Received invalid message! Not a Tracker-message. Skipping..." << std::endl;
@@ -101,6 +98,7 @@ static void handle_discovery(Session& session, rnd::RandomGenerator<size_t> rand
     }
 }
 
+// Handles a make torrent request by adding a new peertable identified with given hash to the registry
 static void handle_make_torrent(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
     std::string hash((char*) msg+message::tracker::bytesize(), bufsize-message::tracker::bytesize());
     std::cout << "Got a Make Torrent request (hash=" << hash << ")" << std::endl;
@@ -111,6 +109,7 @@ static void handle_make_torrent(Session& session, std::unique_ptr<ClientConnecti
     message::standard::send(client_conn, message::standard::OK);
 }
 
+// Handles a receive request by sending a peertable 
 static void handle_receive(const Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
     std::string hash((char*) msg+message::tracker::bytesize(), bufsize-message::tracker::bytesize());
     std::cout << "Got a Receive request (hash=" << hash << ")" << std::endl;
@@ -149,10 +148,8 @@ static void handle_receive(const Session& session, std::unique_ptr<ClientConnect
     free(data);
 }
 
-// Handle REGISTER requests
-// peermessage (tag REGISTER)
-// hash (string)
-// port to register (uint16_t)
+// Handle register request by adding the request-sending peer to the table identified by given hash
+// Table should exist before a register can be performed
 static void handle_register(Session& session, std::unique_ptr<ClientConnection>& client_conn, const uint8_t* const msg, size_t bufsize) {
     const auto hashlength = bufsize-message::tracker::bytesize()-sizeof(uint16_t);
     std::string hash((char*) msg+message::tracker::bytesize(), hashlength);
@@ -167,6 +164,7 @@ static void handle_register(Session& session, std::unique_ptr<ClientConnection>&
     }
 }
 
+// Starts and maintains all threads to run the tracker
 static bool run(uint16_t port) {
     auto conn = TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(port).create();
     if (conn->get_state() != ClientConnection::READY) {
@@ -221,6 +219,7 @@ static bool run(uint16_t port) {
     return 0;
 }
 
+// Handles input and starts tracker
 int main(int argc, char const **argv) {
     TCLAP::CmdLine cmd("SwarmTorrent Tracker Run", ' ', "0.1");
     TCLAP::ValueArg<uint16_t> portArg("p","port","Port to which peer connect",true,1042,"PORT", cmd);

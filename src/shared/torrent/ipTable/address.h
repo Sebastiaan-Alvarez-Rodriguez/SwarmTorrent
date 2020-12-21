@@ -36,12 +36,16 @@ struct Address : public Streamable {
 
 
     // We enforce ip has a maximum size of 16 bytes (for IPv6, IPv4 uses less)
-    constexpr static size_t ip_size() { return 16; }
+    constexpr static size_t ip_size() { 
+        return 16; 
+    }
 
     // Returns the size of an Address, applying ip constant expression enforcement.
     // We allocate first the connectiontype, then the ip buffer, next up 1 more byte for size of ip.
     // Lastly, we need 2 bytes for the port number
-    constexpr static size_t size() { return sizeof(ConnectionType) + ip_size()*sizeof(char) + sizeof(uint8_t) + sizeof(uint16_t); }
+    constexpr static size_t size() { 
+        return sizeof(ConnectionType) + ip_size()*sizeof(char) + sizeof(uint8_t) + sizeof(uint16_t); 
+    }
 
     // Read and write to a SwarmTorrent file
     void write_stream(std::ostream& os) const override;
@@ -56,12 +60,10 @@ struct Address : public Streamable {
 #include "shared/util/anticollision.h"
 
 namespace std {
-    // Better hashing: http://myeyesareblind.com/2017/02/06/Combine-hash-values/
     template <>
     struct hash<Address> {
         size_t operator()(const Address& a) const {
             size_t val_a = std::hash<std::string>()(a.ip);
-            // return val_a ^ (std::hash<uint16_t>()(a.port) << 1);
             anticollision::boost(val_a, std::hash<uint16_t>()(a.port));
             return val_a;
         }

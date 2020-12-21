@@ -27,27 +27,27 @@ namespace peer::torrent {
     class Session {
     protected:
 
-        Address own_address;
+        Address own_address; // Address of self
 
-        peer::torrent::PeerRegistry peer_registry;
+        peer::torrent::PeerRegistry peer_registry; // Registry for peers in group
         mutable std::shared_mutex peer_registry_mutex;
-        peer::torrent::RequestRegistry request_registry;
+        peer::torrent::RequestRegistry request_registry; // Registry for outgoing data requests
         mutable std::shared_mutex request_registry_mutex;
 
         IPTable ptable; // table containing peers we might join. For joined peers, see [[peer_registry]]
         mutable std::shared_mutex ptable_mutex;
 
         size_t num_fragments_completed = 0;
-        std::vector<bool> fragments_completed;
+        std::vector<bool> fragments_completed; // Contains which fragments are already received
         mutable std::shared_mutex fragments_completed_mutex;
 
     public:
-        const HashTable hashtable;
-        const TorrentMetadata metadata;
-        const IPTable trackertable; // table containing trackers, as specified by the TorrentFile
+        const HashTable hashtable; // HashTable for all fragments
+        const TorrentMetadata metadata; // TorrentMetaData for the current torrentfile
+        const IPTable trackertable; // Table containing trackers, as specified by the TorrentFile
         
-        const std::string workpath;
-        const size_t num_fragments;
+        const std::string workpath; // Workpath to write received fragments to
+        const size_t num_fragments; // Number of fragments
 
         // The port on which this peer is listening
         const uint16_t registered_port;
@@ -90,6 +90,7 @@ namespace peer::torrent {
             }
         }
 
+        // Mark fragment as complete, delete all outstanding data requests for this fragment
         inline void mark_fragment(size_t fragment_nr) {
             std::unique_lock fragment_lock(fragments_completed_mutex);
             if (!fragments_completed[fragment_nr]) {
@@ -104,12 +105,16 @@ namespace peer::torrent {
 
         // Base session information //
 
+        // Returns whether fragment has been received
         inline bool fragment_completed(size_t fragment_nr) {
             std::shared_lock lock(fragments_completed_mutex);
             return fragments_completed[fragment_nr];
         }
 
-        inline const auto& get_fragments_completed_unsafe() { return fragments_completed; }
+        // Returns whether fragment has been received, thread-unsafe
+        inline const auto& get_fragments_completed_unsafe() { 
+            return fragments_completed; 
+        }
 
         // Returns a valid copy of the fragments vector to operate on
         inline const auto get_fragments_completed_copy() {
@@ -117,6 +122,7 @@ namespace peer::torrent {
             return fragments_completed;
         }
 
+        // Returns if all fragments have been received
         inline bool download_completed() const {
             std::shared_lock lock(fragments_completed_mutex);
             return num_fragments == num_fragments_completed;
@@ -126,9 +132,15 @@ namespace peer::torrent {
 
         // basic member access methods //
 
-        inline const auto& get_hashtable() const { return hashtable; }
+        // Returns associated hashtable
+        inline const auto& get_hashtable() const { 
+            return hashtable; 
+        }
 
-        inline const auto& get_metadata() const { return metadata; }
+        // Returns associated metadata
+        inline const auto& get_metadata() const { 
+            return metadata; 
+        }
 
         /**
          * Sets address of ourselves
@@ -144,6 +156,7 @@ namespace peer::torrent {
          */
         inline const auto& get_address() const { return own_address; }
 
+        // Returns a peer registry, thread-unsafe
         inline const auto& get_peer_registry_unsafe() const { return peer_registry; }
 
         // Returns a copy of the peer registry, thread-safe
@@ -151,43 +164,54 @@ namespace peer::torrent {
             return peer_registry.copy();
         }
 
+        // Returns a request registry, thread-unsafe
         inline const auto& get_request_registry_unsafe() const { return request_registry; }
 
+        // Returns a copy of the request registry, thread-safe
         inline const auto get_request_registry_copy() const {
             return request_registry.copy();
         }
 
+        // Returns the peertable, thread-unsafe
         inline const auto& get_peertable_unsafe() const { return ptable; }
 
+        // Returns a copy of the peertable, thread-safe
         inline const auto get_peertable_copy() const {
             std::shared_lock lock(ptable_mutex);
             return ptable.copy();
         }
 
+        // Returns trackertable
         inline const auto& get_trackertable() const { return trackertable; }
 
 
         // Peertable-related forwarding functions //
 
+        // Returns a peertable lock
         inline auto get_peertable_lock_read() {
             std::shared_lock lock(ptable_mutex);
             return lock;
         }
 
+        // Adds peer with given address to the peertable
         inline bool add_peer(const Address& a) {
             std::unique_lock lock(ptable_mutex);
             return ptable.add(a);
         }
+
+        // Merges given peertable with associated peertable
         inline void add_peers(const IPTable& peertable) {
             std::unique_lock lock(ptable_mutex);
             ptable.merge(peertable); 
         }
 
+        // Returns the address from peertable with given ip and port
         inline auto get_peer_address(std::string ip, uint16_t port) {
             std::shared_lock lock(ptable_mutex);
             return ptable.get(ip, port);
         }
 
+        // Set peertable to given peertable
         inline void set_peers(IPTable&& peertable) {
             std::unique_lock lock(ptable_mutex);
             ptable = std::move(peertable);
@@ -206,10 +230,13 @@ namespace peer::torrent {
             return true;
         }
 
+        // Returns if peertable contains peer with given address
         inline bool has_peer(const Address& address) {
             std::shared_lock lock(ptable_mutex);
             return ptable.contains(address);
         }
+
+        // Returns the number of peers in the peertable
         inline size_t num_known_peers() const {
             std::shared_lock lock(ptable_mutex);
             return ptable.size();
@@ -219,50 +246,61 @@ namespace peer::torrent {
 
         // Peer Registry-related forwarding functions //
 
+        // Mark a peer as responsive
         inline void mark_registered_peer(const Address& address) {
             std::unique_lock lock(peer_registry_mutex);
             peer_registry.mark(address);
         }
 
+        // Report a peer as unresponsive
         inline void report_registered_peer(const Address& address) {
             std::unique_lock lock(peer_registry_mutex);
             peer_registry.report(address);
         }
 
+        // Register peer with given address and fragments to peer registry
         inline bool register_peer(Address&& address, const std::vector<bool>& fragments_completed) {
             std::unique_lock lock(peer_registry_mutex);
             return peer_registry.add(address, fragments_completed);
         }
+
+        // Register peer with given address and fragments to peer registry
         inline bool register_peer(const Address& address, const std::vector<bool>& fragments_completed) {
             std::unique_lock lock(peer_registry_mutex);
             return peer_registry.add(address, fragments_completed);
         }
 
+        // Removes peer with given address from registry 
         inline void deregister_peer(const Address& address) {
             std::unique_lock lock(peer_registry_mutex);
             peer_registry.remove(address);
         }
 
+        // Returns whether peer registry contains peer with given address
         inline bool has_registered_peer(const Address& address) {
             std::shared_lock lock(peer_registry_mutex);
             return peer_registry.contains(address);
         }
 
+        // Updates the fragments_completed for a peer in the peertable with given address
         inline void update_registered_peer_fragments(const Address& address, std::vector<bool>&& fragments_completed) {
             std::unique_lock lock(peer_registry_mutex);
             peer_registry.update_peer_fragments(address, std::move(fragments_completed));
         }
 
+        // Performs garbage collect for the peer registry
         inline void peer_registry_gc() {
             std::unique_lock lock(peer_registry_mutex);
             peer_registry.gc();
         }
 
+        // Get all peers who have given fragment number
         inline auto get_peers_for(size_t fragment_nr) const {
             std::shared_lock lock(peer_registry_mutex);
             return peer_registry.get_peers_for(fragment_nr);
         }
 
+        // Return the number of registered epers in the peer registry
         inline size_t num_registered_peers() {
             std::shared_lock lock(peer_registry_mutex);
             return peer_registry.size();
@@ -272,37 +310,24 @@ namespace peer::torrent {
 
         // Request Registry-related forwarding functions //
 
+        // Registers request with associated fragment number and peer address to the request register
         inline void register_request(size_t fragment_nr, const Address& address) {
             std::unique_lock lock(request_registry_mutex);
             request_registry.add(fragment_nr, address);
         }
+
+        // Performs garbage collect on the request registry
         inline void request_registry_gc() {
             std::unique_lock lock(request_registry_mutex);
             request_registry.gc();
         }
+
+        // Returns the number of outstanding requests
         inline size_t num_requests() {
             std::shared_lock lock(request_registry_mutex);
             return request_registry.size();
         }
 
-
-
-        // // Cache-related forwarding functions //
-
-        // bool cache_insert(const Address& address, std::unique_ptr<ClientConnection>&& conn) {
-        //     std::unique_lock lock(connection_cache_mutex);
-        //     return cache.insert(address, std::move(conn));
-        // }
-
-        // void cache_erase(const Address& address) {
-        //     std::shared_lock lock(connection_cache_mutex);
-        //     cache.erase(address);
-        // }
-
-        // auto cache_get(const Address& address) {
-        //     std::shared_lock lock(connection_cache_mutex);
-        //     return cache.get_optional(address);
-        // }
     };
 }
 #endif

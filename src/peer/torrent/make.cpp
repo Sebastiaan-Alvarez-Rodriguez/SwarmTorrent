@@ -7,6 +7,8 @@
 #include "shared/util/fs/fs.h"
 #include "torrent.h"
 
+
+// Set up a torrent with given trackers 
 bool torrent::make(const std::string& in, const std::string& out, std::vector<std::string>& trackers) {
     if (!fs::is_file(in)) {
         std::cerr << print::RED << "[ERROR] No file found at '" << in << '\'' << print::CLEAR << '\n';

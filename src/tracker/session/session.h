@@ -21,6 +21,7 @@ public:
         return registry;
     }
 
+    // Get all keys of registry
     inline const auto get_registry_keys() const {
         std::shared_lock lock(mutex);
         return registry.get_keys();
@@ -71,9 +72,12 @@ public:
         registry.merge_table(hash, std::move(peertable));
     }
 
+    // Returns a table for given hash without thread-safety
+    inline const auto& registry_element_for_unsafe(const std::string& hash) { 
+        return registry.get(hash); 
+    } 
 
-    inline const auto& registry_element_for_unsafe(const std::string& hash) { return registry.get(hash); } 
-
+    // Returns a table for given hash with thread-safety
     inline const auto registry_element_for(const std::string& hash) {
         std::shared_lock lock(mutex);
         return registry.get(hash);

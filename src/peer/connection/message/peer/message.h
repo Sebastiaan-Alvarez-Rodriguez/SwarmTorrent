@@ -9,6 +9,7 @@
 namespace message::peer {
     static const inline uint8_t id = 33;
 
+    // Supported tags for message
     enum Tag : uint8_t {
         TEST = 0,
         JOIN = 1,        // Request to start sharing data (other side responds with either OK or REJ).
@@ -18,11 +19,14 @@ namespace message::peer {
         INQUIRE = 5,     // Check if peer is dead.
         AVAILABILITY = 6 // Request the availability arrays
     };
-    struct Header {
-        size_t size;
-        uint8_t formatType = id;
-        Tag tag;
 
+    // Header for message
+    struct Header {
+        size_t size; // Size of message
+        uint8_t formatType = id; // formatType id associated with message type
+        Tag tag; // Tag of message
+
+        // Write header to byte array
         inline void write(uint8_t* const ptr) const {
             uint8_t* writer = ptr;
             *(size_t*) writer = size;
@@ -34,6 +38,7 @@ namespace message::peer {
             *writer = (uint8_t) tag;
         }
 
+        // Read header from byte array 
         inline static Header read(const uint8_t* const ptr) {
             const uint8_t* reader = ptr;
 
@@ -49,10 +54,12 @@ namespace message::peer {
         }
     };
 
+    // Returns the size in bytes of a header
     constexpr inline static size_t bytesize() {
         return sizeof(size_t)+sizeof(uint8_t)+sizeof(Tag);
     }
 
+    // Writes a given header to a byte array
     inline void write(const Header& h, uint8_t* const ptr) {
         h.write(ptr);
     }

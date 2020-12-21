@@ -5,6 +5,7 @@
 #include "sha256.h"
 
 namespace hash {
+    // Enum for different supported hash types
     enum Hash {
         SHA256_H = 32
     };
