@@ -2,7 +2,7 @@
 #define TORRENT_DEFAULTS_H
 
 namespace torrent::file::defaults {
-    const static uint64_t fragment_size = 100*1024;
+    const static uint64_t fragment_size = 512*1024;
 }
 
 #endif

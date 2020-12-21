@@ -44,11 +44,11 @@ class PerformanceExperiment(ExperimentInterface):
 
     def peers_core_affinity(self):
         '''Amount of peer processes which may be mapped on the same physical node'''
-        return 2
+        return 1
 
     def file_sizes(self):
         '''File sizes in MB'''
-        return [1, 50, 100]
+        return [128]
 
     def tracker_port(self):
         return 2320
@@ -63,7 +63,7 @@ class PerformanceExperiment(ExperimentInterface):
         return len(self.file_sizes())
 
     def get_result_file(self):
-        return fs.join(loc.get_peerkeeper_results_dir(), 'performance_experiment.csv')
+        return fs.join(loc.get_peerkeeper_results_dir(), 'impr_performance_experiment.csv')
 
     def check_ready(self):
         #TODO: via peerkeeper?
@@ -133,6 +133,7 @@ class PerformanceExperiment(ExperimentInterface):
             if self.check_ready():
                 break
 
+        time.sleep(5)
         status = peerkeeper.executor.stop()
         
         # cleanup files
@@ -147,6 +148,8 @@ class PerformanceExperiment(ExperimentInterface):
             time.sleep(3)
             if self.check_ready():
                 break
+
+        time.sleep(5)
         return peerkeeper.executor.stop()
 
     def post_experiment(self, peerkeeper):

@@ -67,7 +67,7 @@ class ScalabilityExperiment(ExperimentInterface):
         return len(self.file_sizes())
 
     def get_result_file(self):
-        return fs.join(loc.get_peerkeeper_results_dir(), 'scalability3_experiment.csv')
+        return fs.join(loc.get_peerkeeper_results_dir(), 'impr_scalability3_experiment.csv')
 
     def check_ready(self):
         #TODO: via peerkeeper?

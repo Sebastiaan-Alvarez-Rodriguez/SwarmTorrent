@@ -88,7 +88,7 @@ def run_peer(debug_mode):
             else:
                 if debug_mode: print('Peer {} is not seeder'.format(idr.identifier_global()))
                 syncer.sync()
-                time.sleep(5)
+                time.sleep(idr.identifier_global())
                 if debug_mode: printw('Booting peer')
                 executor = peer.boot_torrent(experiment, config , repeat)
 

@@ -608,7 +608,7 @@ bool torrent::run(const std::string& torrentfile, const std::string& workpath, u
     auto hostconnection = TCPHostConnection::Factory::from(NetType::IPv4).withSourcePort(sourcePort).withBlocking(false).create();
 
     peer::torrent::Session session(tf, workpath, sourcePort);
-    session.set_peers(compose_peertable(session, initial_seeder));
+    session.set_peers(compose_peertable(session, true));
     
     std::cerr << "Before booting receivethread: " << session.get_address().ip<< ':' << session.get_address().port << '\n';
     bool stop = false;
