@@ -93,6 +93,7 @@ class Experiment(object):
 
     def pre_experiment(self, repeats):
         self._peerkeeper._repeats = repeats
+        self._peerkeeper._timestamp = self.timestamp
         val = self.instance.pre_experiment(self._peerkeeper)
         self.persist()
         return val

@@ -38,6 +38,7 @@ class PeerKeeper(object):
         self._trackers = None
         self._index = None
         self._num_files = None
+        self._timestamp = None
 
     @property
     def executor(self):
@@ -113,6 +114,13 @@ class PeerKeeper(object):
     @num_files.setter
     def set_num_files(self):
         raise RuntimeError('You cannot set the num files yourself!')
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+    def set_timestamp(self):
+        raise RuntimeError('You cannot set the timestamp yourself!')
+    
 
 
     # Function to completely prohibit changing (i.e. writing, updating, deleting) PeerKeeper register
